@@ -1,0 +1,6 @@
+{
+    "appId": "cmg351iwy00f5l50dh3csc0lf",
+    "clientId": "client-WY6RQJUgXfUub8i25tk17W8LTk5UyY8VJvw1esVmK1YLj",
+    "appSecret": "3d5fKzFCYFUfXVwPX2Enh8h1HJv3beefZULnNDbTs5Hac1x3GVaoxhPpGb43rjWhQzKHBaDQfFsb8yjhcLs8LvHt",
+    "JWKSEndpoint": "https://auth.privy.io/api/v1/apps/cmg351iwy00f5l50dh3csc0lf/jwks.json"
+}
