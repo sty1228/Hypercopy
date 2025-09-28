@@ -6,7 +6,6 @@ import { FullScreenLoader } from "@/components/ui/fullscreen-loader";
 import * as hl from "@nktkas/hyperliquid";
 import { ethers } from "ethers";
 import { showErrorToast } from "@/components/ui/custom-toast";
-import { sign } from "crypto";
 
 export default function Home() {
   const { ready, authenticated, logout, login, user, linkEmail } = usePrivy();
