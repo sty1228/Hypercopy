@@ -1,0 +1,64 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import colors from "@/const/colors";
+import Image from "next/image";
+import homeIcon from "@/assets/icons/home.png";
+import copyTradingIcon from "@/assets/icons/copy-trading.png";
+import aboutIcon from "@/assets/icons/about.png";
+import portfolioIcon from "@/assets/icons/portfolio.png";
+import notificationIcon from "@/assets/icons/notification.png";
+import settingsIcon from "@/assets/icons/settings.png";
+
+const Navbar = () => {
+  const pathname = usePathname();
+  useEffect(() => {
+    console.log(pathname);
+  }, [pathname]);
+
+  return (
+    <nav
+      className="w-full"
+      style={{
+        position: "fixed",
+        bottom: "0",
+        height: "62px",
+        padding: "0 42px",
+        zIndex: 99,
+        backgroundColor: colors.primary,
+      }}
+    >
+      <ul className="h-full flex justify-between items-center">
+        <li>
+          <Link href="/">
+            <Image src={homeIcon} alt="logo" width={22} height={22} />
+          </Link>
+        </li>
+        <li>
+          <Link href="/copyTrading">
+            <Image src={copyTradingIcon} alt="logo" width={22} height={22} />
+          </Link>
+        </li>
+        <li>
+          <Link href="/">
+            <Image src={portfolioIcon} alt="logo" width={22} height={22} />
+          </Link>
+        </li>
+        <li>
+          <Link href="/">
+            <Image src={notificationIcon} alt="logo" width={22} height={22} />
+          </Link>
+        </li>
+        <li>
+          <Link href="/">
+            <Image src={settingsIcon} alt="logo" width={22} height={22} />
+          </Link>
+        </li>
+      </ul>
+    </nav>
+  );
+};
+
+export default Navbar;

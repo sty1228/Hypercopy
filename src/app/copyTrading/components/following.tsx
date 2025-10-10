@@ -1,0 +1,31 @@
+import Image from "next/image";
+import closeIcon from "@/assets/icons/close.png";
+
+export default function Following() {
+  return (
+    <div className="flex justify-between items-center h-[40px]">
+      <span className="font-semibold text-3xl">Following</span>
+      <div
+        className="h-[40px] flex items-center px-2 rounded-[20px]"
+        style={{
+          background: "linear-gradient(to bottom right, blue, pink)",
+          minWidth: "120px",
+        }}
+      >
+        <div
+          className="display-inlineblock flex items-center justify-center"
+          style={{
+            backgroundColor: "#E669CB",
+            width: "28px",
+            height: "28px",
+            borderRadius: "14px",
+          }}
+        >
+          Y
+        </div>
+        <span className="ml-1 font-medium text-sm">@textUser</span>
+        <Image src={closeIcon} alt="close" className="ml-2" width={24} height={24} />
+      </div>
+    </div>
+  );
+}
