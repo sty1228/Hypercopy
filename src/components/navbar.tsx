@@ -7,7 +7,6 @@ import colors from "@/const/colors";
 import Image from "next/image";
 import homeIcon from "@/assets/icons/home.png";
 import copyTradingIcon from "@/assets/icons/copy-trading.png";
-import aboutIcon from "@/assets/icons/about.png";
 import portfolioIcon from "@/assets/icons/portfolio.png";
 import notificationIcon from "@/assets/icons/notification.png";
 import settingsIcon from "@/assets/icons/settings.png";

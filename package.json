@@ -16,7 +16,8 @@
     "next": "15.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-toastify": "^11.0.5"
+    "react-toastify": "^11.0.5",
+    "react-virtualized": "^9.22.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -24,6 +25,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/react-virtualized": "^9.22.3",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "tailwindcss": "^4",

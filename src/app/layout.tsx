@@ -28,7 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className="w-full h-screen"
+        className="w-full h-screen overflow-x-hidden"
         style={{ backgroundColor: colors.primary }}
       >
         <main className="flex-1 w-full" style={{ paddingBottom: "62px" }}>

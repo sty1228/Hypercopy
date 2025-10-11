@@ -32,6 +32,9 @@ importers:
       react-toastify:
         specifier: ^11.0.5
         version: 11.0.5(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      react-virtualized:
+        specifier: ^9.22.6
+        version: 9.22.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3
@@ -48,6 +51,9 @@ importers:
       '@types/react-dom':
         specifier: ^19
         version: 19.1.9(@types/react@19.1.14)
+      '@types/react-virtualized':
+        specifier: ^9.22.3
+        version: 9.22.3
       eslint:
         specifier: ^9
         version: 9.36.0(jiti@2.6.0)
@@ -72,6 +78,10 @@ packages:
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
+
+  '@babel/runtime@7.28.4':
+    resolution: {integrity: sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ==}
+    engines: {node: '>=6.9.0'}
 
   '@base-org/account@1.1.1':
     resolution: {integrity: sha512-IfVJPrDPhHfqXRDb89472hXkpvJuQQR7FDI9isLPHEqSYt/45whIoBxSPgZ0ssTt379VhQo4+87PWI1DoLSfAQ==}
@@ -888,10 +898,16 @@ packages:
   '@types/node@22.7.5':
     resolution: {integrity: sha512-jML7s2NAzMWc//QSJ1a3prpk78cOPchGvXJsC3C6R6PSMoooztvRVQEz89gmBTBY1SPMaqo5teB4uNHPdetShQ==}
 
+  '@types/prop-types@15.7.15':
+    resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
+
   '@types/react-dom@19.1.9':
     resolution: {integrity: sha512-qXRuZaOsAdXKFyOhRBg6Lqqc0yay13vN7KrIg4L7N4aaHN68ma9OK3NE1BoDFgFOTfM7zg+3/8+2n8rLUH3OKQ==}
     peerDependencies:
       '@types/react': ^19.0.0
+
+  '@types/react-virtualized@9.22.3':
+    resolution: {integrity: sha512-UKRWeBIrECaKhE4O//TSFhlgwntMwyiEIOA7WZoVkr52Jahv0dH6YIOorqc358N2V3oKFclsq5XxPmx2PiYB5A==}
 
   '@types/react@19.1.14':
     resolution: {integrity: sha512-ukd93VGzaNPMAUPy0gRDSC57UuQbnH9Kussp7HBjM06YFi9uZTFhOvMSO2OKqXm1rSgzOE+pVx1k1PYHGwlc8Q==}
@@ -1523,6 +1539,9 @@ packages:
   doctrine@2.1.0:
     resolution: {integrity: sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw==}
     engines: {node: '>=0.10.0'}
+
+  dom-helpers@5.2.1:
+    resolution: {integrity: sha512-nRCa7CK3VTrM2NmGkIy4cbK7IZlgBE/PYMn55rrXefr5xXDP0LdtfPnblFDoVdcAfslJ7or6iqAUnx0CCGIWQA==}
 
   dotenv@16.6.1:
     resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
@@ -2595,11 +2614,20 @@ packages:
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
 
+  react-lifecycles-compat@3.0.4:
+    resolution: {integrity: sha512-fBASbA6LnOU9dOU2eW7aQ8xmYBSXUIWr+UmF9b1efZBazGNO+rcXT/icdKnYm2pTwcRylVUYwW7H1PHfLekVzA==}
+
   react-toastify@11.0.5:
     resolution: {integrity: sha512-EpqHBGvnSTtHYhCPLxML05NLY2ZX0JURbAdNYa6BUkk+amz4wbKBQvoKQAB0ardvSarUBuY4Q4s1sluAzZwkmA==}
     peerDependencies:
       react: ^18 || ^19
       react-dom: ^18 || ^19
+
+  react-virtualized@9.22.6:
+    resolution: {integrity: sha512-U5j7KuUQt3AaMatlMJ0UJddqSiX+Km0YJxSqbAzIiGw5EmNz0khMyqP2hzgu4+QUtm+QPIrxzUX4raJxmVJnHg==}
+    peerDependencies:
+      react: ^16.3.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.3.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   react@19.1.0:
     resolution: {integrity: sha512-FS+XFBNvn3GTAWq26joslQgWNoFu08F4kl0J4CgdNKADkdSGXQyTCnKteIAJy96Br6YbpEU1LSzV5dYtjMkMDg==}
@@ -3274,6 +3302,8 @@ snapshots:
   '@adraffy/ens-normalize@1.11.1': {}
 
   '@alloc/quick-lru@5.2.0': {}
+
+  '@babel/runtime@7.28.4': {}
 
   '@base-org/account@1.1.1(@types/react@19.1.14)(react@19.1.0)(typescript@5.9.2)(use-sync-external-store@1.5.0(react@19.1.0))(zod@3.25.76)':
     dependencies:
@@ -4480,8 +4510,15 @@ snapshots:
     dependencies:
       undici-types: 6.19.8
 
+  '@types/prop-types@15.7.15': {}
+
   '@types/react-dom@19.1.9(@types/react@19.1.14)':
     dependencies:
+      '@types/react': 19.1.14
+
+  '@types/react-virtualized@9.22.3':
+    dependencies:
+      '@types/prop-types': 15.7.15
       '@types/react': 19.1.14
 
   '@types/react@19.1.14':
@@ -5534,6 +5571,11 @@ snapshots:
   doctrine@2.1.0:
     dependencies:
       esutils: 2.0.3
+
+  dom-helpers@5.2.1:
+    dependencies:
+      '@babel/runtime': 7.28.4
+      csstype: 3.1.3
 
   dotenv@16.6.1: {}
 
@@ -6803,11 +6845,24 @@ snapshots:
 
   react-is@16.13.1: {}
 
+  react-lifecycles-compat@3.0.4: {}
+
   react-toastify@11.0.5(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
     dependencies:
       clsx: 2.1.1
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
+
+  react-virtualized@9.22.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+    dependencies:
+      '@babel/runtime': 7.28.4
+      clsx: 1.2.1
+      dom-helpers: 5.2.1
+      loose-envify: 1.4.0
+      prop-types: 15.8.1
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+      react-lifecycles-compat: 3.0.4
 
   react@19.1.0: {}
 
