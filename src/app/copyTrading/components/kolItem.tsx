@@ -3,30 +3,31 @@
 import Image from "next/image";
 import clockIcon from "@/assets/icons/clock.png";
 import XIcon from "@/assets/icons/header-right-X.png";
+import Avatar from "./avatar";
 
 // 随机生成一个颜色
-const randomColor = () => {
+export const randomColor = () => {
   return `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(
     Math.random() * 256
   )}, ${Math.floor(Math.random() * 256)}, 1)`;
 };
 
 // 随机生成一个字母
-const randomLetter = () => {
+export const randomLetter = () => {
   return String.fromCharCode(Math.floor(Math.random() * 26) + 65);
 };
 
 // 随机生成人名
-const randomName = () => {
+export const randomName = () => {
   return `${randomLetter()}${randomLetter()}${randomLetter()}`;
 };
 
 // 随机生成整数
-const randomNumber = () => {
+export const randomNumber = () => {
   return Math.floor(Math.random() * 100);
 };
 
-export default function KolItem() {
+export default function KolItem({ onClick }: { onClick: () => void }) {
   return (
     <div
       className="p-4 mb-3 rounded-[20px]"
@@ -34,22 +35,17 @@ export default function KolItem() {
         background:
           "linear-gradient(0deg, #172A30, #172A30), radial-gradient(35.55% 130.12% at 4.53% 7.41%, rgba(43, 234, 223, 0.5) 0%, rgba(23, 42, 48, 0) 100%)",
       }}
+      onClick={onClick}
     >
       {/* account info */}
       <div className="flex justify-between">
         <div className="flex items-center">
           {/* avatar */}
-          <div
-            className="flex items-center justify-center font-bold text-sm"
-            style={{
-              width: "28px",
-              height: "28px",
-              borderRadius: "28px",
-              backgroundColor: randomColor(),
-            }}
-          >
-            {randomLetter()}
-          </div>
+          <Avatar
+            name={randomLetter()}
+            backgroundColor={randomColor()}
+            size={28}
+          />
           {/* user name & publish time */}
           <div className="flex flex-col ml-2">
             <div className="font-medium text-base">{randomName()}</div>

@@ -25,11 +25,26 @@ const mockData = [
   },
 ];
 
-export default function KolList() {
+export default function KolList({
+  onClick,
+}: {
+  onClick: (id: number) => void;
+}) {
+  const handleClick = (id: number) => {
+    onClick(id);
+  };
+
   return (
     <div>
       {mockData.map((item) => {
-        return <KolItem key={item.id} />;
+        return (
+          <KolItem
+            key={item.id}
+            onClick={() => {
+              handleClick(item.id);
+            }}
+          />
+        );
       })}
     </div>
   );

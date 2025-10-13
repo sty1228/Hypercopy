@@ -25,7 +25,7 @@ const Navbar = () => {
         bottom: "0",
         height: "62px",
         padding: "0 42px",
-        zIndex: 99,
+        zIndex: 9,
         backgroundColor: colors.primary,
       }}
     >
