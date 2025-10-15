@@ -51,7 +51,7 @@ const Navbar = () => {
           </Link>
         </li>
         <li>
-          <Link href="/">
+          <Link href="/settings">
             <Image src={settingsIcon} alt="logo" width={22} height={22} />
           </Link>
         </li>
