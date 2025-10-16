@@ -231,36 +231,36 @@ export default function DefaultFollow() {
       <div className="mt-5">
         <p className="font-semibold text-base">Execution</p>
         <div
-          className="mt-2 rounded-[16px] w-full h-[52px] flex items-center pr-2"
+          className="mt-2 rounded-[16px] w-full h-[52px] flex items-center"
           style={{
             backgroundColor: "rgba(13, 23, 28, 1)",
             borderWidth: "1px",
             borderColor: "rgba(27, 36, 41, 1)",
           }}
         >
-          <div className="relative flex items-center w-full mr-4">
+          <div className="relative flex items-center w-full">
             <Label
               htmlFor="orderStyle"
               className="absolute left-4 text-sm text-muted-foreground pointer-events-none font-normal text-base"
             >
               Order Style
             </Label>
+            <Select defaultValue={OrderStyleEnum.market}>
+              <SelectTrigger className="w-full border-none font-normal text-base pl-[100px] pr-0 justify-end pr-2">
+                <SelectValue placeholder="" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value={OrderStyleEnum.market}>
+                    Market Order
+                  </SelectItem>
+                  <SelectItem value={OrderStyleEnum.limit}>
+                    Limit Order
+                  </SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
-          <Select defaultValue={OrderStyleEnum.market}>
-            <SelectTrigger className="w-[160px] border-none font-normal text-base">
-              <SelectValue placeholder="" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value={OrderStyleEnum.market}>
-                  Market Order
-                </SelectItem>
-                <SelectItem value={OrderStyleEnum.limit}>
-                  Limit Order
-                </SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
         </div>
       </div>
       {/* Summary */}
