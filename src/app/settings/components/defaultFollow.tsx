@@ -17,7 +17,7 @@ import { OrderStyleEnum } from "../page";
 
 export default function DefaultFollow() {
   return (
-    <div className="mt-8">
+    <div>
       <p className="flex justify-between items-center">
         <span className="font-semibold text-xl">Filter Types</span>
         <span className="text-sm" style={{ color: "rgba(80, 210, 193, 1)" }}>
