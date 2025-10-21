@@ -113,7 +113,9 @@ export default function KolItem({
           >
             Grade
           </span>
-          <span className="font-medium text-base">{data?.grade || "-"}</span>
+          <span className="font-medium text-base">
+            {(data?.grade as string) || "-"}
+          </span>
         </div>
 
         <div className="flex flex-col">
@@ -123,7 +125,9 @@ export default function KolItem({
           >
             Points
           </span>
-          <span className="font-medium text-base">{data?.points || "-"}</span>
+          <span className="font-medium text-base">
+            {(data?.points as number) || "-"}
+          </span>
         </div>
 
         <div className="flex flex-col">
@@ -143,7 +147,9 @@ export default function KolItem({
               color: "transparent",
             }}
           >
-            {data?.win_rate ? numberToPercentageString(data?.win_rate) : "-"}
+            {data?.win_rate
+              ? numberToPercentageString(data?.win_rate as number)
+              : "-"}
           </span>
         </div>
 
@@ -155,8 +161,10 @@ export default function KolItem({
             Streak
           </span>
           <div>
-            <span className="font-medium text-base">{data?.streak || "-"}</span>
-            {data?.streak && <span className="ml-1">🔥</span>}
+            <span className="font-medium text-base">
+              {(data?.streak as number) || "-"}
+            </span>
+            {(data?.streak as number) && <span className="ml-1">🔥</span>}
           </div>
         </div>
 
@@ -167,7 +175,9 @@ export default function KolItem({
           >
             Rank
           </span>
-          <span className="font-medium text-base">{data?.rank || "-"}</span>
+          <span className="font-medium text-base">
+            {(data?.rank as number) || "-"}
+          </span>
         </div>
       </div>
     </div>
