@@ -4,6 +4,8 @@ import Image from "next/image";
 import clockIcon from "@/assets/icons/clock.png";
 import XIcon from "@/assets/icons/header-right-X.png";
 import Avatar from "./avatar";
+import { numberToPercentageString } from "@/lib/number";
+import { LeaderboardItem } from "@/service";
 
 // 随机生成一个颜色
 export const randomColor = () => {
@@ -27,7 +29,13 @@ export const randomNumber = () => {
   return Math.floor(Math.random() * 100);
 };
 
-export default function KolItem({ onClick }: { onClick: () => void }) {
+export default function KolItem({
+  data,
+  onClick,
+}: {
+  data: LeaderboardItem;
+  onClick: () => void;
+}) {
   return (
     <div
       className="p-4 mb-3 rounded-[20px]"
@@ -42,19 +50,19 @@ export default function KolItem({ onClick }: { onClick: () => void }) {
         <div className="flex items-center">
           {/* avatar */}
           <Avatar
-            name={randomLetter()}
-            backgroundColor={randomColor()}
+            name={data.x_handle[0].toUpperCase()}
+            backgroundColor={data.avatarColor!}
             size={28}
           />
           {/* user name & publish time */}
           <div className="flex flex-col ml-2">
-            <div className="font-medium text-base">{randomName()}</div>
+            <div className="font-medium text-base">{data.x_handle}</div>
             <div className="flex items-center">
               <span
                 className="text-xs font-normal"
                 style={{ color: "rgba(165, 176, 176, 1)" }}
               >
-                @{randomName()}
+                @{data.x_handle}
               </span>
               <span>
                 <Image
@@ -69,7 +77,7 @@ export default function KolItem({ onClick }: { onClick: () => void }) {
                 className="font-light text-xs ml-1"
                 style={{ color: "rgba(165, 176, 176, 1)" }}
               >
-                34 mins
+                {data.how_long_ago}
               </span>
             </div>
           </div>
@@ -88,7 +96,7 @@ export default function KolItem({ onClick }: { onClick: () => void }) {
               color: "transparent",
             }}
           >
-            {randomNumber()}
+            {data.total_tweets}
           </span>
           <span>
             <Image src={XIcon} alt="X" width={20} height={20} />
@@ -105,7 +113,7 @@ export default function KolItem({ onClick }: { onClick: () => void }) {
           >
             Grade
           </span>
-          <span className="font-medium text-base">A+</span>
+          <span className="font-medium text-base">{data?.grade || "-"}</span>
         </div>
 
         <div className="flex flex-col">
@@ -115,7 +123,7 @@ export default function KolItem({ onClick }: { onClick: () => void }) {
           >
             Points
           </span>
-          <span className="font-medium text-base">{randomNumber()}</span>
+          <span className="font-medium text-base">{data?.points || "-"}</span>
         </div>
 
         <div className="flex flex-col">
@@ -135,7 +143,7 @@ export default function KolItem({ onClick }: { onClick: () => void }) {
               color: "transparent",
             }}
           >
-            {randomNumber()},{randomNumber()}%
+            {data?.win_rate ? numberToPercentageString(data?.win_rate) : "-"}
           </span>
         </div>
 
@@ -147,8 +155,8 @@ export default function KolItem({ onClick }: { onClick: () => void }) {
             Streak
           </span>
           <div>
-            <span className="font-medium text-base">{randomNumber()}</span>
-            <span className="ml-1">🔥</span>
+            <span className="font-medium text-base">{data?.streak || "-"}</span>
+            {data?.streak && <span className="ml-1">🔥</span>}
           </div>
         </div>
 
@@ -159,10 +167,7 @@ export default function KolItem({ onClick }: { onClick: () => void }) {
           >
             Rank
           </span>
-          <span className="font-medium text-base">
-            {randomNumber()}
-            {randomNumber()}
-          </span>
+          <span className="font-medium text-base">{data?.rank || "-"}</span>
         </div>
       </div>
     </div>

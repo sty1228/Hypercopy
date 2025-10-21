@@ -1,47 +1,28 @@
 "use client";
 
+import { LeaderboardItem } from "@/service";
 import KolItem from "./kolItem";
 
-const mockData = [
-  {
-    id: 1,
-    name: "Kol 1",
-  },
-  {
-    id: 2,
-    name: "Kol 2",
-  },
-  {
-    id: 3,
-    name: "Kol 3",
-  },
-  {
-    id: 4,
-    name: "Kol 4",
-  },
-  {
-    id: 5,
-    name: "Kol 5",
-  },
-];
-
 export default function KolList({
+  dataList,
   onClick,
 }: {
-  onClick: (id: number) => void;
+  dataList: LeaderboardItem[];
+  onClick: (item: LeaderboardItem) => void;
 }) {
-  const handleClick = (id: number) => {
-    onClick(id);
+  const handleClick = (item: LeaderboardItem) => {
+    onClick(item);
   };
 
   return (
     <div>
-      {mockData.map((item) => {
+      {dataList.map((item: LeaderboardItem) => {
         return (
           <KolItem
-            key={item.id}
+            key={item.x_handle}
+            data={item}
             onClick={() => {
-              handleClick(item.id);
+              handleClick(item);
             }}
           />
         );
