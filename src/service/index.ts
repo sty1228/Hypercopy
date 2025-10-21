@@ -14,7 +14,7 @@ export interface LeaderboardItem {
   win_rate: number;
   x_handle: string;
   avatarColor?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export const leaderboard = async () => {
