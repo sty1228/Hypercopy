@@ -16,6 +16,9 @@ export default function CopyTrading() {
   const [rawLeaderboardList, setRawLeaderboardList] = useState<
     LeaderboardItem[]
   >([]);
+  const [clickItemData, setClickItemData] = useState<LeaderboardItem | null>(
+    null
+  );
 
   useEffect(() => {
     fetchLeaderboard();
@@ -46,7 +49,7 @@ export default function CopyTrading() {
   };
 
   const handleClickKOLItem = (item: LeaderboardItem) => {
-    console.log(item);
+    setClickItemData(item);
     setIsOpen(true);
   };
 
@@ -64,7 +67,11 @@ export default function CopyTrading() {
         onSearchIconClick={handleListSearch}
       />
       <KolList onClick={handleClickKOLItem} dataList={leaderboardList} />
-      <KolDetailSheet isOpen={isOpen} handleClose={handleKOLDetailSheetClose} />
+      <KolDetailSheet
+        data={clickItemData!}
+        isOpen={isOpen}
+        handleClose={handleKOLDetailSheetClose}
+      />
     </div>
   );
 }

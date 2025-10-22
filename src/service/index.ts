@@ -20,3 +20,35 @@ export interface LeaderboardItem {
 export const leaderboard = async () => {
   return await get("/api/leaderboard");
 };
+
+export interface UserSignalItem {
+  x_handle: string;
+  profit_grade: number | null;
+  signal_id: number;
+  entry_price: number;
+  win_streak: number;
+  progress_bar: number;
+  user_week_total_pct: number | null;
+  ticker: string;
+  bull_or_bear: "bearish" | "bullish";
+  emotionType: number;
+  updateTime: string;
+  content: string;
+  commentsCount: number;
+  retweetsCount: number;
+  likesCount: number;
+  change_since_tweet: number;
+}
+
+export interface UserSignalResponse {
+  id: number;
+  name: string;
+  tweetsCount: number;
+  signals: UserSignalItem[];
+}
+
+export const userSignals = async (
+  x_handle: string
+): Promise<UserSignalResponse> => {
+  return await get(`/api/user/${x_handle}/signals`);
+};
