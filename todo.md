@@ -9,6 +9,6 @@
 
 - ✅ add some sort of animated effects to these parts (close & signal button)
 
-- should be able to CLICK one of the signals in their list, and the Counter Trade / Copy Trade part should show up.
+- ✅ should be able to CLICK one of the signals in their list, and the Counter Trade / Copy Trade part should show up.
 
 -

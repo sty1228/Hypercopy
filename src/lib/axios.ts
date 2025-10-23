@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
 
 // 创建 axios 实例
 const instance: AxiosInstance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://167.172.231.242:8080",
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "https://api.hypercopy.io",
   timeout: 10000,
   headers: {
     "Content-Type": "application/json",
