@@ -4,6 +4,7 @@ import "./globals.css";
 import Providers from "@/providers/providers";
 import Navbar from "@/components/navbar";
 import colors from "@/const/colors";
+import { HyperLiquidProvider } from "@/providers/hyperliquid";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,11 +33,11 @@ export default function RootLayout({
         style={{ backgroundColor: colors.primary }}
       >
         <main className="flex-1 w-full" style={{ paddingBottom: "62px" }}>
-          {children}
+          <Providers>
+            <HyperLiquidProvider>{children}</HyperLiquidProvider>
+          </Providers>
         </main>
         <Navbar />
-        {/* <Providers>
-        </Providers> */}
       </body>
     </html>
   );

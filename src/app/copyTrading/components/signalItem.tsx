@@ -1,7 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import bullishIcon from "@/assets/icons/bullish.png";
 import bearishIcon from "@/assets/icons/bearish.png";
-import dotsMoreIcon from "@/assets/icons/dots-more.png";
 import commentIcon from "@/assets/icons/comment.png";
 import retweetIcon from "@/assets/icons/retweet.png";
 import likeIcon from "@/assets/icons/like.png";
@@ -9,7 +10,17 @@ import { UserSignalItem } from "@/service";
 import { numberToPercentageString } from "@/lib/number";
 import counterTradeIcon from "@/assets/icons/counter-trade-tip.png";
 import copyTradeIcon from "@/assets/icons/copy-trade-tip.png";
-import { Button } from "@/components/ui/button";
+import { HyperLiquidContext } from "@/providers/hyperliquid";
+import { useContext } from "react";
+import BigNumber from "bignumber.js";
+import { placeOrder } from "@/helpers/hyperliquid";
+
+const SIDE_MAP: {
+  [key: string]: "long" | "short";
+} = {
+  bullish: "long",
+  bearish: "short",
+};
 
 export default function SignalItem({
   data,
@@ -20,6 +31,62 @@ export default function SignalItem({
   onClick: (signalId: number) => void;
   currentClickItemId: number | null;
 }) {
+  const { tradingEnabled, placeOrderAssets, exchClient } =
+    useContext(HyperLiquidContext);
+
+  const handleTrade = async (side: "copy" | "counter") => {
+    console.log(placeOrderAssets);
+    console.log(side);
+    console.log(data);
+    const symbol = data?.ticker.replaceAll("USDT", "");
+    const placeOrderAssetId = placeOrderAssets[symbol.toUpperCase()];
+    console.log("symbol", symbol, "id", placeOrderAssetId);
+    const orderParams = {
+      side: SIDE_MAP[
+        side === "copy"
+          ? data.bull_or_bear
+          : data.bull_or_bear === "bearish"
+          ? "bullish"
+          : "bearish"
+      ],
+      price: data.entry_price,
+      size: 0.1,
+      coin: placeOrderAssetId,
+      leverage: 1,
+    };
+
+    const mockPrice = new BigNumber(data.entry_price)
+      .multipliedBy(orderParams.side === "long" ? 0.9 : 1.1)
+      // 这里的精度跟随 data.entry_price 的精度
+      .decimalPlaces(data.entry_price.toString().split(".")[1]?.length || 0)
+      .toNumber();
+    const mockSize = new BigNumber(20)
+      .dividedBy(mockPrice)
+      .precision(1)
+      .toNumber();
+    const mockOrderParams = {
+      ...orderParams,
+      price: mockPrice,
+      size: mockSize,
+    };
+    const res = confirm(
+      `Order confirm: ${JSON.stringify(
+        orderParams
+      )}. \n⚠️ For testing, will place order with mock order params: ${JSON.stringify(
+        mockOrderParams
+      )}`
+    );
+    if (!(res && exchClient)) {
+      return;
+    }
+    console.log("orderParams", orderParams);
+    console.log("mockOrderParams", mockOrderParams);
+    await placeOrder({
+      exchClient,
+      orderParams: mockOrderParams,
+    });
+  };
+
   return (
     <div
       className="rounded-[20px] p-4 mt-2"
@@ -99,14 +166,17 @@ export default function SignalItem({
         </div>
       </div>
 
-      {currentClickItemId === data.signal_id && (
+      {tradingEnabled && currentClickItemId === data.signal_id && (
         <div
-          className="mt-6 border-t-[1px] flex pt-4"
+          className="mt-6 border-t-[1px] flex items-center"
           style={{
             borderTopColor: "rgba(255, 255, 255, 0.1)",
           }}
         >
-          <div className="flex flex-1 items-center justify-center h-[18px] font-normal text-sm">
+          <div
+            className="flex flex-1 items-center justify-center h-[18px] font-normal text-sm h-[36px]"
+            onClick={() => handleTrade("copy")}
+          >
             Counter Trade
             <Image
               src={counterTradeIcon}
@@ -122,7 +192,10 @@ export default function SignalItem({
               backgroundColor: "rgba(255, 255, 255, 0.1)",
             }}
           />
-          <div className="flex flex-1 items-center justify-center h-[18px] font-normal text-sm">
+          <div
+            className="flex flex-1 items-center justify-center h-[18px] font-normal text-sm"
+            onClick={() => handleTrade("counter")}
+          >
             Counter Trade
             <Image
               src={copyTradeIcon}

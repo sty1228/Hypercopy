@@ -1,9 +1,24 @@
+"use client";
+
 import Image from "next/image";
 import headerLeftMoreIcon from "@/assets/icons/header-left-more.png";
 import headerRightWalletIcon from "@/assets/icons/header-right-wallet.png";
 import headerRightXIcon from "@/assets/icons/header-right-X.png";
+import { usePrivy } from "@privy-io/react-auth";
+import { useCallback } from "react";
 
 export default function Header() {
+  const { authenticated, login, logout } = usePrivy();
+
+  const handleClickWallet = useCallback(() => {
+    console.log("handleClickWallet");
+    if (authenticated) {
+      logout();
+    } else {
+      login();
+    }
+  }, [authenticated, login, logout]);
+
   return (
     <div className="flex px-1 py-4 justify-between">
       <Image
@@ -25,6 +40,7 @@ export default function Header() {
           className="ml-5"
           width={16}
           height={16}
+          onClick={handleClickWallet}
         />
       </div>
     </div>

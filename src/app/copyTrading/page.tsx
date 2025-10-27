@@ -8,8 +8,11 @@ import Search from "./components/search";
 import KolList from "./components/kolList";
 import KolDetailSheet from "./components/kolDetailSheet";
 import { randomColor } from "./components/kolItem";
+import { FullScreenLoader } from "@/components/ui/fullscreen-loader";
+import { usePrivy } from "@privy-io/react-auth";
 
 export default function CopyTrading() {
+  const { ready } = usePrivy();
   const [isOpen, setIsOpen] = useState(false);
   const [listSearchValue, setListSearchValue] = useState("");
   const [leaderboardList, setLeaderboardList] = useState<LeaderboardItem[]>([]);
@@ -56,6 +59,10 @@ export default function CopyTrading() {
   const handleKOLDetailSheetClose = () => {
     setIsOpen(false);
   };
+
+  if (!ready) {
+    return <FullScreenLoader />;
+  }
 
   return (
     <div className="px-5 flex flex-col">

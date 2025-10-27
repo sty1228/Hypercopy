@@ -1,31 +1,66 @@
-import Image from "next/image";
-import closeIcon from "@/assets/icons/close.png";
+"use client";
+
+import { useCurrentWallet } from "@/hooks/usePrivyData";
+import { ellipsisAddress } from "@/lib/string";
+import { HyperLiquidContext } from "@/providers/hyperliquid";
+import { useContext } from "react";
+import { Button } from "@/components/ui/button";
 
 export default function Following() {
+  const currentWallet = useCurrentWallet();
+  const { tradingEnabled, enableTrading } = useContext(HyperLiquidContext);
+
+  const handleEnableTrading = () => {
+    enableTrading();
+  };
+
   return (
     <div className="flex justify-between items-center h-[40px]">
       <span className="font-semibold text-3xl">Following</span>
-      <div
-        className="h-[40px] flex items-center px-2 rounded-[20px]"
-        style={{
-          background: "linear-gradient(to bottom right, blue, pink)",
-          minWidth: "120px",
-        }}
-      >
-        <div
-          className="display-inlineblock flex items-center justify-center"
-          style={{
-            backgroundColor: "#E669CB",
-            width: "28px",
-            height: "28px",
-            borderRadius: "14px",
-          }}
-        >
-          Y
+
+      {currentWallet && (
+        <div className="flex items-center">
+          <div
+            className="h-[40px] flex items-center justify-center px-2 rounded-[20px] font-medium text-sm"
+            style={{
+              background: "linear-gradient(to bottom right, blue, pink)",
+              minWidth: "120px",
+            }}
+          >
+            <span>{ellipsisAddress(currentWallet?.address, 6, 6)}</span>
+            {/* <div
+            className="display-inlineblock flex items-center justify-center"
+            style={{
+              backgroundColor: "#E669CB",
+              width: "28px",
+              height: "28px",
+              borderRadius: "14px",
+            }}
+          >
+            Y
+          </div>
+          <span className="ml-1 font-medium text-sm">@textUser</span>
+          <Image
+            src={closeIcon}
+            alt="close"
+            className="ml-2"
+            width={24}
+            height={24}
+          /> */}
+          </div>
+          {!tradingEnabled && (
+            <Button
+              className="text-xs text-white w-[50px] ml-2"
+              style={{
+                backgroundColor: "rgba(80, 210, 193, 1)",
+              }}
+              onClick={handleEnableTrading}
+            >
+              Enable
+            </Button>
+          )}
         </div>
-        <span className="ml-1 font-medium text-sm">@textUser</span>
-        <Image src={closeIcon} alt="close" className="ml-2" width={24} height={24} />
-      </div>
+      )}
     </div>
   );
 }
