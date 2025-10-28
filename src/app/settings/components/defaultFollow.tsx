@@ -88,7 +88,7 @@ export default function DefaultFollow() {
     }
     getPerpsBalance({
       exchClient: infoClient,
-      walletAddress: currentWallet?.address!,
+      walletAddress: currentWallet?.address ?? "",
     }).then((res) => {
       if (!res) {
         return;
