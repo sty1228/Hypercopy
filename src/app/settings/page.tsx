@@ -72,9 +72,6 @@ export default function Settings() {
           handleSearch={handleSpecificTradersSearch}
         />
       )}
-      <div className="px-5">
-        <BottomButtons />
-      </div>
     </div>
   );
 }

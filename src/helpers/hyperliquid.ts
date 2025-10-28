@@ -48,4 +48,18 @@ const placeOrder = async ({
   alert("Order placed successfully");
 };
 
-export { placeOrder };
+const getPerpsBalance = async ({
+  exchClient,
+  walletAddress,
+}: {
+  exchClient: hl.InfoClient;
+  walletAddress: string;
+}) => {
+  return exchClient
+    .clearinghouseState({
+      user: walletAddress,
+    })
+    .catch(() => null);
+};
+
+export { placeOrder, getPerpsBalance };

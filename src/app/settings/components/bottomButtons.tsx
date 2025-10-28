@@ -3,7 +3,15 @@ import { Button } from "@/components/ui/button";
 {
   /* Cancel Save Reset buttons */
 }
-export default function BottomButtons() {
+export default function BottomButtons({
+  onCancel,
+  onSave,
+  onReset,
+}: {
+  onCancel: () => void;
+  onSave: () => void;
+  onReset: () => void;
+}) {
   return (
     <div className="mt-8">
       <div className="w-full flex gap-2">
@@ -13,6 +21,7 @@ export default function BottomButtons() {
             borderColor: "rgba(80, 210, 193, 1)",
             color: "rgba(80, 210, 193, 1)",
           }}
+          onClick={onCancel}
         >
           Cancel
         </Button>
@@ -22,6 +31,7 @@ export default function BottomButtons() {
             backgroundColor: "rgba(80, 210, 193, 1)",
             color: "rgba(15, 26, 31, 1)",
           }}
+          onClick={onSave}
         >
           Save
         </Button>
@@ -32,6 +42,7 @@ export default function BottomButtons() {
           borderColor: "rgba(80, 210, 193, 1)",
           color: "rgba(80, 210, 193, 1)",
         }}
+        onClick={onReset}
       >
         Reset to default
       </Button>
