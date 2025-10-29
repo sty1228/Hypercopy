@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import clockIcon from "@/assets/icons/clock.png";
-import XIcon from "@/assets/icons/header-right-X.png";
+import XIcon from "@/assets/icons/X.png";
 import Avatar from "./avatar";
 import { numberToPercentageString } from "@/lib/number";
 import { LeaderboardItem } from "@/service";

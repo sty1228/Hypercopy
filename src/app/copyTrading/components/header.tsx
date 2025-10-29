@@ -3,7 +3,7 @@
 import Image from "next/image";
 import headerLeftMoreIcon from "@/assets/icons/header-left-more.png";
 import headerRightWalletIcon from "@/assets/icons/header-right-wallet.png";
-import headerRightXIcon from "@/assets/icons/header-right-X.png";
+import headerRightXIcon from "@/assets/icons/X.png";
 import { usePrivy } from "@privy-io/react-auth";
 import { useCallback } from "react";
 

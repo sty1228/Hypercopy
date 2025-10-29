@@ -32,27 +32,27 @@ const Navbar = () => {
       <ul className="h-full flex justify-between items-center">
         <li>
           <Link href="/">
-            <Image src={homeIcon} alt="logo" width={22} height={22} />
+            <Image src={homeIcon} alt="home" width={22} height={22} />
           </Link>
         </li>
         <li>
           <Link href="/copyTrading">
-            <Image src={copyTradingIcon} alt="logo" width={22} height={22} />
+            <Image src={copyTradingIcon} alt="copy-trading" width={22} height={22} />
+          </Link>
+        </li>
+        <li>
+          <Link href="/profile">
+            <Image src={portfolioIcon} alt="profile" width={22} height={22} />
           </Link>
         </li>
         <li>
           <Link href="/">
-            <Image src={portfolioIcon} alt="logo" width={22} height={22} />
-          </Link>
-        </li>
-        <li>
-          <Link href="/">
-            <Image src={notificationIcon} alt="logo" width={22} height={22} />
+            <Image src={notificationIcon} alt="notification" width={22} height={22} />
           </Link>
         </li>
         <li>
           <Link href="/settings">
-            <Image src={settingsIcon} alt="logo" width={22} height={22} />
+            <Image src={settingsIcon} alt="settings" width={22} height={22} />
           </Link>
         </li>
       </ul>
