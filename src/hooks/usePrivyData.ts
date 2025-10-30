@@ -2,7 +2,7 @@
 
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { ethers } from "ethers";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 const useCurrentWallet = () => {
   const { authenticated } = usePrivy();

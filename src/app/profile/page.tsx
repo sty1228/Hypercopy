@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import greenDollarIcon from "@/assets/icons/dollar-green.png";
 import xIcon from "@/assets/icons/X.png";
@@ -9,8 +11,22 @@ import plusIcon from "@/assets/icons/plus.png";
 import fireIcon from "@/assets/icons/fire.png";
 import ticksIcon from "@/assets/icons/ticks.png";
 import pointsIcon from "@/assets/icons/points.png";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useState } from "react";
+import { throttle } from "@/lib/utils";
+import TradersCopyingSheet from "./components/tradersCopyingSheet";
+import FollowingSheet from "./components/followingSheet";
 
 const Profile = () => {
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+  const [isTradersCopyingOpen, setIsTradersCopyingOpen] = useState(false);
+  const [isFollowingOpen, setIsFollowingOpen] = useState(false);
+  const closeTooltip = throttle(() => setTooltipOpen(false), 300);
+
   return (
     <div className="p-5">
       <div
@@ -105,18 +121,52 @@ const Profile = () => {
               borderBottomColor: "rgba(23, 42, 48, 1)",
             }}
           >
-            <div className="flex items-center justify-between py-5">
+            <div
+              className="flex items-center justify-between py-5"
+              onClick={() => setIsTradersCopyingOpen(true)}
+            >
               <div className="flex h-[30px] items-center">
                 <span style={{ color: "rgba(165, 176, 176, 1)" }}>
                   Traders Copying
                 </span>
-                <Image
-                  src={infoIcon}
-                  alt="info"
-                  width={16}
-                  height={16}
-                  className="ml-1"
-                />
+                <Tooltip
+                  open={tooltipOpen}
+                  onOpenChange={(status) => {
+                    if (!status) {
+                      closeTooltip();
+                    }
+                  }}
+                >
+                  <TooltipTrigger
+                    onClick={() => setTooltipOpen(true)}
+                    onMouseEnter={() => null}
+                  >
+                    <Image
+                      src={infoIcon}
+                      alt="info"
+                      width={16}
+                      height={16}
+                      className="ml-1"
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    arrowFill="rgba(23, 42, 48, 1)"
+                    className="px-4 py-2 max-w-[200px] border"
+                    style={{
+                      backgroundColor: "rgba(23, 42, 48, 1)",
+                      borderColor: "rgba(46, 63, 68, 1)",
+                    }}
+                  >
+                    <p className="font-SemiBold text-lg">Traders Copying</p>
+                    <p
+                      className="text-sm"
+                      style={{ color: "rgba(165, 176, 176, 1)" }}
+                    >
+                      Duis aute irure dolor in reprehenderit in voluptate velit
+                      esse cillum dolore eu fugiat nulla pariatur.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
               <div className="flex h-[30px] items-center">
                 <Image
@@ -138,6 +188,7 @@ const Profile = () => {
 
             <div
               className="flex items-center justify-between py-5 border-t"
+              onClick={() => setIsFollowingOpen(true)}
               style={{
                 borderTopColor: "rgba(23, 42, 48, 1)",
               }}
@@ -272,6 +323,14 @@ const Profile = () => {
           </div>
         </div>
       </div>
+      <TradersCopyingSheet
+        isOpen={isTradersCopyingOpen}
+        handleClose={() => setIsTradersCopyingOpen(false)}
+      />
+      <FollowingSheet
+        isOpen={isFollowingOpen}
+        handleClose={() => setIsFollowingOpen(false)}
+      />
     </div>
   );
 };

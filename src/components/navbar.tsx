@@ -10,6 +10,7 @@ import copyTradingIcon from "@/assets/icons/copy-trading.png";
 import portfolioIcon from "@/assets/icons/portfolio.png";
 import notificationIcon from "@/assets/icons/notification.png";
 import settingsIcon from "@/assets/icons/settings.png";
+import { MAX_WIDTH } from "@/app/layout";
 
 const Navbar = () => {
   const pathname = usePathname();
@@ -27,6 +28,7 @@ const Navbar = () => {
         padding: "0 42px",
         zIndex: 9,
         backgroundColor: colors.primary,
+        maxWidth: MAX_WIDTH,
       }}
     >
       <ul className="h-full flex justify-between items-center">
@@ -37,7 +39,12 @@ const Navbar = () => {
         </li>
         <li>
           <Link href="/copyTrading">
-            <Image src={copyTradingIcon} alt="copy-trading" width={22} height={22} />
+            <Image
+              src={copyTradingIcon}
+              alt="copy-trading"
+              width={22}
+              height={22}
+            />
           </Link>
         </li>
         <li>
@@ -47,7 +54,12 @@ const Navbar = () => {
         </li>
         <li>
           <Link href="/">
-            <Image src={notificationIcon} alt="notification" width={22} height={22} />
+            <Image
+              src={notificationIcon}
+              alt="notification"
+              width={22}
+              height={22}
+            />
           </Link>
         </li>
         <li>

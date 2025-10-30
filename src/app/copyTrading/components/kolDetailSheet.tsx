@@ -3,15 +3,12 @@
 import { useEffect, useState } from "react";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import Avatar from "./avatar";
-import { randomColor, randomLetter, randomName, randomNumber } from "./kolItem";
 import { XIcon } from "lucide-react";
 import wifiIcon from "@/assets/icons/wifi.png";
 import Image from "next/image";

@@ -4,7 +4,6 @@ import { useState } from "react";
 import Tab from "./components/tab";
 import DefaultFollow from "./components/defaultFollow";
 import SpecificTraders from "./components/specificTraders";
-import BottomButtons from "./components/bottomButtons";
 import { randomColor } from "../copyTrading/components/kolItem";
 
 export enum TabEnum {
