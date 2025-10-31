@@ -6,10 +6,15 @@ import { useEffect } from "react";
 import colors from "@/const/colors";
 import Image from "next/image";
 import homeIcon from "@/assets/icons/home.png";
+import homeActiveIcon from "@/assets/icons/home-active.png";
 import copyTradingIcon from "@/assets/icons/copy-trading.png";
+import copyTradingActiveIcon from "@/assets/icons/copy-trading-active.png";
 import portfolioIcon from "@/assets/icons/portfolio.png";
+import portfolioActiveIcon from "@/assets/icons/portfolio-active.png";
 import notificationIcon from "@/assets/icons/notification.png";
+import notificationActiveIcon from "@/assets/icons/notification-active.png";
 import settingsIcon from "@/assets/icons/settings.png";
+import settingsActiveIcon from "@/assets/icons/settings-active.png";
 import { MAX_WIDTH } from "@/app/layout";
 
 const Navbar = () => {
@@ -33,14 +38,23 @@ const Navbar = () => {
     >
       <ul className="h-full flex justify-between items-center">
         <li>
-          <Link href="/">
-            <Image src={homeIcon} alt="home" width={22} height={22} />
+          <Link href="/home">
+            <Image
+              src={pathname === "/home" ? homeActiveIcon : homeIcon}
+              alt="home"
+              width={22}
+              height={22}
+            />
           </Link>
         </li>
         <li>
           <Link href="/copyTrading">
             <Image
-              src={copyTradingIcon}
+              src={
+                pathname === "/copyTrading"
+                  ? copyTradingActiveIcon
+                  : copyTradingIcon
+              }
               alt="copy-trading"
               width={22}
               height={22}
@@ -49,13 +63,24 @@ const Navbar = () => {
         </li>
         <li>
           <Link href="/profile">
-            <Image src={portfolioIcon} alt="profile" width={22} height={22} />
+            <Image
+              src={
+                pathname === "/profile" ? portfolioActiveIcon : portfolioIcon
+              }
+              alt="profile"
+              width={22}
+              height={22}
+            />
           </Link>
         </li>
         <li>
-          <Link href="/">
+          <Link href="/notification">
             <Image
-              src={notificationIcon}
+              src={
+                pathname === "/notification"
+                  ? notificationActiveIcon
+                  : notificationIcon
+              }
               alt="notification"
               width={22}
               height={22}
@@ -64,7 +89,12 @@ const Navbar = () => {
         </li>
         <li>
           <Link href="/settings">
-            <Image src={settingsIcon} alt="settings" width={22} height={22} />
+            <Image
+              src={pathname === "/settings" ? settingsActiveIcon : settingsIcon}
+              alt="settings"
+              width={22}
+              height={22}
+            />
           </Link>
         </li>
       </ul>

@@ -11,7 +11,7 @@ import { numberToPercentageString } from "@/lib/number";
 import counterTradeIcon from "@/assets/icons/counter-trade-tip.png";
 import copyTradeIcon from "@/assets/icons/copy-trade-tip.png";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import BigNumber from "bignumber.js";
 import { placeOrder } from "@/helpers/hyperliquid";
 
@@ -33,6 +33,12 @@ export default function SignalItem({
 }) {
   const { tradingEnabled, placeOrderAssets, exchClient } =
     useContext(HyperLiquidContext);
+  const [itemHoverStyle, setItemHoverStyle] = useState({});
+  const [counterTradeButtonHoverStyle, setCounterTradeButtonHoverStyle] =
+    useState({});
+  const [copyTradeButtonHoverStyle, setCopyTradeButtonHoverStyle] = useState(
+    {}
+  );
 
   const handleTrade = async (side: "copy" | "counter") => {
     console.log(placeOrderAssets);
@@ -92,8 +98,19 @@ export default function SignalItem({
       className="rounded-[20px] p-4 mt-2"
       style={{
         background: "linear-gradient(0deg, #26424B, #26424B)",
+        ...itemHoverStyle,
       }}
       onClick={() => onClick(data.signal_id)}
+      onMouseEnter={() =>
+        setItemHoverStyle({
+          border: "1px solid rgba(43, 234, 223, 1)",
+        })
+      }
+      onMouseLeave={() =>
+        setItemHoverStyle({
+          border: "none",
+        })
+      }
     >
       <div className="flex justify-between items-center">
         <div className="flex items-center">
@@ -168,7 +185,7 @@ export default function SignalItem({
 
       {tradingEnabled && currentClickItemId === data.signal_id && (
         <div
-          className="mt-6 border-t-[1px] flex items-center"
+          className="mt-6 pt-2 border-t-[1px] flex items-center"
           style={{
             borderTopColor: "rgba(255, 255, 255, 0.1)",
           }}
@@ -177,14 +194,28 @@ export default function SignalItem({
             className="flex flex-1 items-center justify-center h-[18px] font-normal text-sm h-[36px]"
             onClick={() => handleTrade("copy")}
           >
-            Counter Trade
-            <Image
-              src={counterTradeIcon}
-              alt="counter-trade"
-              className="ml-2"
-              width={12}
-              height={12}
-            />
+            <div
+              className="flex items-center h-full px-6 rounded-[10px]"
+              style={{
+                ...counterTradeButtonHoverStyle,
+              }}
+              onMouseEnter={() =>
+                setCounterTradeButtonHoverStyle({
+                  color: "rgba(14, 26, 30, 1)",
+                  backgroundColor: "rgba(43, 234, 223, 1)",
+                })
+              }
+              onMouseLeave={() => setCounterTradeButtonHoverStyle({})}
+            >
+              Counter Trade
+              <Image
+                src={counterTradeIcon}
+                alt="counter-trade"
+                className="ml-2"
+                width={12}
+                height={12}
+              />
+            </div>
           </div>
           <p
             className="h-[18px] w-[1px]"
@@ -193,17 +224,31 @@ export default function SignalItem({
             }}
           />
           <div
-            className="flex flex-1 items-center justify-center h-[18px] font-normal text-sm"
+            className="flex flex-1 items-center justify-center h-[18px] font-normal text-sm h-[36px]"
             onClick={() => handleTrade("counter")}
           >
-            Counter Trade
-            <Image
-              src={copyTradeIcon}
-              alt="copy-trade"
-              className="ml-2"
-              width={12}
-              height={12}
-            />
+            <div
+              className="flex items-center h-full px-6 rounded-[10px]"
+              style={{
+                ...copyTradeButtonHoverStyle,
+              }}
+              onMouseEnter={() =>
+                setCopyTradeButtonHoverStyle({
+                  color: "rgba(14, 26, 30, 1)",
+                  backgroundColor: "rgba(43, 234, 223, 1)",
+                })
+              }
+              onMouseLeave={() => setCopyTradeButtonHoverStyle({})}
+            >
+              Copy Trade
+              <Image
+                src={copyTradeIcon}
+                alt="copy-trade"
+                className="ml-2"
+                width={12}
+                height={12}
+              />
+            </div>
           </div>
         </div>
       )}

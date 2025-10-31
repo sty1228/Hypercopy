@@ -35,13 +35,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      style={{
+        maxWidth: MAX_WIDTH,
+        minWidth: MIN_WIDTH,
+        margin: "0 auto",
+      }}
+    >
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} w-full h-screen overflow-x-hidden text-white`}
         style={{
           backgroundColor: colors.primary,
-          maxWidth: MAX_WIDTH,
-          minWidth: MIN_WIDTH,
         }}
       >
         <Providers>

@@ -6,6 +6,7 @@ import XIcon from "@/assets/icons/X.png";
 import Avatar from "./avatar";
 import { LeaderboardItem } from "@/service";
 import BigNumber from "bignumber.js";
+import { useState } from "react";
 
 // 随机生成一个颜色
 export const randomColor = () => {
@@ -36,14 +37,28 @@ export default function KolItem({
   data: LeaderboardItem;
   onClick: () => void;
 }) {
+  const [itemHoverStyle, setItemHoverStyle] = useState({});
+
   return (
     <div
       className="p-4 mb-3 rounded-[20px]"
       style={{
         background:
           "linear-gradient(0deg, #172A30, #172A30), radial-gradient(35.55% 130.12% at 4.53% 7.41%, rgba(43, 234, 223, 0.5) 0%, rgba(23, 42, 48, 0) 100%)",
+
+        ...itemHoverStyle,
       }}
       onClick={onClick}
+      onMouseEnter={() =>
+        setItemHoverStyle({
+          border: "1px solid rgba(43, 234, 223, 1)",
+        })
+      }
+      onMouseLeave={() =>
+        setItemHoverStyle({
+          border: "none",
+        })
+      }
     >
       {/* account info */}
       <div className="flex justify-between">

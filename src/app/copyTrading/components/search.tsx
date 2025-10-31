@@ -1,6 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import searchIcon from "@/assets/icons/search.png";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 export default function Search({
   placeholder = "Search",
@@ -17,6 +20,8 @@ export default function Search({
   onEnterClick?: () => void;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
+  const [inputHoverStyle, setInputHoverStyle] = useState({});
+
   return (
     <div
       className={cn(
@@ -26,7 +31,18 @@ export default function Search({
       style={{
         background: "rgba(10, 20, 23, 1)",
         ...style,
+        ...inputHoverStyle,
       }}
+      onMouseEnter={() =>
+        setInputHoverStyle({
+          border: "1px solid rgba(43, 234, 223, 1)",
+        })
+      }
+      onMouseLeave={() =>
+        setInputHoverStyle({
+          border: "none",
+        })
+      }
     >
       <Image
         src={searchIcon}
