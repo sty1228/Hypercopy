@@ -121,10 +121,7 @@ const Profile = () => {
               borderBottomColor: "rgba(23, 42, 48, 1)",
             }}
           >
-            <div
-              className="flex items-center justify-between py-5"
-              onClick={() => setIsTradersCopyingOpen(true)}
-            >
+            <div className="flex items-center justify-between py-5">
               <div className="flex h-[30px] items-center">
                 <span style={{ color: "rgba(165, 176, 176, 1)" }}>
                   Traders Copying
@@ -168,10 +165,13 @@ const Profile = () => {
                   </TooltipContent>
                 </Tooltip>
               </div>
-              <div className="flex h-[30px] items-center">
+              <div
+                className="flex h-[30px] items-center flex-1 justify-end"
+                onClick={() => setIsTradersCopyingOpen(true)}
+              >
                 <Image
                   src={tradersCopyIcon}
-                  alt="info"
+                  alt="traders-copy"
                   width={18}
                   height={18}
                   className="mr-1"
