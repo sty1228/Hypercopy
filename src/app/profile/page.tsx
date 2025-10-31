@@ -162,8 +162,8 @@ const Profile = () => {
                       className="text-sm"
                       style={{ color: "rgba(165, 176, 176, 1)" }}
                     >
-                      Duis aute irure dolor in reprehenderit in voluptate velit
-                      esse cillum dolore eu fugiat nulla pariatur.
+                      The total amount of traders that are following this
+                      profile
                     </p>
                   </TooltipContent>
                 </Tooltip>

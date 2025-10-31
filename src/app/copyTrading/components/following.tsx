@@ -2,17 +2,9 @@
 
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { ellipsisAddress } from "@/lib/string";
-import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { useContext } from "react";
-import { Button } from "@/components/ui/button";
 
 export default function Following() {
   const currentWallet = useCurrentWallet();
-  const { tradingEnabled, enableTrading } = useContext(HyperLiquidContext);
-
-  const handleEnableTrading = () => {
-    enableTrading();
-  };
 
   return (
     <div className="flex justify-between items-center h-[40px]">
@@ -48,7 +40,7 @@ export default function Following() {
             height={24}
           /> */}
           </div>
-          {!tradingEnabled && (
+          {/* {!tradingEnabled && (
             <Button
               className="text-xs text-white w-[50px] ml-2"
               style={{
@@ -58,7 +50,7 @@ export default function Following() {
             >
               Enable
             </Button>
-          )}
+          )} */}
         </div>
       )}
     </div>

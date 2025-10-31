@@ -1,8 +1,7 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
 import Providers from "@/providers/providers";
-import Navbar from "@/components/navbar";
+import AppLayout from "@/components/AppLayout";
 import colors from "@/const/colors";
 import { HyperLiquidProvider } from "@/providers/hyperliquid";
 
@@ -14,6 +13,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const orbitron = Orbitron({
+  variable: "--font-orbitron",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800", "900"],
 });
 
 // export const metadata: Metadata = {
@@ -32,19 +37,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className="w-full h-screen overflow-x-hidden text-white"
+        className={`${geistSans.variable} ${geistMono.variable} ${orbitron.variable} w-full h-screen overflow-x-hidden text-white`}
         style={{
           backgroundColor: colors.primary,
           maxWidth: MAX_WIDTH,
           minWidth: MIN_WIDTH,
         }}
       >
-        <main className="flex-1 w-full" style={{ paddingBottom: "62px" }}>
-          <Providers>
-            <HyperLiquidProvider>{children}</HyperLiquidProvider>
-          </Providers>
-        </main>
-        <Navbar />
+        <Providers>
+          <HyperLiquidProvider>
+            <AppLayout>{children}</AppLayout>
+          </HyperLiquidProvider>
+        </Providers>
       </body>
     </html>
   );

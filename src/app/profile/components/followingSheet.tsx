@@ -1,17 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Sheet,
-  SheetClose,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "lucide-react";
-import { Label } from "@/components/ui/label";
 import FollowingItem from "./followingItem";
 import Search from "@/app/copyTrading/components/search";
 import { MAX_WIDTH } from "@/app/layout";

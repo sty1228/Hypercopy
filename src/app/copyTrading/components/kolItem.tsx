@@ -4,8 +4,8 @@ import Image from "next/image";
 import clockIcon from "@/assets/icons/clock.png";
 import XIcon from "@/assets/icons/X.png";
 import Avatar from "./avatar";
-import { numberToPercentageString } from "@/lib/number";
 import { LeaderboardItem } from "@/service";
+import BigNumber from "bignumber.js";
 
 // 随机生成一个颜色
 export const randomColor = () => {
@@ -98,8 +98,8 @@ export default function KolItem({
           >
             {data.total_tweets}
           </span>
-          <span>
-            <Image src={XIcon} alt="X" width={20} height={20} />
+          <span className="ml-2">
+            <Image src={XIcon} alt="X" width={10} height={10} />
           </span>
         </div>
       </div>
@@ -114,7 +114,7 @@ export default function KolItem({
             Grade
           </span>
           <span className="font-medium text-base">
-            {(data?.grade as string) || "-"}
+            {(data?.profit_grade as string) || "-"}
           </span>
         </div>
 
@@ -126,7 +126,11 @@ export default function KolItem({
             Points
           </span>
           <span className="font-medium text-base">
-            {(data?.points as number) || "-"}
+            {data?.points
+              ? new BigNumber(data?.points as number)
+                  .decimalPlaces(2, BigNumber.ROUND_DOWN)
+                  .toNumber()
+              : "-"}
           </span>
         </div>
 
@@ -147,8 +151,10 @@ export default function KolItem({
               color: "transparent",
             }}
           >
-            {data?.win_rate
-              ? numberToPercentageString(data?.win_rate as number)
+            {data?.results_pct
+              ? `${new BigNumber(data?.results_pct as number)
+                  .decimalPlaces(2, BigNumber.ROUND_DOWN)
+                  .toNumber()}%`
               : "-"}
           </span>
         </div>
@@ -164,7 +170,9 @@ export default function KolItem({
             <span className="font-medium text-base">
               {(data?.streak as number) || "-"}
             </span>
-            {(data?.streak as number) && <span className="ml-1">🔥</span>}
+            {(data?.streak as number) > 0 ? (
+              <span className="ml-1">🔥</span>
+            ) : null}
           </div>
         </div>
 
