@@ -4,6 +4,7 @@ import { createContext, useCallback, useEffect, useState } from "react";
 import * as hl from "@nktkas/hyperliquid";
 import { useCurrentWallet, useEthereumProvider } from "@/hooks/usePrivyData";
 import { ethers } from "ethers";
+import { BigNumber } from "bignumber.js";
 
 const HyperLiquidContext = createContext({
   hyperLiquidTransport: null as hl.HttpTransport | null,
