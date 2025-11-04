@@ -21,14 +21,18 @@ const HyperLiquidContext = createContext({
 
 const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
-    console.log("NEXT_HL_BUILDER_ADDRESS", process.env.NEXT_HL_BUILDER_ADDRESS);
+    console.log("process.env", process.env);
     console.log(
-      "NEXT_HL_DEFAULT_BUILDER_BPS",
-      process.env.NEXT_HL_DEFAULT_BUILDER_BPS
+      "NEXT_PUBLIC_HL_BUILDER_ADDRESS",
+      process.env.NEXT_PUBLIC_HL_BUILDER_ADDRESS
     );
     console.log(
-      "NEXT_HL_DEFAULT_LEVERAGE",
-      process.env.NEXT_HL_DEFAULT_LEVERAGE
+      "NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS",
+      process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS
+    );
+    console.log(
+      "NEXT_PUBLIC_HL_DEFAULT_LEVERAGE",
+      process.env.NEXT_PUBLIC_HL_DEFAULT_LEVERAGE
     );
   }, []);
 
@@ -183,8 +187,8 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
     if (!mainExchClient) {
       return;
     }
-    const maxFeeRate = process.env.NEXT_HL_DEFAULT_BUILDER_BPS!;
-    const builderAddress = process.env.NEXT_HL_BUILDER_ADDRESS;
+    const maxFeeRate = process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS!;
+    const builderAddress = process.env.NEXT_PUBLIC_HL_BUILDER_ADDRESS;
     await mainExchClient.approveBuilderFee({
       maxFeeRate: `${new BigNumber(maxFeeRate).multipliedBy(100).toString()}%`,
       builder: builderAddress!,
