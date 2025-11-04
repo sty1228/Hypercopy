@@ -190,7 +190,7 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
     const maxFeeRate = process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS!;
     const builderAddress = process.env.NEXT_PUBLIC_HL_BUILDER_ADDRESS;
     await mainExchClient.approveBuilderFee({
-      maxFeeRate: `${new BigNumber(maxFeeRate).multipliedBy(100).toString()}%`,
+      maxFeeRate: `${new BigNumber(maxFeeRate).dividedBy(100).toString()}%`,
       builder: builderAddress!,
     });
   };
