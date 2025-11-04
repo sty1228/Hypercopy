@@ -19,6 +19,18 @@ const HyperLiquidContext = createContext({
 });
 
 const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
+  useEffect(() => {
+    console.log("NEXT_HL_BUILDER_ADDRESS", process.env.NEXT_HL_BUILDER_ADDRESS);
+    console.log(
+      "NEXT_HL_DEFAULT_BUILDER_BPS",
+      process.env.NEXT_HL_DEFAULT_BUILDER_BPS
+    );
+    console.log(
+      "NEXT_HL_DEFAULT_LEVERAGE",
+      process.env.NEXT_HL_DEFAULT_LEVERAGE
+    );
+  }, []);
+
   const [hyperLiquidTransport, setHyperLiquidTransport] =
     useState<hl.HttpTransport | null>(null);
   const [infoClient, setInfoClient] = useState<hl.InfoClient | null>(null);
@@ -170,9 +182,11 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
     if (!mainExchClient) {
       return;
     }
+    const maxFeeRate = process.env.NEXT_HL_DEFAULT_BUILDER_BPS!;
+    const builderAddress = process.env.NEXT_HL_BUILDER_ADDRESS;
     await mainExchClient.approveBuilderFee({
-      maxFeeRate: "0.01%",
-      builder: currentWallet!.address,
+      maxFeeRate: `${new BigNumber(maxFeeRate).multipliedBy(100).toString()}%`,
+      builder: builderAddress!,
     });
   };
 
