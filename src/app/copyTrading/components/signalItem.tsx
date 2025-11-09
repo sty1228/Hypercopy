@@ -31,7 +31,7 @@ export default function SignalItem({
   onClick: (signalId: number) => void;
   currentClickItemId: number | null;
 }) {
-  const { tradingEnabled, placeOrderAssets, exchClient } =
+  const { tradingEnabled, placeOrderAssets, exchClient, infoClient } =
     useContext(HyperLiquidContext);
   const [itemHoverStyle, setItemHoverStyle] = useState({});
   const [counterTradeButtonHoverStyle, setCounterTradeButtonHoverStyle] =
@@ -41,31 +41,36 @@ export default function SignalItem({
   );
 
   const handleTrade = async (side: "copy" | "counter") => {
-    console.log(placeOrderAssets);
-    console.log(side);
-    console.log(data);
     const symbol = data?.ticker.replaceAll("USDT", "");
-    const placeOrderAssetId = placeOrderAssets[symbol.toUpperCase()];
-    console.log("symbol", symbol, "id", placeOrderAssetId);
-    const orderParams = {
-      side: SIDE_MAP[
+    const tradeSide =
+      SIDE_MAP[
         side === "copy"
           ? data.bull_or_bear
           : data.bull_or_bear === "bearish"
           ? "bullish"
           : "bearish"
-      ],
-      price: data.entry_price,
+      ];
+    const realtimeOrderbook = await infoClient!.l2Book({
+      coin: symbol,
+      // nSigFigs: 2,
+    });
+    const { levels } = realtimeOrderbook;
+    const [bids, asks] = levels || [];
+    const orderPrice = tradeSide === "long" ? bids[0].px : asks[0].px;
+    console.log("orderPrice", orderPrice);
+    const placeOrderAssetId = placeOrderAssets[symbol.toUpperCase()];
+    const orderParams = {
+      side: tradeSide,
+      price: orderPrice,
       size: 0.1,
       coin: placeOrderAssetId,
       leverage: 1,
     };
 
-    const mockPrice = new BigNumber(data.entry_price)
-      .multipliedBy(orderParams.side === "long" ? 0.9 : 1.1)
-      // 这里的精度跟随 data.entry_price 的精度
-      .decimalPlaces(data.entry_price.toString().split(".")[1]?.length || 0)
-      .toNumber();
+    const mockPrice =
+      tradeSide === "long"
+        ? bids[bids.length - 1].px
+        : asks[asks.length - 1].px;
     const mockSize = new BigNumber(20)
       .dividedBy(mockPrice)
       .precision(1)

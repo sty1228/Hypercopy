@@ -8,8 +8,8 @@ const placeOrder = async ({
   exchClient: hl.ExchangeClient;
   orderParams: {
     side: "long" | "short";
-    price: number;
-    size: number;
+    price: number | string;
+    size: number | string;
     coin: number;
     leverage: number;
   };
