@@ -11,10 +11,7 @@ import { HyperLiquidContext } from "@/providers/hyperliquid";
 import { useContext, useEffect, useState } from "react";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { getPerpsBalance } from "@/helpers/hyperliquid";
-import {
-  getArbUSDCBalance,
-  getArbUSDCBalanceThrottled,
-} from "@/helpers/arbitrum";
+import { getArbUSDCBalance } from "@/helpers/arbitrum";
 
 const Onboarding = () => {
   const { ready, login, authenticated } = usePrivy();
