@@ -8,15 +8,55 @@ import colors from "@/const/colors";
 import { usePrivy } from "@privy-io/react-auth";
 import { FullScreenLoader } from "@/components/ui/fullscreen-loader";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
+import { useCurrentWallet } from "@/hooks/usePrivyData";
+import { getPerpsBalance } from "@/helpers/hyperliquid";
+import {
+  getArbUSDCBalance,
+  getArbUSDCBalanceThrottled,
+} from "@/helpers/arbitrum";
 
 const Onboarding = () => {
   const { ready, login, authenticated } = usePrivy();
-  const { enableTrading, tradingEnabled } = useContext(HyperLiquidContext);
+  const { enableTrading, tradingEnabled, infoClient } =
+    useContext(HyperLiquidContext);
+  const currentWallet = useCurrentWallet();
+  const [perpsBalance, setPerpsBalance] = useState<number>(0);
+  const [arbUSDCBalance, setArbUSDCBalance] = useState<number>(0);
+  const [requestLock, setRequestLock] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!currentWallet || !infoClient || requestLock) {
+      return;
+    }
+    setRequestLock(true);
+    Promise.all([
+      getPerpsBalance({
+        exchClient: infoClient!,
+        walletAddress: currentWallet.address!,
+      }),
+      getArbUSDCBalance(currentWallet.address!),
+    ])
+      .then(([perpsBalance, arbUSDCBalance]) => {
+        setPerpsBalance(Number(perpsBalance?.marginSummary?.accountValue || 0));
+        setArbUSDCBalance(Number(arbUSDCBalance));
+      })
+      .finally(() => {
+        setRequestLock(false);
+      });
+  }, [currentWallet, infoClient]);
 
   const handleClickContinue = () => {
     if (!authenticated) {
       login();
+      return;
+    }
+    if (perpsBalance <= 0) {
+      if (arbUSDCBalance >= 0.1) {
+        console.log("deposit");
+      } else {
+        alert("NOT ENOUGH ARBITRUM USDC");
+      }
       return;
     }
     if (!tradingEnabled) {
@@ -123,6 +163,10 @@ const Onboarding = () => {
         >
           {!authenticated
             ? "CONTINUE"
+            : perpsBalance <= 0
+            ? arbUSDCBalance <= 0.1
+              ? "NOT ENOUGH ARBITRUM USDC"
+              : "DEPOSIT"
             : tradingEnabled
             ? "START"
             : "ENABLE TRADING"}
