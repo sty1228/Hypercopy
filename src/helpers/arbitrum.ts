@@ -1,4 +1,3 @@
-import { throttle, throttleAsync } from "@/lib/utils";
 import { ethers } from "ethers";
 
 const getArbUSDCBalance = async (address: string) => {
@@ -22,6 +21,4 @@ const getArbUSDCBalance = async (address: string) => {
   return readableBalance;
 };
 
-const getArbUSDCBalanceThrottled = throttleAsync(getArbUSDCBalance, 500);
-
-export { getArbUSDCBalance, getArbUSDCBalanceThrottled };
+export { getArbUSDCBalance };
