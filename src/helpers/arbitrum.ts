@@ -1,6 +1,10 @@
 import { ethers } from "ethers";
 
-const getArbUSDCBalance = async (address: string) => {
+export const ARBITRUM_HTTP_PROVIDER = new ethers.JsonRpcProvider(
+  "https://arb1.arbitrum.io/rpc"
+);
+
+export const getArbUSDCBalance = async (address: string) => {
   console.log(">>> getArbUSDCBalance: ", address);
   const ABI = [
     "function balanceOf(address owner) view returns (uint256)",
@@ -9,7 +13,7 @@ const getArbUSDCBalance = async (address: string) => {
   const contract = new ethers.Contract(
     "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
     ABI,
-    new ethers.JsonRpcProvider("https://arb1.arbitrum.io/rpc")
+    ARBITRUM_HTTP_PROVIDER
   );
   console.log("address", address);
   const balance = await contract.balanceOf(address);
@@ -20,5 +24,3 @@ const getArbUSDCBalance = async (address: string) => {
   console.log("Arb USDC balance: ", readableBalance);
   return readableBalance;
 };
-
-export { getArbUSDCBalance };

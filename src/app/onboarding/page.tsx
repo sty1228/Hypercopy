@@ -12,6 +12,8 @@ import { useContext, useEffect, useState } from "react";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { getPerpsBalance } from "@/helpers/hyperliquid";
 import { getArbUSDCBalance } from "@/helpers/arbitrum";
+import { useArbitrumUSDCDepositWithTransfer } from "@/hooks/hyperliquid";
+import { toast } from "sonner";
 
 const Onboarding = () => {
   const { ready, login, authenticated } = usePrivy();
@@ -21,6 +23,7 @@ const Onboarding = () => {
   const [perpsBalance, setPerpsBalance] = useState<number>(0);
   const [arbUSDCBalance, setArbUSDCBalance] = useState<number>(0);
   const [requestLock, setRequestLock] = useState<boolean>(false);
+  const arbitrumUSDCDepositWithTransfer = useArbitrumUSDCDepositWithTransfer();
 
   useEffect(() => {
     if (!currentWallet || !infoClient || requestLock) {
@@ -43,14 +46,49 @@ const Onboarding = () => {
       });
   }, [currentWallet, infoClient]);
 
-  const handleClickContinue = () => {
+  const handleClickContinue = async () => {
     if (!authenticated) {
       login();
       return;
     }
     if (perpsBalance <= 0) {
-      if (arbUSDCBalance >= 0.1) {
-        console.log("deposit");
+      if (arbUSDCBalance >= 10) {
+        const depositTx = await arbitrumUSDCDepositWithTransfer({
+          depositAmount: 5,
+        }).catch(() => null);
+        console.log("depositTx", depositTx);
+        if (!depositTx) {
+          return;
+        }
+        toast.info(
+          "Deposit tx has been sent, waiting for blockchain and hyperliquid confirmation...",
+          {
+            duration: 3_000,
+          }
+        );
+        const timer = setInterval(() => {
+          getPerpsBalance({
+            exchClient: infoClient!,
+            walletAddress: currentWallet!.address,
+          }).then((res) => {
+            console.log("res", res);
+            if (
+              res?.marginSummary?.accountValue &&
+              Number(res.marginSummary.accountValue) > 0
+            ) {
+              clearInterval(timer);
+              setPerpsBalance(Number(res?.marginSummary?.accountValue || 0));
+              toast.success("Deposit confirmed!");
+            } else {
+              toast.info(
+                "Keep checking hyperliquid balance, this may take 1 minute...",
+                {
+                  duration: 3_000,
+                }
+              );
+            }
+          });
+        }, 5_000);
       } else {
         alert("NOT ENOUGH ARBITRUM USDC");
       }
@@ -163,7 +201,7 @@ const Onboarding = () => {
             : perpsBalance <= 0
             ? arbUSDCBalance <= 0.1
               ? "NOT ENOUGH ARBITRUM USDC"
-              : "DEPOSIT"
+              : `DEPOSIT 5 USDC TO START`
             : tradingEnabled
             ? "START"
             : "ENABLE TRADING"}

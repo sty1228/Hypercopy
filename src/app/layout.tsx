@@ -2,6 +2,7 @@ import { Geist, Geist_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
 import Providers from "@/providers/providers";
 import AppLayout from "@/components/AppLayout";
+import { Toaster } from "@/components/ui/sonner";
 import colors from "@/const/colors";
 import { HyperLiquidProvider } from "@/providers/hyperliquid";
 
@@ -54,6 +55,7 @@ export default function RootLayout({
             <AppLayout>{children}</AppLayout>
           </HyperLiquidProvider>
         </Providers>
+        <Toaster />
       </body>
     </html>
   );
