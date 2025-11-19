@@ -4,6 +4,7 @@ import copyCountIcon from "@/assets/icons/copy-count.png";
 import copyRankIcon from "@/assets/icons/copy-rank.png";
 import Avatar from "../copyTrading/components/avatar";
 import { Button } from "@/components/ui/button";
+import BalanceChart from "./components/balanceChart";
 
 const Home = () => {
   return (
@@ -135,7 +136,9 @@ const Home = () => {
             }}
           />
 
-          <div className="px-5 h-[100px]">chart area</div>
+          <div className="px-5 h-[90px] mt-4">
+            <BalanceChart />
+          </div>
 
           <div className="flex justify-between px-5 mt-13">
             <div className="flex flex-col justify-center">
@@ -168,45 +171,49 @@ const Home = () => {
       <div className="flex px-5 mt-4">
         <div className="flex flex-1">
           <div
-            className="flex-1 rounded-[12px] flex flex-col pt-4 pb-5 pl-4"
+            className="flex-1 rounded-[12px]"
             style={{
               backgroundColor: "rgba(23, 42, 48, 1)",
             }}
           >
-            <Image
-              src={copyCountIcon}
-              alt="copy-count"
-              width={16}
-              height={16}
-            />
-            <span
-              className="text-sm mt-2"
-              style={{ color: "rgba(165, 176, 176, 1)" }}
-            >
-              Copying
-            </span>
-            <span className="mt-6">243</span>
+            <div className="flex flex-col pt-4 pb-5 w-[52px] mx-auto">
+              <Image
+                src={copyCountIcon}
+                alt="copy-count"
+                width={16}
+                height={16}
+              />
+              <span
+                className="text-sm mt-2"
+                style={{ color: "rgba(165, 176, 176, 1)" }}
+              >
+                Copying
+              </span>
+              <span className="mt-6">243</span>
+            </div>
           </div>
 
           <div
-            className="flex-1 rounded-[12px] flex flex-col pt-4 pb-5 pl-4 ml-3"
+            className="flex-1 rounded-[12px] ml-3"
             style={{
               backgroundColor: "rgba(23, 42, 48, 1)",
             }}
           >
-            <Image
-              src={copyCountIcon}
-              alt="copy-count"
-              width={16}
-              height={16}
-            />
-            <span
-              className="text-sm mt-2"
-              style={{ color: "rgba(165, 176, 176, 1)" }}
-            >
-              Copied
-            </span>
-            <span className="mt-6">367</span>
+            <div className="flex flex-col pt-4 pb-5 w-[52px] mx-auto">
+              <Image
+                src={copyCountIcon}
+                alt="copy-count"
+                width={16}
+                height={16}
+              />
+              <span
+                className="text-sm mt-2"
+                style={{ color: "rgba(165, 176, 176, 1)" }}
+              >
+                Copied
+              </span>
+              <span className="mt-6">367</span>
+            </div>
           </div>
         </div>
 
