@@ -24,10 +24,8 @@ const data = [
 ];
 
 // 自定义 Tooltip 组件
-const CustomTooltip = ({
-  active,
-  payload,
-}: TooltipContentProps<number, string>) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0];
     return (
@@ -38,13 +36,13 @@ const CustomTooltip = ({
           border: "1px solid rgba(80, 210, 193, 0.4)",
         }}
       >
-        <p
-          className="text-xs mb-1"
-          style={{ color: "rgba(165, 176, 176, 1)" }}
-        >
+        <p className="text-xs mb-1" style={{ color: "rgba(165, 176, 176, 1)" }}>
           {data.payload.month}
         </p>
-        <p className="text-sm font-semibold" style={{ color: "rgba(80, 210, 193, 1)" }}>
+        <p
+          className="text-sm font-semibold"
+          style={{ color: "rgba(80, 210, 193, 1)" }}
+        >
           ${data.value?.toLocaleString()}
         </p>
       </div>
@@ -56,8 +54,9 @@ const CustomTooltip = ({
 const BalanceChart = () => {
   return (
     <div className="w-full h-full chart-container">
-      <style dangerouslySetInnerHTML={{
-        __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
           .chart-container,
           .chart-container *,
           .chart-container svg,
@@ -71,8 +70,9 @@ const BalanceChart = () => {
           .recharts-wrapper *:focus {
             outline: none !important;
           }
-        `
-      }} />
+        `,
+        }}
+      />
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
@@ -135,4 +135,3 @@ const BalanceChart = () => {
 };
 
 export default BalanceChart;
-
