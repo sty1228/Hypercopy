@@ -173,9 +173,9 @@ const Onboarding = () => {
       >
         By tap on the FINISH button you’re agree to our Terms and Agreement.
       </p>
-      <div className="relative mx-[48px] mt-6">
+      <div className="relative mx-[48px] mt-6 group cursor-pointer transition-all duration-200">
         <div
-          className="absolute inset-0 rounded-[38px]"
+          className="absolute inset-0 rounded-[38px] transition-all duration-200"
           style={{
             background:
               "radial-gradient(65.81% 100% at 77.48% 100%, #F0EA2D 0%, #50D2C1 100%)",
@@ -184,15 +184,41 @@ const Onboarding = () => {
           }}
         >
           <div
-            className="w-full h-full rounded-[38px]"
-            style={{ backgroundColor: colors.primary }}
+            className="w-full h-full rounded-[38px] transition-all duration-200 group-hover:bg-[rgba(80,210,193,1)] group-active:bg-[rgba(80,210,193,1)]"
+            style={{ 
+              backgroundColor: colors.primary,
+              backdropFilter: "blur(0px)",
+            }}
           />
         </div>
+        <div
+          className="absolute inset-0 rounded-[38px] opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-all duration-200 pointer-events-none"
+          style={{
+            backdropFilter: "blur(30px)",
+          }}
+        />
         <Button
-          className="h-[72px] w-full relative bg-transparent hover:bg-transparent font-semibold text-base"
+          className="h-[72px] rounded-[38px] w-full relative font-semibold text-base transition-all duration-200 text-[rgba(80,210,193,1)] group-hover:text-[rgba(15,26,31,1)] group-active:text-[rgba(15,26,31,1)]"
           style={{
             background: "transparent",
-            color: "rgba(80, 210, 193, 1)",
+            backdropFilter: "blur(0px)",
+            transition: "background-color 0.2s, backdrop-filter 0.2s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(80, 210, 193, 1)";
+            e.currentTarget.style.backdropFilter = "blur(30px)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.backdropFilter = "blur(0px)";
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.background = "rgba(80, 210, 193, 1)";
+            e.currentTarget.style.backdropFilter = "blur(30px)";
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.background = "rgba(80, 210, 193, 1)";
+            e.currentTarget.style.backdropFilter = "blur(30px)";
           }}
           onClick={handleClickContinue}
         >

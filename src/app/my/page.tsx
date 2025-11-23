@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import profileIcon from "@/assets/icons/profile.png";
 import copyCountIcon from "@/assets/icons/copy-count.png";
@@ -5,8 +8,14 @@ import copyRankIcon from "@/assets/icons/copy-rank.png";
 import Avatar from "../copyTrading/components/avatar";
 import { Button } from "@/components/ui/button";
 import BalanceChart from "./components/balanceChart";
+import TimeRangeTab from "./components/TimeRangeTab";
+import copyingIcon from "@/assets/icons/copying.png";
+import activeTradesIcon from "@/assets/icons/active-traders.png";
+import tradesEndedIcon from "@/assets/icons/traders-ended.png";
+import type { TimeRange } from "./components/balanceChart";
 
 const Home = () => {
+  const [timeRange, setTimeRange] = useState<TimeRange>("M");
   return (
     <div>
       <div className="mt-4 mb-3 flex items-center justify-between px-4">
@@ -58,58 +67,35 @@ const Home = () => {
                 Current Balance
               </span>
               <div className="flex">
-                <div className="flex flex-col">
-                  <span className="w-[18px] flex justify-center text-xs">
-                    D
-                  </span>
-                  {/* <span
-                    className="h-[2px] rounded-[1px]"
-                    style={{ backgroundColor: "rgba(80, 210, 193, 1)" }}
-                  ></span> */}
-                </div>
-
-                <div className="flex flex-col ml-1">
-                  <span className="w-[18px] flex justify-center text-xs">
-                    W
-                  </span>
-                  {/* <span
-                    className="h-[2px] rounded-[1px]"
-                    style={{ backgroundColor: "rgba(80, 210, 193, 1)" }}
-                  ></span> */}
-                </div>
-
-                <div className="flex flex-col ml-1">
-                  <span
-                    className="w-[18px] flex justify-center text-xs"
-                    style={{ color: "rgba(80, 210, 193, 1)" }}
-                  >
-                    M
-                  </span>
-                  <span
-                    className="h-[2px] rounded-[1px] mt-1"
-                    style={{ backgroundColor: "rgba(80, 210, 193, 1)" }}
-                  ></span>
-                </div>
-
-                <div className="flex flex-col ml-1">
-                  <span className="w-[22px] flex justify-center text-xs">
-                    YTD
-                  </span>
-                  {/* <span
-                    className="h-[2px] rounded-[1px]"
-                    style={{ backgroundColor: "rgba(80, 210, 193, 1)" }}
-                  ></span> */}
-                </div>
-
-                <div className="flex flex-col ml-1">
-                  <span className="w-[22px] flex justify-center text-xs">
-                    ALL
-                  </span>
-                  {/* <span
-                    className="h-[2px] rounded-[1px]"
-                    style={{ backgroundColor: "rgba(80, 210, 193, 1)" }}
-                  ></span> */}
-                </div>
+                <TimeRangeTab
+                  label="D"
+                  isActive={timeRange === "D"}
+                  onClick={() => setTimeRange("D")}
+                />
+                <TimeRangeTab
+                  label="W"
+                  isActive={timeRange === "W"}
+                  onClick={() => setTimeRange("W")}
+                  className="ml-1"
+                />
+                <TimeRangeTab
+                  label="M"
+                  isActive={timeRange === "M"}
+                  onClick={() => setTimeRange("M")}
+                  className="ml-1"
+                />
+                <TimeRangeTab
+                  label="YTD"
+                  isActive={timeRange === "YTD"}
+                  onClick={() => setTimeRange("YTD")}
+                  className="ml-1"
+                />
+                <TimeRangeTab
+                  label="ALL"
+                  isActive={timeRange === "ALL"}
+                  onClick={() => setTimeRange("ALL")}
+                  className="ml-1"
+                />
               </div>
             </div>
             <p className="text-2xl">$16,534.22</p>
@@ -137,7 +123,7 @@ const Home = () => {
           />
 
           <div className="px-5 h-[90px] mt-4">
-            <BalanceChart />
+            <BalanceChart timeRange={timeRange} />
           </div>
 
           <div className="flex justify-between px-5 mt-13">
@@ -178,7 +164,7 @@ const Home = () => {
           >
             <div className="flex flex-col pt-4 pb-5 w-[52px] mx-auto">
               <Image
-                src={copyCountIcon}
+                src={copyingIcon}
                 alt="copy-count"
                 width={16}
                 height={16}
@@ -226,7 +212,7 @@ const Home = () => {
           >
             <div className="flex items-center">
               <Image
-                src={copyCountIcon}
+                src={activeTradesIcon}
                 alt="copy-count"
                 width={16}
                 height={16}
@@ -249,7 +235,7 @@ const Home = () => {
           >
             <div className="flex items-center">
               <Image
-                src={copyCountIcon}
+                src={tradesEndedIcon}
                 alt="copy-count"
                 width={16}
                 height={16}
