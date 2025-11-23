@@ -14,6 +14,7 @@ import { getPerpsBalance } from "@/helpers/hyperliquid";
 import { getArbUSDCBalance } from "@/helpers/arbitrum";
 import { useArbitrumUSDCDepositWithTransfer } from "@/hooks/hyperliquid";
 import { toast } from "sonner";
+import onBoardBg from "@/assets/icons/onboard-bg.png";
 
 const Onboarding = () => {
   const { ready, login, authenticated } = usePrivy();
@@ -103,7 +104,15 @@ const Onboarding = () => {
     return <FullScreenLoader />;
   }
   return (
-    <div className="flex flex-col pb-5">
+    <div
+      className="flex flex-col pb-5"
+      style={{
+        backgroundImage: `url(${onBoardBg.src})`,
+        backgroundSize: "100%",
+        backgroundRepeat: "no-repeat",
+        backgroundPositionX: "center",
+      }}
+    >
       <p className="mt-9" style={{ paddingLeft: "48px" }}>
         <Image src={logoIcon} alt="logo" width={100} height={100} />
       </p>
@@ -185,7 +194,7 @@ const Onboarding = () => {
         >
           <div
             className="w-full h-full rounded-[38px] transition-all duration-200 group-hover:bg-[rgba(80,210,193,1)] group-active:bg-[rgba(80,210,193,1)]"
-            style={{ 
+            style={{
               backgroundColor: colors.primary,
               backdropFilter: "blur(0px)",
             }}
