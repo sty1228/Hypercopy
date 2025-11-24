@@ -1,23 +1,44 @@
 "use client";
 
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 import Navbar from "@/components/navbar";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useRef } from "react";
 import Onboarding from "@/app/onboarding/page";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { authenticated, logout } = usePrivy();
+  const { authenticated, logout, ready } = usePrivy();
+  const { ready: walletsReady } = useWallets();
   const { tradingEnabled } = useContext(HyperLiquidContext);
   const currentWallet = useCurrentWallet();
+  const logoutTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // 一个异常 case，直接在钱包中断开连接，此时 authenticated 为 true，但是获取不到当前钱包地址了
-    if (authenticated && !currentWallet?.address) {
-      logout();
+    // 清除之前的定时器
+    if (logoutTimeoutRef.current) {
+      clearTimeout(logoutTimeoutRef.current);
+      logoutTimeoutRef.current = null;
     }
-  }, [authenticated, currentWallet]);
+
+    // 只有在 Privy 和钱包都准备好之后才检查
+    // 给 embedded wallet 创建一些时间（最多等待 5 秒）
+    if (ready && walletsReady && authenticated && !currentWallet?.address) {
+      logoutTimeoutRef.current = setTimeout(() => {
+        // 5 秒后如果还是没有钱包地址，才执行 logout
+        // 这通常发生在用户直接在钱包中断开连接的情况
+        if (authenticated && !currentWallet?.address) {
+          logout();
+        }
+      }, 5000);
+    }
+
+    return () => {
+      if (logoutTimeoutRef.current) {
+        clearTimeout(logoutTimeoutRef.current);
+      }
+    };
+  }, [authenticated, currentWallet, ready, walletsReady, logout]);
 
   return tradingEnabled && authenticated ? (
     <>
