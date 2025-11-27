@@ -20,6 +20,7 @@ import { useContext, useEffect, useState } from "react";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { getPerpsBalance } from "@/helpers/hyperliquid";
 import BottomButtons from "./bottomButtons";
+import { toast } from "sonner";
 
 const DOLLAR_OR_PERCENTAGE_STYLE = {
   default: {
@@ -477,8 +478,7 @@ export default function DefaultFollow() {
             console.log("cancel");
           }}
           onSave={() => {
-            console.log("save");
-            alert(`save config: ${JSON.stringify(defaultFollowSettings)}`);
+            toast.success("Config saved successfully");
           }}
           onReset={() => {
             setDefaultFollowSettings(getInitialDefaultFollowSettings());

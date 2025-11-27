@@ -200,7 +200,7 @@ export default function SignalItem({
             onClick={() => handleTrade("copy")}
           >
             <div
-              className="flex items-center h-full px-6 rounded-[10px]"
+              className="flex items-center h-full px-4 rounded-[10px]"
               style={{
                 ...counterTradeButtonHoverStyle,
               }}
@@ -233,7 +233,7 @@ export default function SignalItem({
             onClick={() => handleTrade("counter")}
           >
             <div
-              className="flex items-center h-full px-6 rounded-[10px]"
+              className="flex items-center h-full px-4 rounded-[10px]"
               style={{
                 ...copyTradeButtonHoverStyle,
               }}

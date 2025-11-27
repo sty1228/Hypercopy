@@ -8,7 +8,7 @@ import colors from "@/const/colors";
 import { usePrivy } from "@privy-io/react-auth";
 import { FullScreenLoader } from "@/components/ui/fullscreen-loader";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { getPerpsBalance } from "@/helpers/hyperliquid";
 import { getArbUSDCBalance } from "@/helpers/arbitrum";
@@ -18,13 +18,43 @@ import onBoardBg from "@/assets/icons/onboard-bg.png";
 
 const Onboarding = () => {
   const { ready, login, authenticated } = usePrivy();
-  const { enableTrading, tradingEnabled, infoClient } =
-    useContext(HyperLiquidContext);
+  const {
+    enableTrading,
+    tradingEnabled,
+    infoClient,
+    builderFeeApproved,
+    approveBuilderFee,
+    agentWallet,
+  } = useContext(HyperLiquidContext);
   const currentWallet = useCurrentWallet();
   const [perpsBalance, setPerpsBalance] = useState<number>(0);
   const [arbUSDCBalance, setArbUSDCBalance] = useState<number>(0);
   const [requestLock, setRequestLock] = useState<boolean>(false);
   const arbitrumUSDCDepositWithTransfer = useArbitrumUSDCDepositWithTransfer();
+
+  const buttonText = useMemo(() => {
+    if (!authenticated) {
+      return "CONTINUE";
+    }
+    if (perpsBalance <= 0) {
+      return arbUSDCBalance <= 0.1
+        ? "NOT ENOUGH ARBITRUM USDC"
+        : `DEPOSIT 5 USDC TO START`;
+    }
+    if (!tradingEnabled) {
+      return "ENABLE TRADING";
+    }
+    if (!builderFeeApproved) {
+      return "APPROVE BUILDER FEE";
+    }
+    return "START";
+  }, [
+    authenticated,
+    perpsBalance,
+    arbUSDCBalance,
+    tradingEnabled,
+    builderFeeApproved,
+  ]);
 
   useEffect(() => {
     if (!currentWallet || !infoClient || requestLock) {
@@ -91,12 +121,15 @@ const Onboarding = () => {
           });
         }, 5_000);
       } else {
-        alert("NOT ENOUGH ARBITRUM USDC");
+        toast.error("NOT ENOUGH ARBITRUM USDC");
       }
       return;
     }
     if (!tradingEnabled) {
       enableTrading();
+    }
+    if (!builderFeeApproved) {
+      approveBuilderFee();
     }
   };
 
@@ -216,30 +249,30 @@ const Onboarding = () => {
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "rgba(80, 210, 193, 1)";
             e.currentTarget.style.backdropFilter = "blur(30px)";
+            e.currentTarget.style.color = "rgba(15, 26, 31, 1)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = "transparent";
             e.currentTarget.style.backdropFilter = "blur(0px)";
+            e.currentTarget.style.color = "rgba(80, 210, 193, 1)";
           }}
           onMouseDown={(e) => {
             e.currentTarget.style.background = "rgba(80, 210, 193, 1)";
             e.currentTarget.style.backdropFilter = "blur(30px)";
           }}
           onMouseUp={(e) => {
-            e.currentTarget.style.background = "rgba(80, 210, 193, 1)";
-            e.currentTarget.style.backdropFilter = "blur(30px)";
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.backdropFilter = "blur(0px)";
+            e.currentTarget.style.color = "rgba(80, 210, 193, 1)";
+          }}
+          onTouchEnd={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.backdropFilter = "blur(0px)";
+            e.currentTarget.style.color = "rgba(80, 210, 193, 1)";
           }}
           onClick={handleClickContinue}
         >
-          {!authenticated
-            ? "CONTINUE"
-            : perpsBalance <= 0
-            ? arbUSDCBalance <= 0.1
-              ? "NOT ENOUGH ARBITRUM USDC"
-              : `DEPOSIT 5 USDC TO START`
-            : tradingEnabled
-            ? "START"
-            : "ENABLE TRADING"}
+          {buttonText}
         </Button>
       </div>
     </div>

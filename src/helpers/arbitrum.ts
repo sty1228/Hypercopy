@@ -5,7 +5,6 @@ export const ARBITRUM_HTTP_PROVIDER = new ethers.JsonRpcProvider(
 );
 
 export const getArbUSDCBalance = async (address: string) => {
-  console.log(">>> getArbUSDCBalance: ", address);
   const ABI = [
     "function balanceOf(address owner) view returns (uint256)",
     "function decimals() view returns (uint8)",
@@ -15,7 +14,6 @@ export const getArbUSDCBalance = async (address: string) => {
     ABI,
     ARBITRUM_HTTP_PROVIDER
   );
-  console.log("address", address);
   const balance = await contract.balanceOf(address);
   const readableBalance = ethers.formatUnits(
     balance,

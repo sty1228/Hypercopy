@@ -11,7 +11,6 @@ export default function Header() {
   const { authenticated, login, logout } = usePrivy();
 
   const handleClickWallet = useCallback(() => {
-    console.log("handleClickWallet");
     if (authenticated) {
       logout();
     } else {

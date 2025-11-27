@@ -10,7 +10,7 @@ import { useCurrentWallet } from "@/hooks/usePrivyData";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { authenticated, logout, ready } = usePrivy();
   const { ready: walletsReady } = useWallets();
-  const { tradingEnabled } = useContext(HyperLiquidContext);
+  const { tradingEnabled, builderFeeApproved } = useContext(HyperLiquidContext);
   const currentWallet = useCurrentWallet();
   const logoutTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -30,7 +30,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         if (authenticated && !currentWallet?.address) {
           logout();
         }
-      }, 5000);
+      }, 10_000);
     }
 
     return () => {
@@ -40,7 +40,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
   }, [authenticated, currentWallet, ready, walletsReady, logout]);
 
-  return tradingEnabled && authenticated ? (
+  return tradingEnabled && authenticated && builderFeeApproved ? (
     <>
       <main className="flex-1 w-full" style={{ paddingBottom: "62px" }}>
         {children}

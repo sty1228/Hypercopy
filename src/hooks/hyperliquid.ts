@@ -39,7 +39,6 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
           console.log(e);
           throw e;
         });
-        console.log(currentWallet.chainId);
 
         const usdcContract = new ethers.Contract(
           usdcAddress,

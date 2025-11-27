@@ -5,6 +5,7 @@ import * as hl from "@nktkas/hyperliquid";
 import { useCurrentWallet, useEthereumProvider } from "@/hooks/usePrivyData";
 import { ethers } from "ethers";
 import { BigNumber } from "bignumber.js";
+import { toast } from "sonner";
 
 const HyperLiquidContext = createContext({
   hyperLiquidTransport: null as hl.HttpTransport | null,
@@ -17,6 +18,8 @@ const HyperLiquidContext = createContext({
     [key: string]: number;
   },
   enableTrading: () => Promise.resolve(),
+  approveBuilderFee: () => Promise.resolve(),
+  builderFeeApproved: false as boolean,
 });
 
 const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
@@ -49,7 +52,7 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
   const [placeOrderAssets, setPlaceOrderAssets] = useState<{
     [key: string]: number;
   }>({});
-
+  const [builderFeeApproved, setBuilderFeeApproved] = useState<boolean>(false);
   const currentWallet = useCurrentWallet();
   const ethereumProvider = useEthereumProvider();
 
@@ -76,7 +79,6 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
     }
     // 尝试获取签名者
     ethereumProvider.getSigner().then((res) => {
-      console.log("signer", res);
       if (!res) {
         console.error("Failed to get signer");
         return;
@@ -91,6 +93,7 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     loadMarketAssetData();
+    checkBuilderFeeApproved();
     infoClient
       .extraAgents({
         user: currentWallet!.address,
@@ -109,31 +112,20 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
       .catch();
   }, [currentWallet, infoClient, agentWallet]);
 
-  useEffect(() => {
-    if (!mainExchClient || !tradingEnabled) {
-      return;
-    }
-    approveBuilderFee();
-  }, [mainExchClient, tradingEnabled]);
-
   const initAgentWallet = async () => {
-    console.log("initAgentWallet");
     const agentWalletPrivateKey = localStorage.getItem("agentWalletPrivateKey");
     // 如果已经有保存，就根据已经保存的创建
     if (agentWalletPrivateKey) {
       setAgentWallet(new ethers.Wallet(agentWalletPrivateKey));
-      console.log("initAgentWallet done");
       return;
     }
     // 如果之前没有创建过，就随机生成一个
     const createAgentWallet = ethers.Wallet.createRandom();
     localStorage.setItem("agentWalletPrivateKey", createAgentWallet.privateKey);
     setAgentWallet(createAgentWallet);
-    console.log("initAgentWallet done");
   };
 
   const initInfoAndMainExchClient = async (signer: ethers.Signer) => {
-    console.log("initInfoAndMainExchClient");
     if (!(ethereumProvider && hyperLiquidTransport)) {
       console.error("Ethereum provider not found");
       return;
@@ -147,11 +139,9 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
       transport: hyperLiquidTransport,
     });
     setMainExchClient(mainExchClient);
-    console.log("initInfoAndMainExchClient done");
   };
 
   const initExchClient = async () => {
-    console.log("initExchClient");
     if (!agentWallet || !hyperLiquidTransport) {
       console.error("Ethereum provider not found");
       return;
@@ -162,7 +152,6 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
       transport: hyperLiquidTransport,
     });
     setExchClient(exchClient);
-    console.log("initExchClient done");
   };
 
   const enableTrading = useCallback(async () => {
@@ -183,20 +172,52 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
       });
   }, [mainExchClient, infoClient, agentWallet]);
 
+  const checkBuilderFeeApproved = async () => {
+    if (!infoClient || !currentWallet) {
+      return;
+    }
+    const builderFee = await infoClient
+      .maxBuilderFee({
+        builder: process.env.NEXT_PUBLIC_HL_BUILDER_ADDRESS!,
+        user: currentWallet.address!,
+      })
+      .catch(() => 0);
+    console.log("builderFee", builderFee);
+    // ⚠️ maximum fee approved in tenths of a basis point i.e. 1 means 0.001%
+    setBuilderFeeApproved(
+      new BigNumber(builderFee)
+        .dividedBy(10)
+        .isEqualTo(
+          new BigNumber(process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS!)
+        )
+    );
+  };
+
   const approveBuilderFee = async () => {
     if (!mainExchClient) {
       return;
     }
     const maxFeeRate = process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS!;
     const builderAddress = process.env.NEXT_PUBLIC_HL_BUILDER_ADDRESS;
-    await mainExchClient.approveBuilderFee({
-      maxFeeRate: `${new BigNumber(maxFeeRate).dividedBy(100).toString()}%`,
-      builder: builderAddress!,
-    });
+    if (!maxFeeRate || !builderAddress) {
+      toast.error("Builder fee config is not set");
+      return;
+    }
+    await mainExchClient
+      .approveBuilderFee({
+        maxFeeRate: `${new BigNumber(maxFeeRate).dividedBy(100).toString()}%`,
+        builder: builderAddress!,
+      })
+      .then(() => {
+        setBuilderFeeApproved(true);
+      })
+      .catch((e) => {
+        console.log("failed to approve builder fee", e);
+        setBuilderFeeApproved(false);
+      });
   };
 
   const loadMarketAssetData = async () => {
-    console.log("loadMarketAssetData");
     if (!infoClient) {
       return;
     }
@@ -204,13 +225,11 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
     if (!result) {
       return;
     }
-    console.log(result);
     const assetMap: typeof placeOrderAssets = {};
     result.universe.forEach((asset, index) => {
       assetMap[asset.name] = index;
     });
     setPlaceOrderAssets(assetMap);
-    console.log("loadMarketAssetData done");
   };
 
   return (
@@ -223,7 +242,9 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
         agentWallet,
         tradingEnabled,
         enableTrading,
+        approveBuilderFee,
         placeOrderAssets,
+        builderFeeApproved,
       }}
     >
       {children}

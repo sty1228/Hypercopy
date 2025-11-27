@@ -1,4 +1,5 @@
 import * as hl from "@nktkas/hyperliquid";
+import { toast } from "sonner";
 
 // order placing, send with agent wallet, use exchClient
 const placeOrder = async ({
@@ -15,6 +16,13 @@ const placeOrder = async ({
   };
 }) => {
   if (!exchClient) {
+    return;
+  }
+  if (
+    !process.env.NEXT_PUBLIC_HL_BUILDER_ADDRESS ||
+    !process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS
+  ) {
+    toast.error("Builder fee config is not set");
     return;
   }
   console.log("placeOrder: ", orderParams);
@@ -35,17 +43,21 @@ const placeOrder = async ({
         },
       ],
       grouping: "na",
+      builder: {
+        b: process.env.NEXT_PUBLIC_HL_BUILDER_ADDRESS!,
+        f: process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS!,
+      },
     })
     .catch((e) => {
       console.log(e);
-      alert(`placeOrder failed: ${JSON.stringify(e)}`);
+      toast.error(`placeOrder failed: ${JSON.stringify(e)}`);
       return null;
     });
   if (!result) {
     return null;
   }
   console.log(result);
-  alert("Order placed successfully");
+  toast.success("Order placed successfully");
 };
 
 const getPerpsBalance = async ({
@@ -62,4 +74,19 @@ const getPerpsBalance = async ({
     .catch(() => null);
 };
 
-export { placeOrder, getPerpsBalance };
+const getBuilderFee = async ({
+  infoClient,
+  userAddress,
+  builderAddress,
+}: {
+  infoClient: hl.InfoClient;
+  userAddress: string;
+  builderAddress: string;
+}) => {
+  return await infoClient.maxBuilderFee({
+    user: userAddress,
+    builder: builderAddress,
+  });
+};
+
+export { placeOrder, getPerpsBalance, getBuilderFee };

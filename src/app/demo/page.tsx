@@ -6,6 +6,7 @@ import { FullScreenLoader } from "@/components/ui/fullscreen-loader";
 import * as hl from "@nktkas/hyperliquid";
 import { ethers } from "ethers";
 import { BigNumber } from "bignumber.js";
+import { toast } from "sonner";
 
 export default function Home() {
   const { ready, authenticated, logout, login, user, linkEmail } = usePrivy();
@@ -318,7 +319,7 @@ export default function Home() {
     }
     console.log(result);
     getOpenOrders();
-    alert("Order placed successfully");
+    toast.success("Order placed successfully");
   };
 
   const getOpenOrders = async () => {
@@ -348,11 +349,11 @@ export default function Home() {
       })
       .then(() => {
         getOpenOrders();
-        alert("Order cancelled successfully");
+        toast.success("Order cancelled successfully");
       })
       .catch((e) => {
         console.log(e);
-        alert("Failed to cancel order");
+        toast.error("Failed to cancel order");
       });
   };
 
