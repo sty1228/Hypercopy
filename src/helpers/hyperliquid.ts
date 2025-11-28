@@ -1,19 +1,48 @@
 import * as hl from "@nktkas/hyperliquid";
 import { toast } from "sonner";
 
+export enum OrderGrouping {
+  NormalTpsl = "normalTpsl",
+  PositionTpsl = "positionTpsl",
+}
+
+export interface OrderParams {
+  side: "long" | "short";
+  price: number | string;
+  size: number | string;
+  coin: number;
+  leverage: number;
+  /**
+   * Take profit configuration
+   * - `price`: Trigger price for take profit
+   * - `grouping`: Order grouping strategy
+   *   - `"normalTpsl"`: TP/SL order with fixed size that doesn't adjust with position changes
+   *   - `"positionTpsl"`: TP/SL order that adjusts proportionally with the position size
+   */
+  takeProfit?: {
+    price: number | string;
+    grouping?: OrderGrouping;
+  };
+  /**
+   * Stop loss configuration
+   * - `price`: Trigger price for stop loss
+   * - `grouping`: Order grouping strategy
+   *   - `"normalTpsl"`: TP/SL order with fixed size that doesn't adjust with position changes
+   *   - `"positionTpsl"`: TP/SL order that adjusts proportionally with the position size
+   */
+  stopLoss?: {
+    price: number | string;
+    grouping?: OrderGrouping;
+  };
+}
+
 // order placing, send with agent wallet, use exchClient
 const placeOrder = async ({
   exchClient,
   orderParams,
 }: {
   exchClient: hl.ExchangeClient;
-  orderParams: {
-    side: "long" | "short";
-    price: number | string;
-    size: number | string;
-    coin: number;
-    leverage: number;
-  };
+  orderParams: OrderParams;
 }) => {
   if (!exchClient) {
     return;
@@ -26,23 +55,110 @@ const placeOrder = async ({
     return;
   }
   console.log("placeOrder: ", orderParams);
+
+  // 构建订单列表
+  const orders: Array<
+    | {
+        a: number;
+        b: boolean;
+        p: number | string;
+        s: number | string;
+        r: boolean;
+        t: {
+          limit: {
+            tif: "Gtc" | "Ioc" | "Alo" | "FrontendMarket" | "LiquidationMarket";
+          };
+        };
+      }
+    | {
+        a: number;
+        b: boolean;
+        p: number | string;
+        s: number | string;
+        r: boolean;
+        t: {
+          trigger: {
+            isMarket: boolean;
+            triggerPx: number | string;
+            tpsl: "tp" | "sl";
+          };
+        };
+      }
+  > = [
+    // 主订单（开仓订单）
+    {
+      a: orderParams.coin,
+      b: orderParams.side === "long",
+      p: orderParams.price,
+      s: orderParams.size,
+      r: false,
+      t: {
+        limit: {
+          tif: "Gtc",
+        },
+      },
+    },
+  ];
+
+  // 添加止盈订单
+  if (orderParams.takeProfit) {
+    orders.push({
+      a: orderParams.coin,
+      // 对于止盈止损单，b 必须为 false
+      b: false,
+      p: orderParams.takeProfit.price,
+      s: orderParams.size, // TP/SL 订单的大小通常与主订单相同
+      r: true, // TP/SL 订单通常是 reduce-only
+      t: {
+        trigger: {
+          isMarket: true, // TP/SL 通常使用市价单
+          triggerPx: orderParams.takeProfit.price,
+          tpsl: "tp",
+        },
+      },
+    });
+  }
+
+  // 添加止损订单
+  if (orderParams.stopLoss) {
+    orders.push({
+      a: orderParams.coin,
+      // 对于止盈止损单，b 必须为 false
+      b: false,
+      p: orderParams.stopLoss.price,
+      s: orderParams.size, // TP/SL 订单的大小通常与主订单相同
+      r: true, // TP/SL 订单通常是 reduce-only
+      t: {
+        trigger: {
+          isMarket: true, // TP/SL 通常使用市价单
+          triggerPx: orderParams.stopLoss.price,
+          tpsl: "sl",
+        },
+      },
+    });
+  }
+
+  // 确定 grouping 策略
+  // 如果有 TP/SL 订单，使用第一个 TP/SL 订单的 grouping，否则使用 "na"
+  const grouping: OrderGrouping =
+    orderParams.takeProfit || orderParams.stopLoss
+      ? orderParams.takeProfit?.grouping ||
+        orderParams.stopLoss?.grouping ||
+        OrderGrouping.NormalTpsl
+      : OrderGrouping.NormalTpsl;
+
+  console.log({
+    orders,
+    grouping,
+    builder: {
+      b: process.env.NEXT_PUBLIC_HL_BUILDER_ADDRESS!,
+      f: process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS!,
+    },
+  });
   const result = await exchClient
     .order({
-      orders: [
-        {
-          a: orderParams.coin,
-          b: orderParams.side === "long",
-          p: orderParams.price,
-          s: orderParams.size,
-          r: false,
-          t: {
-            limit: {
-              tif: "Gtc",
-            },
-          },
-        },
-      ],
-      grouping: "na",
+      orders,
+      grouping,
       builder: {
         b: process.env.NEXT_PUBLIC_HL_BUILDER_ADDRESS!,
         f: process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS!,

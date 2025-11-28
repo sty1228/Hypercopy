@@ -13,7 +13,7 @@ import copyTradeIcon from "@/assets/icons/copy-trade-tip.png";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import { useContext, useState } from "react";
 import BigNumber from "bignumber.js";
-import { placeOrder } from "@/helpers/hyperliquid";
+import { OrderGrouping, OrderParams, placeOrder } from "@/helpers/hyperliquid";
 
 const SIDE_MAP: {
   [key: string]: "long" | "short";
@@ -31,17 +31,23 @@ export default function SignalItem({
   onClick: (signalId: number) => void;
   currentClickItemId: number | null;
 }) {
-  const { tradingEnabled, placeOrderAssets, exchClient, infoClient } =
-    useContext(HyperLiquidContext);
+  const {
+    tradingEnabled,
+    placeOrderAssets,
+    exchClient,
+    infoClient,
+    assetsInfoMap,
+  } = useContext(HyperLiquidContext);
   const [itemHoverStyle, setItemHoverStyle] = useState({});
   const [counterTradeButtonHoverStyle, setCounterTradeButtonHoverStyle] =
     useState({});
   const [copyTradeButtonHoverStyle, setCopyTradeButtonHoverStyle] = useState(
     {}
   );
+  const symbol = data?.ticker.replaceAll("USDT", "");
+  const assetInfo = assetsInfoMap[symbol];
 
   const handleTrade = async (side: "copy" | "counter") => {
-    const symbol = data?.ticker.replaceAll("USDT", "");
     const tradeSide =
       SIDE_MAP[
         side === "copy"
@@ -59,26 +65,57 @@ export default function SignalItem({
     const orderPrice = tradeSide === "long" ? bids[0].px : asks[0].px;
     console.log("orderPrice", orderPrice);
     const placeOrderAssetId = placeOrderAssets[symbol.toUpperCase()];
-    const orderParams = {
+
+    const priceDecimals = Number(orderPrice).toString().includes(".")
+      ? orderPrice.toString().split(".")[1].length
+      : 0;
+    const tpPrice = new BigNumber(orderPrice)
+      .multipliedBy(tradeSide === "long" ? 1.1 : 0.9)
+      .toFixed(priceDecimals);
+    const slPrice = new BigNumber(orderPrice)
+      .multipliedBy(tradeSide === "long" ? 0.9 : 1.1)
+      .toFixed(priceDecimals);
+
+    const orderParams: OrderParams = {
       side: tradeSide,
       price: orderPrice,
       size: 0.1,
       coin: placeOrderAssetId,
       leverage: 1,
+      takeProfit: {
+        price: tpPrice,
+        grouping: OrderGrouping.NormalTpsl,
+      },
+      stopLoss: {
+        price: slPrice,
+        grouping: OrderGrouping.NormalTpsl,
+      },
     };
 
     const mockPrice =
       tradeSide === "long"
-        ? bids[bids.length - 1].px
-        : asks[asks.length - 1].px;
+        ? new BigNumber(orderPrice).multipliedBy(0.95).toFixed(priceDecimals)
+        : new BigNumber(orderPrice).multipliedBy(1.05).toFixed(priceDecimals);
     const mockSize = new BigNumber(20)
       .dividedBy(mockPrice)
-      .precision(1)
+      .decimalPlaces(assetInfo.szDecimals, BigNumber.ROUND_DOWN)
       .toNumber();
     const mockOrderParams = {
       ...orderParams,
       price: mockPrice,
       size: mockSize,
+      takeProfit: {
+        price: new BigNumber(mockPrice)
+          .multipliedBy(tradeSide === "long" ? 1.1 : 0.9)
+          .toFixed(priceDecimals),
+        grouping: OrderGrouping.NormalTpsl,
+      },
+      stopLoss: {
+        price: new BigNumber(mockPrice)
+          .multipliedBy(tradeSide === "long" ? 0.9 : 1.1)
+          .toFixed(priceDecimals),
+        grouping: OrderGrouping.NormalTpsl,
+      },
     };
     const res = confirm(
       `Order confirm: ${JSON.stringify(

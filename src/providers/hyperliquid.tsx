@@ -20,6 +20,14 @@ const HyperLiquidContext = createContext({
   enableTrading: () => Promise.resolve(),
   approveBuilderFee: () => Promise.resolve(),
   builderFeeApproved: false as boolean,
+  assetsInfoMap: {} as {
+    [key: string]: {
+      szDecimals: number;
+      name: string;
+      maxLeverage: number;
+      marginTableId: number;
+    };
+  },
 });
 
 const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
@@ -51,6 +59,16 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
   const [tradingEnabled, setTradingEnabled] = useState<boolean>(false);
   const [placeOrderAssets, setPlaceOrderAssets] = useState<{
     [key: string]: number;
+  }>({});
+  const [assetsInfoMap, setAssetsInfoMap] = useState<{
+    [key: string]: {
+      szDecimals: number;
+      name: string;
+      maxLeverage: number;
+      marginTableId: number;
+      onlyIsolated?: true | undefined;
+      isDelisted?: true | undefined;
+    };
   }>({});
   const [builderFeeApproved, setBuilderFeeApproved] = useState<boolean>(false);
   const currentWallet = useCurrentWallet();
@@ -226,10 +244,13 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     const assetMap: typeof placeOrderAssets = {};
+    const tempAssetsInfoMap: typeof assetsInfoMap = {};
     result.universe.forEach((asset, index) => {
       assetMap[asset.name] = index;
+      tempAssetsInfoMap[asset.name] = asset;
     });
     setPlaceOrderAssets(assetMap);
+    setAssetsInfoMap(tempAssetsInfoMap);
   };
 
   return (
@@ -245,6 +266,7 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
         approveBuilderFee,
         placeOrderAssets,
         builderFeeApproved,
+        assetsInfoMap,
       }}
     >
       {children}
