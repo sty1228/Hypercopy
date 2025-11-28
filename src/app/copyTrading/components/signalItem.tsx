@@ -125,6 +125,8 @@ export default function SignalItem({
       )}`
     );
     if (!(res && exchClient)) {
+      console.log("res", res);
+      console.log("exchClient", exchClient);
       return;
     }
     console.log("orderParams", orderParams);
