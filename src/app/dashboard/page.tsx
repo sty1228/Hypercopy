@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import profileIcon from "@/assets/icons/profile.png";
 import copyCountIcon from "@/assets/icons/copy-count.png";
@@ -13,9 +13,87 @@ import copyingIcon from "@/assets/icons/copying.png";
 import activeTradesIcon from "@/assets/icons/active-traders.png";
 import tradesEndedIcon from "@/assets/icons/traders-ended.png";
 import type { TimeRange } from "./components/balanceChart";
+import { balanceHistory } from "@/service";
+
+export interface BalanceChartData {
+  label: string;
+  value: number;
+}
 
 const Home = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>("M");
+  const [chartData, setChartData] = useState<BalanceChartData[]>([]);
+
+  const getChartData = async (
+    timeRange: "D" | "W" | "M" | "YTD" | "ALL" = "M"
+  ) => {
+    const data = await balanceHistory(timeRange);
+    // 处理为 BalanceChartData[]，注意 label 要根据 timeRange 处理
+    // timeRange 为 D 时，label 解析为 HH:MM
+    // timeRange 为 W 时，label 解析为 "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"
+    // timeRange 为 M 时，label 解析为 MM-DD
+    // timeRange 为 YTD 时，label 解析为 MM-DD
+    // timeRange 为 ALL 时，label 解析为 "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    const chartData = data.map((item) => {
+      const date = new Date(item.timestamp);
+      let label = "";
+      switch (timeRange) {
+        case "D": {
+          // HH:MM 格式
+          const hours = date.getHours().toString().padStart(2, "0");
+          const minutes = date.getMinutes().toString().padStart(2, "0");
+          label = `${hours}:${minutes}`;
+          break;
+        }
+        case "W": {
+          // "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"
+          const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+          label = weekdays[date.getDay()];
+          break;
+        }
+        case "M": {
+          // MM-DD 格式
+          const month = (date.getMonth() + 1).toString().padStart(2, "0");
+          const day = date.getDate().toString().padStart(2, "0");
+          label = `${month}-${day}`;
+          break;
+        }
+        case "YTD": {
+          // MM-DD 格式
+          const month = (date.getMonth() + 1).toString().padStart(2, "0");
+          const day = date.getDate().toString().padStart(2, "0");
+          label = `${month}-${day}`;
+          break;
+        }
+        case "ALL": {
+          // "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+          const months = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+          ];
+          label = months[date.getMonth()];
+          break;
+        }
+      }
+      return { label, value: item.acconutValue };
+    });
+    setChartData(chartData);
+  };
+
+  useEffect(() => {
+    getChartData(timeRange);
+  }, [timeRange]);
+
   return (
     <div>
       <div className="mt-4 mb-3 flex items-center justify-between px-4">
@@ -123,7 +201,7 @@ const Home = () => {
           />
 
           <div className="px-5 h-[90px] mt-4">
-            <BalanceChart timeRange={timeRange} />
+            <BalanceChart timeRange={timeRange} chartData={chartData} />
           </div>
 
           <div className="flex justify-between px-5 mt-13">

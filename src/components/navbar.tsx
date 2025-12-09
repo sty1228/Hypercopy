@@ -38,10 +38,10 @@ const Navbar = () => {
     >
       <ul className="h-full flex justify-between items-center">
         <li>
-          <Link href="/my">
+          <Link href="/dashboard">
             <Image
-              src={pathname === "/my" ? homeActiveIcon : homeIcon}
-              alt="my"
+              src={pathname === "/dashboard" ? homeActiveIcon : homeIcon}
+              alt="dashboard"
               width={22}
               height={22}
             />

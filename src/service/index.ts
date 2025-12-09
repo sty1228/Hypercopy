@@ -52,3 +52,16 @@ export const userSignals = async (
 ): Promise<UserSignalResponse> => {
   return await get(`/api/user/${x_handle}/signals`);
 };
+
+export interface BalanceHistoryResponse {
+  acconutValue: number;
+  timestamp: number;
+}
+
+export const balanceHistory = async (
+  timeRange: "D" | "W" | "M" | "YTD" | "ALL"
+): Promise<BalanceHistoryResponse[]> => {
+  return await get(
+    "https://mock.apidog.com/m1/1147892-1140449-default/api/balanceHistory?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
+  );
+};

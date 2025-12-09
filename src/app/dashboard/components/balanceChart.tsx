@@ -9,6 +9,7 @@ import {
   Tooltip,
   TooltipContentProps,
 } from "recharts";
+import { BalanceChartData } from "../page";
 
 export type TimeRange = "D" | "W" | "M" | "YTD" | "ALL";
 
@@ -92,9 +93,7 @@ const getDataByTimeRange = (timeRange: TimeRange) => {
 const getReferenceLineValue = (timeRange: TimeRange) => {
   const data = getDataByTimeRange(timeRange);
   const values = data.map((d) => d.value);
-  return Math.round(
-    values.reduce((sum, val) => sum + val, 0) / values.length
-  );
+  return Math.round(values.reduce((sum, val) => sum + val, 0) / values.length);
 };
 
 // 自定义 Tooltip 组件
@@ -127,11 +126,13 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 interface BalanceChartProps {
   timeRange?: TimeRange;
+  chartData: BalanceChartData[];
 }
 
-const BalanceChart = ({ timeRange = "M" }: BalanceChartProps) => {
-  const data = getDataByTimeRange(timeRange);
+const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
+  console.log(chartData);
   const referenceLineValue = getReferenceLineValue(timeRange);
+  console.log(referenceLineValue);
   return (
     <div className="w-full h-full chart-container">
       <style
@@ -155,7 +156,7 @@ const BalanceChart = ({ timeRange = "M" }: BalanceChartProps) => {
       />
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
-          data={data}
+          data={chartData}
           margin={{ top: 0, right: 10, left: 10, bottom: 0 }}
         >
           {/* X轴 */}
