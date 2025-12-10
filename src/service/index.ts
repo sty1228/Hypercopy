@@ -65,3 +65,46 @@ export const balanceHistory = async (
     "https://mock.apidog.com/m1/1147892-1140449-default/api/balanceHistory?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
   );
 };
+
+export interface FollowerItem {
+  name: string;
+  twitterId: string;
+}
+
+export interface ProfileDataResponse {
+  name: string;
+  twitterId: string;
+  followingCount: number;
+  followerCount: number;
+  accountValue: number;
+  followerList: FollowerItem[];
+  traderCopyingCount: number;
+  signalCount: number;
+  noiseCount: number;
+  streakCount: number;
+  streakCumulativePnLRate: number;
+  tradeTicks: number;
+  collectedPoints: number;
+}
+
+export const getProfileData = async (): Promise<ProfileDataResponse> => {
+  return await get(
+    "https://mock.apidog.com/m1/1147892-1140449-default/api/profile?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
+  );
+};
+
+export interface TradersCopyingItem {
+  name: string;
+  twitterId: string;
+  timestamp: number;
+  signalCount: number;
+  pnlValue: number;
+}
+
+export const getProfileTradersCopyingList = async (): Promise<
+  TradersCopyingItem[]
+> => {
+  return await get(
+    "https://mock.apidog.com/m1/1147892-1140449-default/api/copyingList?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
+  );
+};

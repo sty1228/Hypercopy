@@ -16,18 +16,55 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { throttle } from "@/lib/utils";
 import TradersCopyingSheet from "./components/tradersCopyingSheet";
 import FollowingSheet from "./components/followingSheet";
+import {
+  ProfileDataResponse,
+  getProfileData as getProfileDataService,
+} from "@/service";
+import { getPerpsBalance } from "@/helpers/hyperliquid";
+import { HyperLiquidContext } from "@/providers/hyperliquid";
+import { useCurrentWallet } from "@/hooks/usePrivyData";
 
 const Profile = () => {
+  const { infoClient } = useContext(HyperLiquidContext);
+  const currentWallet = useCurrentWallet();
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const [isTradersCopyingOpen, setIsTradersCopyingOpen] = useState(false);
   const [isFollowingOpen, setIsFollowingOpen] = useState(false);
   const closeTooltip = throttle(() => setTooltipOpen(false), 300);
+  const [profileData, setProfileData] = useState<ProfileDataResponse | null>(
+    null
+  );
+  const [accountValue, setAccountValue] = useState<number>(0);
 
-  return (
+  const getProfileData = async () => {
+    const data = await getProfileDataService();
+    console.log(data);
+    if (data) {
+      setProfileData(data);
+    }
+  };
+
+  const getAccountValue = async () => {
+    const data = await getPerpsBalance({
+      exchClient: infoClient!,
+      walletAddress: currentWallet?.address!,
+    });
+    console.log(data);
+    if (data) {
+      setAccountValue(Number(data?.marginSummary?.accountValue));
+    }
+  };
+
+  useEffect(() => {
+    getProfileData();
+    getAccountValue();
+  }, []);
+
+  return profileData ? (
     <div className="p-5">
       <div
         className="border rounded-[26px]"
@@ -52,19 +89,19 @@ const Profile = () => {
               height={18}
             />
             <span
-              className="font-medium text-lg ml-2"
+              className="font-medium text-lg ml-2 max-w-[100px] truncate"
               style={{
                 color: "rgba(79, 202, 21, 1)",
               }}
             >
-              $ 6,843
+              $ {(accountValue || profileData.accountValue).toLocaleString()}
             </span>
           </div>
           <span className="w-[58px] h-[58px] bg-[#25A1CA] rounded-full font-bold text-2xl text-white flex items-center justify-center">
-            D
+            {profileData.name.charAt(0).toUpperCase()}
           </span>
           <div className="flex flex-col ml-2">
-            <span className="flex font-SemiBold text-xl">Damian Terry</span>
+            <span className="font-SemiBold text-xl max-w-[100px] break-words">{profileData.name}</span>
             <p className="flex items-center h-[14px] mt-1">
               <Image src={xIcon} alt="x" width={10} height={10} />
               <span
@@ -73,7 +110,7 @@ const Profile = () => {
                   color: "rgba(165, 176, 176, 1)",
                 }}
               >
-                @damian
+                @{profileData.twitterId}
               </span>
             </p>
             <div className="flex h-[14px] mt-1">
@@ -83,7 +120,7 @@ const Profile = () => {
                   color: "rgba(165, 176, 176, 1)",
                 }}
               >
-                <span className="font-medium">126</span> Following
+                <span className="font-medium">{profileData.followingCount}</span> Following
               </span>
               <span
                 className="text-sm ml-3 underline"
@@ -91,7 +128,7 @@ const Profile = () => {
                   color: "rgba(165, 176, 176, 1)",
                 }}
               >
-                <span className="font-medium">546</span> Followers
+                <span className="font-medium">{profileData.followerCount}</span> Followers
               </span>
             </div>
           </div>
@@ -108,8 +145,25 @@ const Profile = () => {
             className="text-sm ml-2"
             style={{ color: "rgba(165, 176, 176, 1)" }}
           >
-            Followed by <span className="text-white">geddard</span> and{" "}
-            <span className="text-white">55 others</span>
+            {profileData.followerList.length > 0 ? (
+              <>
+                Followed by{" "}
+                <span className="text-white">
+                  {profileData.followerList[0]?.name || profileData.followerList[0]?.twitterId}
+                </span>
+                {profileData.followerList.length > 1 && (
+                  <>
+                    {" "}
+                    and{" "}
+                    <span className="text-white">
+                      {profileData.followerList.length - 1} others
+                    </span>
+                  </>
+                )}
+              </>
+            ) : (
+              "No followers yet"
+            )}
           </p>
         </div>
 
@@ -176,7 +230,7 @@ const Profile = () => {
                   height={18}
                   className="mr-1"
                 />
-                <span className="text-2xl">438</span>
+                <span className="text-2xl">{profileData.traderCopyingCount}</span>
                 <Image
                   src={rightArrowIcon}
                   alt="arrow-right"
@@ -206,7 +260,7 @@ const Profile = () => {
                   height={18}
                   className="mr-1"
                 />
-                <span className="text-2xl ml-1">58</span>
+                <span className="text-2xl ml-1">{profileData.signalCount}</span>
                 <Image
                   src={plusIcon}
                   alt="plus"
@@ -214,7 +268,7 @@ const Profile = () => {
                   height={18}
                   className="ml-4"
                 />
-                <span className="text-2xl ml-1">108</span>
+                <span className="text-2xl ml-1">{profileData.noiseCount}</span>
                 <Image
                   src={rightArrowIcon}
                   alt="arrow-right"
@@ -242,7 +296,7 @@ const Profile = () => {
                           color: "rgba(220, 48, 255, 1)",
                         }}
                       >
-                        10
+                        {profileData.streakCount}
                       </span>{" "}
                       🔥
                     </p>
@@ -268,7 +322,7 @@ const Profile = () => {
                         color: "rgba(80, 210, 193, 1)",
                       }}
                     >
-                      64%
+                      {profileData.streakCumulativePnLRate.toFixed(0)}%
                     </p>
                     <p
                       className="mt-2"
@@ -289,7 +343,7 @@ const Profile = () => {
             }}
           >
             <Image src={ticksIcon} alt="ticks" width={18} height={18} />
-            <p className="mt-2 text-2xl">72 HPA : 25 Ticks</p>
+            <p className="mt-2 text-2xl">{profileData.tradeTicks} Ticks</p>
             <p className="flex items-center mt-2">
               <span
                 style={{
@@ -310,7 +364,7 @@ const Profile = () => {
 
           <div className="mt-5 pb-5  flex flex-col items-center">
             <Image src={pointsIcon} alt="points" width={18} height={18} />
-            <p className="mt-2 text-2xl">2469 Pts</p>
+            <p className="mt-2 text-2xl">{profileData.collectedPoints} Pts</p>
             <p className="flex items-center mt-2">
               <span
                 style={{
@@ -332,7 +386,7 @@ const Profile = () => {
         handleClose={() => setIsFollowingOpen(false)}
       />
     </div>
-  );
+  ) : null;
 };
 
 export default Profile;
