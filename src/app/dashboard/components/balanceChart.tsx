@@ -159,19 +159,21 @@ const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
           data={chartData}
           margin={{ top: 0, right: 10, left: 10, bottom: 0 }}
         >
-          {/* X轴 */}
-          <XAxis
-            dataKey="label"
-            axisLine={false}
-            tickLine={false}
-            interval={0}
-            tick={{
-              fill: "rgba(165, 176, 176, 0.5)",
-              fontSize: 11,
-              fontWeight: 400,
-            }}
-            dy={3}
-          />
+          {/* X轴 - 当数据条数大于10时不展示 */}
+          {chartData.length <= 10 && (
+            <XAxis
+              dataKey="label"
+              axisLine={false}
+              tickLine={false}
+              interval={0}
+              tick={{
+                fill: "rgba(165, 176, 176, 0.5)",
+                fontSize: 11,
+                fontWeight: 400,
+              }}
+              dy={3}
+            />
+          )}
 
           {/* Tooltip 提示框 */}
           <Tooltip
