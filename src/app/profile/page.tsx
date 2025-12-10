@@ -51,7 +51,7 @@ const Profile = () => {
   const getAccountValue = async () => {
     const data = await getPerpsBalance({
       exchClient: infoClient!,
-      walletAddress: currentWallet?.address!,
+      walletAddress: currentWallet?.address ?? "",
     });
     console.log(data);
     if (data) {
@@ -101,7 +101,9 @@ const Profile = () => {
             {profileData.name.charAt(0).toUpperCase()}
           </span>
           <div className="flex flex-col ml-2">
-            <span className="font-SemiBold text-xl max-w-[100px] break-words">{profileData.name}</span>
+            <span className="font-SemiBold text-xl max-w-[100px] break-words">
+              {profileData.name}
+            </span>
             <p className="flex items-center h-[14px] mt-1">
               <Image src={xIcon} alt="x" width={10} height={10} />
               <span
@@ -120,7 +122,10 @@ const Profile = () => {
                   color: "rgba(165, 176, 176, 1)",
                 }}
               >
-                <span className="font-medium">{profileData.followingCount}</span> Following
+                <span className="font-medium">
+                  {profileData.followingCount}
+                </span>{" "}
+                Following
               </span>
               <span
                 className="text-sm ml-3 underline"
@@ -128,7 +133,8 @@ const Profile = () => {
                   color: "rgba(165, 176, 176, 1)",
                 }}
               >
-                <span className="font-medium">{profileData.followerCount}</span> Followers
+                <span className="font-medium">{profileData.followerCount}</span>{" "}
+                Followers
               </span>
             </div>
           </div>
@@ -149,7 +155,8 @@ const Profile = () => {
               <>
                 Followed by{" "}
                 <span className="text-white">
-                  {profileData.followerList[0]?.name || profileData.followerList[0]?.twitterId}
+                  {profileData.followerList[0]?.name ||
+                    profileData.followerList[0]?.twitterId}
                 </span>
                 {profileData.followerList.length > 1 && (
                   <>
@@ -230,7 +237,9 @@ const Profile = () => {
                   height={18}
                   className="mr-1"
                 />
-                <span className="text-2xl">{profileData.traderCopyingCount}</span>
+                <span className="text-2xl">
+                  {profileData.traderCopyingCount}
+                </span>
                 <Image
                   src={rightArrowIcon}
                   alt="arrow-right"
