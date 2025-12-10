@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -20,6 +20,7 @@ import {
 import { Label } from "@/components/ui/label";
 import TraderCopyingItem from "./traderCopyingItem";
 import { MAX_WIDTH } from "@/app/layout";
+import { getProfileTradersCopyingList, TradersCopyingItem } from "@/service";
 
 export default function TradersCopyingSheet({
   isOpen,
@@ -29,6 +30,31 @@ export default function TradersCopyingSheet({
   handleClose: () => void;
 }) {
   const [sortBy, setSortBy] = useState("performance");
+  const [tradersCopyingList, setTradersCopyingList] = useState<
+    TradersCopyingItem[]
+  >([]);
+
+  const getTradersCopyingList = async () => {
+    const data = await getProfileTradersCopyingList();
+    console.log(data);
+    setTradersCopyingList(data);
+  };
+
+  useEffect(() => {
+    getTradersCopyingList();
+  }, []);
+
+  // 根据排序选项对列表进行排序
+  const sortedList = [...tradersCopyingList].sort((a, b) => {
+    if (sortBy === "performance") {
+      // 按 pnlValue 降序排序（收益高的在前）
+      return b.pnlValue - a.pnlValue;
+    } else if (sortBy === "newest") {
+      // 按 timestamp 降序排序（最新的在前）
+      return b.timestamp - a.timestamp;
+    }
+    return 0;
+  });
 
   return (
     <Sheet open={isOpen} onOpenChange={handleClose}>
@@ -85,8 +111,8 @@ export default function TradersCopyingSheet({
           </Select>
         </div>
         <div>
-          {Array.from({ length: 10 }).map((_, index) => (
-            <TraderCopyingItem key={index} />
+          {sortedList.map((item, index) => (
+            <TraderCopyingItem key={index} data={item} />
           ))}
         </div>
       </SheetContent>
