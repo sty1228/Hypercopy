@@ -21,6 +21,11 @@ import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { getPerpsBalance } from "@/helpers/hyperliquid";
 import BottomButtons from "./bottomButtons";
 import { toast } from "sonner";
+import {
+  getDefaultFollowSettings as fetchDefaultFollowSettings,
+  LeverageType,
+  TradeSizeType,
+} from "@/service";
 
 const DOLLAR_OR_PERCENTAGE_STYLE = {
   default: {
@@ -47,19 +52,16 @@ const LEVERAGE_TYPE_STYLE = {
   },
 };
 
-type TradeSizeType = "$" | "%";
-type LeverageType = "cross" | "isolated";
-
 const DEFAULT_FOLLOW_SETTINGS = {
   perpsBalance: 0,
   tradeSize: 100,
-  tradeSizeType: "$" as TradeSizeType,
+  tradeSizeType: "USD" as TradeSizeType,
   leverage: 5,
   leverageType: "cross" as LeverageType,
   cutLoss: 10,
-  cutLossType: "%" as TradeSizeType,
+  cutLossType: "USD" as TradeSizeType,
   takeProfit: 10,
-  takeProfitType: "%" as TradeSizeType,
+  takeProfitType: "USD" as TradeSizeType,
   orderStyle: "0" as OrderStyleEnum,
 };
 
@@ -83,12 +85,33 @@ export default function DefaultFollow() {
     orderStyle: OrderStyleEnum;
   }>(getInitialDefaultFollowSettings());
 
+  const loadDefaultFollowSettings = async () => {
+    const data = await fetchDefaultFollowSettings();
+    console.log(data);
+
+    // 将 API 返回的数据映射到组件 state 结构
+    setDefaultFollowSettings((prev) => ({
+      ...prev,
+      tradeSize: data.tradeSize,
+      tradeSizeType: data.tradeSizeType,
+      leverage: data.levarage,
+      leverageType: data.levarageType,
+      cutLoss: data.sl.value,
+      cutLossType: data.sl.type,
+      takeProfit: data.tp.value,
+      takeProfitType: data.tp.type,
+      orderStyle:
+        data.orderType === "market"
+          ? OrderStyleEnum.market
+          : OrderStyleEnum.limit,
+    }));
+  };
+
   useEffect(() => {
-    if (!infoClient || !currentWallet) {
-      return;
-    }
+    console.log(">>> call page data");
+    loadDefaultFollowSettings();
     getPerpsBalance({
-      exchClient: infoClient,
+      exchClient: infoClient!,
       walletAddress: currentWallet?.address ?? "",
     }).then((res) => {
       if (!res) {
@@ -100,7 +123,7 @@ export default function DefaultFollow() {
         perpsBalance: Number(res.marginSummary.accountValue),
       }));
     });
-  }, [infoClient, currentWallet]);
+  }, []);
 
   return (
     <div>
@@ -151,14 +174,14 @@ export default function DefaultFollow() {
           <Button
             className="w-[34px] h-[34px] rounded-lg font-medium text-sm"
             style={
-              defaultFollowSettings.tradeSizeType === "$"
+              defaultFollowSettings.tradeSizeType === "USD"
                 ? DOLLAR_OR_PERCENTAGE_STYLE.active
                 : DOLLAR_OR_PERCENTAGE_STYLE.default
             }
             onClick={() => {
               setDefaultFollowSettings((prev) => ({
                 ...prev,
-                tradeSizeType: "$",
+                tradeSizeType: "USD",
               }));
             }}
           >
@@ -167,14 +190,14 @@ export default function DefaultFollow() {
           <Button
             className="w-[34px] h-[34px] rounded-lg font-medium text-sm ml-1"
             style={
-              defaultFollowSettings.tradeSizeType === "%"
+              defaultFollowSettings.tradeSizeType === "PCT"
                 ? DOLLAR_OR_PERCENTAGE_STYLE.active
                 : DOLLAR_OR_PERCENTAGE_STYLE.default
             }
             onClick={() => {
               setDefaultFollowSettings((prev) => ({
                 ...prev,
-                tradeSizeType: "%",
+                tradeSizeType: "PCT",
               }));
             }}
           >
@@ -306,14 +329,14 @@ export default function DefaultFollow() {
           <Button
             className="w-[34px] h-[34px] rounded-lg font-medium text-sm"
             style={
-              defaultFollowSettings.cutLossType === "$"
+              defaultFollowSettings.cutLossType === "USD"
                 ? DOLLAR_OR_PERCENTAGE_STYLE.active
                 : DOLLAR_OR_PERCENTAGE_STYLE.default
             }
             onClick={() => {
               setDefaultFollowSettings((prev) => ({
                 ...prev,
-                cutLossType: "$",
+                cutLossType: "USD",
               }));
             }}
           >
@@ -322,14 +345,14 @@ export default function DefaultFollow() {
           <Button
             className="w-[34px] h-[34px] rounded-lg font-medium text-sm ml-1"
             style={
-              defaultFollowSettings.cutLossType === "%"
+              defaultFollowSettings.cutLossType === "PCT"
                 ? DOLLAR_OR_PERCENTAGE_STYLE.active
                 : DOLLAR_OR_PERCENTAGE_STYLE.default
             }
             onClick={() => {
               setDefaultFollowSettings((prev) => ({
                 ...prev,
-                cutLossType: "%",
+                cutLossType: "PCT",
               }));
             }}
           >
@@ -371,14 +394,14 @@ export default function DefaultFollow() {
           <Button
             className="w-[34px] h-[34px] rounded-lg font-medium text-sm"
             style={
-              defaultFollowSettings.takeProfitType === "$"
+              defaultFollowSettings.takeProfitType === "USD"
                 ? DOLLAR_OR_PERCENTAGE_STYLE.active
                 : DOLLAR_OR_PERCENTAGE_STYLE.default
             }
             onClick={() => {
               setDefaultFollowSettings((prev) => ({
                 ...prev,
-                takeProfitType: "$",
+                takeProfitType: "USD",
               }));
             }}
           >
@@ -387,14 +410,14 @@ export default function DefaultFollow() {
           <Button
             className="w-[34px] h-[34px] rounded-lg font-medium text-sm ml-1"
             style={
-              defaultFollowSettings.takeProfitType === "%"
+              defaultFollowSettings.takeProfitType === "PCT"
                 ? DOLLAR_OR_PERCENTAGE_STYLE.active
                 : DOLLAR_OR_PERCENTAGE_STYLE.default
             }
             onClick={() => {
               setDefaultFollowSettings((prev) => ({
                 ...prev,
-                takeProfitType: "%",
+                takeProfitType: "PCT",
               }));
             }}
           >

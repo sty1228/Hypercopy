@@ -108,3 +108,28 @@ export const getProfileTradersCopyingList = async (): Promise<
     "https://mock.apidog.com/m1/1147892-1140449-default/api/copyingList?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
   );
 };
+
+export type TradeSizeType = "USD" | "PCT";
+export type LeverageType = "isolated" | "cross";
+
+export interface TPOrSL {
+  type: TradeSizeType;
+  value: number;
+}
+
+export interface DefaultFollowSettings {
+  tradeSizeType: TradeSizeType;
+  tradeSize: number;
+  levarage: number;
+  levarageType: LeverageType;
+  tp: TPOrSL;
+  sl: TPOrSL;
+  orderType: "market" | "limit";
+}
+
+export const getDefaultFollowSettings =
+  async (): Promise<DefaultFollowSettings> => {
+    return await get(
+      "https://mock.apidog.com/m1/1147892-1140449-default/api/defaultFollowSetting?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
+    );
+  };
