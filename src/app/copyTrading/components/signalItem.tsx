@@ -12,8 +12,11 @@ import counterTradeIcon from "@/assets/icons/counter-trade-tip.png";
 import copyTradeIcon from "@/assets/icons/copy-trade-tip.png";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import { useContext, useState } from "react";
+import { usePrivy } from "@privy-io/react-auth";
+import { useRouter } from "next/navigation";
 import BigNumber from "bignumber.js";
 import { OrderGrouping, OrderParams, placeOrder } from "@/helpers/hyperliquid";
+import { toast } from "sonner";
 
 const SIDE_MAP: {
   [key: string]: "long" | "short";
@@ -33,11 +36,14 @@ export default function SignalItem({
 }) {
   const {
     tradingEnabled,
+    builderFeeApproved,
     placeOrderAssets,
     exchClient,
     infoClient,
     assetsInfoMap,
   } = useContext(HyperLiquidContext);
+  const { authenticated } = usePrivy();
+  const router = useRouter();
   const [itemHoverStyle, setItemHoverStyle] = useState({});
   const [counterTradeButtonHoverStyle, setCounterTradeButtonHoverStyle] =
     useState({});
@@ -48,6 +54,11 @@ export default function SignalItem({
   const assetInfo = assetsInfoMap[symbol];
 
   const handleTrade = async (side: "copy" | "counter") => {
+    if (!(tradingEnabled && authenticated && builderFeeApproved)) {
+      toast.warning("Please complete onboarding to trade");
+      router.push("/onboarding");
+      return;
+    }
     const tradeSide =
       SIDE_MAP[
         side === "copy"
@@ -227,7 +238,7 @@ export default function SignalItem({
         </div>
       </div>
 
-      {tradingEnabled && currentClickItemId === data.signal_id && (
+      {currentClickItemId === data.signal_id && (
         <div
           className="mt-6 pt-2 border-t-[1px] flex items-center"
           style={{

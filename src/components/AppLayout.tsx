@@ -6,13 +6,16 @@ import { HyperLiquidContext } from "@/providers/hyperliquid";
 import { useContext, useEffect, useRef } from "react";
 import Onboarding from "@/app/onboarding/page";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
+import { usePathname } from "next/navigation";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { authenticated, logout, ready } = usePrivy();
   const { ready: walletsReady } = useWallets();
   const { tradingEnabled, builderFeeApproved } = useContext(HyperLiquidContext);
   const currentWallet = useCurrentWallet();
+  const pathname = usePathname();
   const logoutTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isOnboardingPage = pathname === "/onboarding";
 
   useEffect(() => {
     // 清除之前的定时器
@@ -39,6 +42,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }
     };
   }, [authenticated, currentWallet, ready, walletsReady, logout]);
+
+  return (
+    <>
+      <main
+        className="flex-1 w-full"
+        style={{ paddingBottom: isOnboardingPage ? "0" : "62px" }}
+      >
+        {children}
+      </main>
+      {!isOnboardingPage && <Navbar />}
+    </>
+  );
 
   return tradingEnabled && authenticated && builderFeeApproved ? (
     <>

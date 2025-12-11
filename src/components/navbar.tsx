@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useContext } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import colors from "@/const/colors";
 import Image from "next/image";
 import homeIcon from "@/assets/icons/home.png";
@@ -16,12 +17,36 @@ import notificationActiveIcon from "@/assets/icons/notification-active.png";
 import settingsIcon from "@/assets/icons/settings.png";
 import settingsActiveIcon from "@/assets/icons/settings-active.png";
 import { MAX_WIDTH } from "@/app/layout";
+import { HyperLiquidContext } from "@/providers/hyperliquid";
+import { toast } from "sonner";
 
 const Navbar = () => {
   const pathname = usePathname();
+  const router = useRouter();
+  const { authenticated } = usePrivy();
+  const { tradingEnabled, builderFeeApproved } = useContext(HyperLiquidContext);
+
   useEffect(() => {
     console.log(pathname);
   }, [pathname]);
+
+  const handleLinkClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) => {
+    // /copyTrading 不需要校验，直接跳转
+    if (href === "/copyTrading") {
+      return;
+    }
+
+    // 其他路由需要校验
+    if (tradingEnabled && authenticated && builderFeeApproved) {
+      return;
+    }
+    e.preventDefault();
+    toast.warning("Please complete onboarding to trade");
+    router.push("/onboarding");
+  };
 
   return (
     <nav
@@ -38,7 +63,10 @@ const Navbar = () => {
     >
       <ul className="h-full flex justify-between items-center">
         <li>
-          <Link href="/dashboard">
+          <Link
+            href="/dashboard"
+            onClick={(e) => handleLinkClick(e, "/dashboard")}
+          >
             <Image
               src={pathname === "/dashboard" ? homeActiveIcon : homeIcon}
               alt="dashboard"
@@ -62,7 +90,7 @@ const Navbar = () => {
           </Link>
         </li>
         <li>
-          <Link href="/profile">
+          <Link href="/profile" onClick={(e) => handleLinkClick(e, "/profile")}>
             <Image
               src={
                 pathname === "/profile" ? portfolioActiveIcon : portfolioIcon
@@ -74,7 +102,10 @@ const Navbar = () => {
           </Link>
         </li>
         <li>
-          <Link href="/notification">
+          <Link
+            href="/notification"
+            onClick={(e) => handleLinkClick(e, "/notification")}
+          >
             <Image
               src={
                 pathname === "/notification"
@@ -88,7 +119,10 @@ const Navbar = () => {
           </Link>
         </li>
         <li>
-          <Link href="/settings">
+          <Link
+            href="/settings"
+            onClick={(e) => handleLinkClick(e, "/settings")}
+          >
             <Image
               src={pathname === "/settings" ? settingsActiveIcon : settingsIcon}
               alt="settings"
