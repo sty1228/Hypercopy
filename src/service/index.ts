@@ -1,4 +1,4 @@
-import { get } from "@/lib/axios";
+import { get, put } from "@/lib/axios";
 
 export interface LeaderboardItem {
   bull_or_bear: string;
@@ -120,8 +120,8 @@ export interface TPOrSL {
 export interface DefaultFollowSettings {
   tradeSizeType: TradeSizeType;
   tradeSize: number;
-  levarage: number;
-  levarageType: LeverageType;
+  leverage: number;
+  leverageType: LeverageType;
   tp: TPOrSL;
   sl: TPOrSL;
   orderType: "market" | "limit";
@@ -133,3 +133,13 @@ export const getDefaultFollowSettings =
       "https://mock.apidog.com/m1/1147892-1140449-default/api/defaultFollowSetting?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
     );
   };
+
+export const updateDefaultFollowSettings = async (
+  settings: { address: string } & DefaultFollowSettings
+) => {
+  console.log("updateDefaultFollowSettings", settings);
+  return await put(
+    "https://mock.apidog.com/m1/1147892-1140449-default/api/defaultFollowSetting?apidogToken=PbNG_tQ6mXqOpxO8CvYsp",
+    settings
+  );
+};

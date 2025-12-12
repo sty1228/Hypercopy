@@ -25,6 +25,7 @@ import {
   getDefaultFollowSettings as fetchDefaultFollowSettings,
   LeverageType,
   TradeSizeType,
+  updateDefaultFollowSettings,
 } from "@/service";
 
 const DOLLAR_OR_PERCENTAGE_STYLE = {
@@ -52,6 +53,19 @@ const LEVERAGE_TYPE_STYLE = {
   },
 };
 
+interface IDefaultFollowSettings {
+  perpsBalance: number;
+  tradeSize: number;
+  tradeSizeType: TradeSizeType;
+  leverage: number;
+  leverageType: LeverageType;
+  cutLoss: number;
+  cutLossType: TradeSizeType;
+  takeProfit: number;
+  takeProfitType: TradeSizeType;
+  orderStyle: OrderStyleEnum;
+}
+
 const DEFAULT_FOLLOW_SETTINGS = {
   perpsBalance: 0,
   tradeSize: 100,
@@ -72,30 +86,22 @@ const getInitialDefaultFollowSettings = () => {
 export default function DefaultFollow() {
   const { infoClient } = useContext(HyperLiquidContext);
   const currentWallet = useCurrentWallet();
-  const [defaultFollowSettings, setDefaultFollowSettings] = useState<{
-    perpsBalance: number;
-    tradeSize: number;
-    tradeSizeType: TradeSizeType;
-    leverage: number;
-    leverageType: LeverageType;
-    cutLoss: number;
-    cutLossType: TradeSizeType;
-    takeProfit: number;
-    takeProfitType: TradeSizeType;
-    orderStyle: OrderStyleEnum;
-  }>(getInitialDefaultFollowSettings());
+  const [cachedDefaultFollowSettings, setCachedDefaultFollowSettings] =
+    useState<IDefaultFollowSettings | null>(null);
+  const [defaultFollowSettings, setDefaultFollowSettings] =
+    useState<IDefaultFollowSettings>(getInitialDefaultFollowSettings());
 
   const loadDefaultFollowSettings = async () => {
     const data = await fetchDefaultFollowSettings();
     console.log(data);
 
     // 将 API 返回的数据映射到组件 state 结构
-    setDefaultFollowSettings((prev) => ({
-      ...prev,
+    const transformedData = {
+      ...defaultFollowSettings,
       tradeSize: data.tradeSize,
       tradeSizeType: data.tradeSizeType,
-      leverage: data.levarage,
-      leverageType: data.levarageType,
+      leverage: data.leverage,
+      leverageType: data.leverageType,
       cutLoss: data.sl.value,
       cutLossType: data.sl.type,
       takeProfit: data.tp.value,
@@ -104,7 +110,9 @@ export default function DefaultFollow() {
         data.orderType === "market"
           ? OrderStyleEnum.market
           : OrderStyleEnum.limit,
-    }));
+    };
+    setCachedDefaultFollowSettings(transformedData);
+    setDefaultFollowSettings(transformedData);
   };
 
   useEffect(() => {
@@ -124,6 +132,31 @@ export default function DefaultFollow() {
       }));
     });
   }, []);
+
+  const handleSave = async (newSettings: IDefaultFollowSettings) => {
+    console.log("newSettings", newSettings);
+    await updateDefaultFollowSettings({
+      address: currentWallet?.address ?? "",
+      tradeSizeType: newSettings.tradeSizeType,
+      tradeSize: newSettings.tradeSize,
+      leverage: newSettings.leverage,
+      leverageType: newSettings.leverageType,
+      sl: {
+        type: newSettings.cutLossType,
+        value: newSettings.cutLoss,
+      },
+      tp: {
+        type: newSettings.takeProfitType,
+        value: newSettings.takeProfit,
+      },
+      orderType:
+        newSettings.orderStyle === OrderStyleEnum.market ? "market" : "limit",
+    }).catch(() => {
+      toast.error("Failed to save settings");
+      throw new Error("Failed to save settings");
+    });
+    setCachedDefaultFollowSettings(newSettings);
+  };
 
   return (
     <div>
@@ -497,14 +530,23 @@ export default function DefaultFollow() {
       </div>
       <div className="mt-5">
         <BottomButtons
-          onCancel={() => {
+          onCancel={async () => {
             console.log("cancel");
+            const newSettings = cachedDefaultFollowSettings!;
+            setDefaultFollowSettings(newSettings);
+            await handleSave(newSettings);
+            toast.success("Settings reverted successfully");
           }}
-          onSave={() => {
-            toast.success("Config saved successfully");
+          onSave={async () => {
+            await handleSave(defaultFollowSettings);
+            toast.success("Settings saved successfully");
           }}
-          onReset={() => {
-            setDefaultFollowSettings(getInitialDefaultFollowSettings());
+          onReset={async () => {
+            console.log("reset");
+            const newSettings = getInitialDefaultFollowSettings();
+            setDefaultFollowSettings(newSettings);
+            await handleSave(newSettings);
+            toast.success("Settings reset successfully");
           }}
         />
       </div>

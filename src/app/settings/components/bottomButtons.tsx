@@ -1,8 +1,5 @@
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
-
-{
-  /* Cancel Save Reset buttons */
-}
 export default function BottomButtons({
   onCancel,
   onSave,
@@ -15,16 +12,13 @@ export default function BottomButtons({
   return (
     <div className="mt-8">
       <div className="w-full flex gap-2">
-        <Button
-          className="flex-1 h-[52px] rounded-[16px] font-semibold text-base border-1"
-          style={{
-            borderColor: "rgba(80, 210, 193, 1)",
-            color: "rgba(80, 210, 193, 1)",
-          }}
-          onClick={onCancel}
-        >
-          Cancel
-        </Button>
+        <ConfirmDialog
+          triggerText="Cancel"
+          triggerClassName="flex-1 h-[52px] rounded-[16px] font-semibold text-base border-1"
+          title="Confirm revert changes"
+          description="This action will revert all changes you have made to previous settings."
+          onConfirm={onCancel}
+        />
         <Button
           className="flex-1 h-[52px] rounded-[16px] font-semibold text-base "
           style={{
@@ -36,16 +30,14 @@ export default function BottomButtons({
           Save
         </Button>
       </div>
-      <Button
-        className="mt-4 w-full h-[52px] rounded-[16px] font-semibold text-base border-1"
-        style={{
-          borderColor: "rgba(80, 210, 193, 1)",
-          color: "rgba(80, 210, 193, 1)",
-        }}
-        onClick={onReset}
-      >
-        Reset to default
-      </Button>
+
+      <ConfirmDialog
+        triggerText="Reset to default"
+        triggerClassName="mt-4 w-full h-[52px] rounded-[16px] font-semibold text-base border-1"
+        title="Confirm reset to default settings"
+        description="This action will reset all settings to default."
+        onConfirm={onReset}
+      />
     </div>
   );
 }
