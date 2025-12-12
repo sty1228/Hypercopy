@@ -200,7 +200,17 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
         user: currentWallet.address!,
       })
       .catch(() => 0);
-    console.log("builderFee", builderFee);
+    console.log(
+      "builderFee",
+      builderFee,
+      "NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS",
+      process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS,
+      new BigNumber(builderFee)
+        .dividedBy(10)
+        .isEqualTo(
+          new BigNumber(process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS!)
+        )
+    );
     // ⚠️ maximum fee approved in tenths of a basis point i.e. 1 means 0.001%
     setBuilderFeeApproved(
       new BigNumber(builderFee)

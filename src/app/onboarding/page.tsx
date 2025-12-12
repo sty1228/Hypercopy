@@ -15,9 +15,11 @@ import { getArbUSDCBalance } from "@/helpers/arbitrum";
 import { useArbitrumUSDCDepositWithTransfer } from "@/hooks/hyperliquid";
 import { toast } from "sonner";
 import onBoardBg from "@/assets/icons/onboard-bg.png";
+import { useRouter } from "next/navigation";
 
 const Onboarding = () => {
   const { ready, login, authenticated } = usePrivy();
+  const router = useRouter();
   const {
     enableTrading,
     tradingEnabled,
@@ -33,6 +35,18 @@ const Onboarding = () => {
   const arbitrumUSDCDepositWithTransfer = useArbitrumUSDCDepositWithTransfer();
 
   const buttonText = useMemo(() => {
+    console.log(
+      "authenticated",
+      authenticated,
+      "perpsBalance",
+      perpsBalance,
+      "arbUSDCBalance",
+      arbUSDCBalance,
+      "tradingEnabled",
+      tradingEnabled,
+      "builderFeeApproved",
+      builderFeeApproved
+    );
     if (!authenticated) {
       return "CONTINUE";
     }
@@ -127,10 +141,13 @@ const Onboarding = () => {
     }
     if (!tradingEnabled) {
       enableTrading();
+      return;
     }
     if (!builderFeeApproved) {
       approveBuilderFee();
+      return;
     }
+    router.push("/copyTrading");
   };
 
   if (!ready) {
