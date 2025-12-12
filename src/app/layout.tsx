@@ -57,6 +57,8 @@ export default function RootLayout({
         </Providers>
         <Toaster />
       </body>
+      <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js" />
+      <script>var vConsole = new window.VConsole();</script>
     </html>
   );
 }
