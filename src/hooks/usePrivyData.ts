@@ -1,8 +1,12 @@
 "use client";
 
-import { usePrivy, useSignTypedData, useWallets } from "@privy-io/react-auth";
+import {
+  ConnectedWallet,
+  usePrivy,
+  useWallets,
+} from "@privy-io/react-auth";
 import { ethers } from "ethers";
-import { useCallback, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const useCurrentWallet = () => {
   const { authenticated } = usePrivy();
@@ -13,17 +17,36 @@ const useCurrentWallet = () => {
     return walletsEvm?.length ? walletsEvm[0] : null;
   }, [authenticated, walletsEvm]);
 
-  return currentWallet;
+  return currentWallet as ConnectedWallet;
 };
 
 const useEthereumProvider = () => {
   const currentWallet = useCurrentWallet();
+  const [ethereumProvider, setEthereumProvider] =
+    useState<ethers.BrowserProvider | null>(null);
 
-  const ethereumProvider = useMemo(() => {
+  useEffect(() => {
     if (!currentWallet) {
-      return null;
+      setEthereumProvider(null);
+      return;
     }
-    return new ethers.BrowserProvider(window.ethereum);
+
+    if (window?.ethereum) {
+      setEthereumProvider(new ethers.BrowserProvider(window.ethereum));
+      return;
+    }
+    currentWallet
+      .getEthereumProvider()
+      .then((provider) => {
+        if (!provider) {
+          console.error("Failed to get Ethereum provider from wallet");
+          return;
+        }
+        setEthereumProvider(new ethers.BrowserProvider(provider));
+      })
+      .catch((error: unknown) => {
+        console.error("Error getting Ethereum provider:", error);
+      });
   }, [currentWallet]);
 
   return ethereumProvider;
