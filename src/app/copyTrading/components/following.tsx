@@ -2,9 +2,18 @@
 
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { ellipsisAddress } from "@/lib/string";
+import { usePrivy } from "@privy-io/react-auth";
+import { useMemo } from "react";
 
 export default function Following() {
   const currentWallet = useCurrentWallet();
+  const { user } = usePrivy();
+
+  const displayUserName = useMemo(() => {
+    return (
+      user?.twitter?.name || user?.email?.address || currentWallet?.address
+    );
+  }, [user, currentWallet]);
 
   return (
     <div className="flex justify-between items-center h-[40px]">
@@ -19,7 +28,7 @@ export default function Following() {
               minWidth: "120px",
             }}
           >
-            <span>{ellipsisAddress(currentWallet?.address, 6, 6)}</span>
+            <span>{ellipsisAddress(displayUserName, 6, 6)}</span>
             {/* <div
             className="display-inlineblock flex items-center justify-center"
             style={{

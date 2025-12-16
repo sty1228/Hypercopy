@@ -56,7 +56,7 @@ export default function SignalItem({
   const handleTrade = async (side: "copy" | "counter") => {
     if (!(tradingEnabled && authenticated && builderFeeApproved)) {
       toast.warning("Please complete onboarding to trade");
-      router.push("/onboarding");
+      router.push(`/onboarding?from=${encodeURIComponent("orderPlace")}`);
       return;
     }
     const tradeSide =

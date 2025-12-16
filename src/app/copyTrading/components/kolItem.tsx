@@ -121,26 +121,26 @@ export default function KolItem({
 
       {/* account data */}
       <div className="flex justify-between mt-4">
-        <div className="flex flex-col">
+        <div className="flex flex-col w-[30px]">
           <span
             className="text-xs font-normal"
             style={{ color: "rgba(165, 176, 176, 1)" }}
           >
-            Grade
+            Rank
           </span>
           <span className="font-medium text-base">
-            {(data?.profit_grade as string) || "-"}
+            {(data?.rank as number) || "-"}
           </span>
         </div>
 
-        <div className="flex flex-col">
+        <div className="flex flex-col w-[70px]">
           <span
             className="text-xs font-normal"
             style={{ color: "rgba(165, 176, 176, 1)" }}
           >
             Points
           </span>
-          <span className="font-medium text-base">
+          <span className="font-medium text-base overflow-hidden text-ellipsis whitespace-nowrap">
             {data?.points
               ? new BigNumber(data?.points as number)
                   .decimalPlaces(2, BigNumber.ROUND_DOWN)
@@ -149,7 +149,7 @@ export default function KolItem({
           </span>
         </div>
 
-        <div className="flex flex-col">
+        <div className="flex flex-col w-[80px]">
           <span
             className="text-xs font-normal"
             style={{ color: "rgba(165, 176, 176, 1)" }}
@@ -196,10 +196,10 @@ export default function KolItem({
             className="text-xs font-normal"
             style={{ color: "rgba(165, 176, 176, 1)" }}
           >
-            Rank
+            Grade
           </span>
           <span className="font-medium text-base">
-            {(data?.rank as number) || "-"}
+            {(data?.profit_grade as string) || "-"}
           </span>
         </div>
       </div>

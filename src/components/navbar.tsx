@@ -40,12 +40,16 @@ const Navbar = () => {
     }
 
     // 其他路由需要校验
-    if (tradingEnabled && authenticated && builderFeeApproved) {
+    if (authenticated) {
       return;
     }
     e.preventDefault();
-    toast.warning("Please complete onboarding to trade");
-    router.push("/onboarding");
+    toast.warning("Please login to visit more page");
+    // 方式1: 直接在 URL 中添加查询参数
+    router.push(`/onboarding?from=${encodeURIComponent(href)}`);
+    // 方式2: 使用 URLSearchParams（适合多个参数）
+    // const params = new URLSearchParams({ from: href });
+    // router.push(`/onboarding?${params.toString()}`);
   };
 
   return (

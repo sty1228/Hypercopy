@@ -46,18 +46,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <Script
-        src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"
-        strategy="afterInteractive"
-        onLoad={() => {
-          // @ts-expect-error - VConsole is loaded dynamically
-          if (typeof window !== "undefined" && window.VConsole) {
-            // @ts-expect-error - VConsole is loaded dynamically
-            new window.VConsole();
-            console.log("VConsole init");
-          }
-        }}
-      />
       <main
         className="flex-1 w-full"
         style={{ paddingBottom: isOnboardingPage ? "0" : "62px" }}

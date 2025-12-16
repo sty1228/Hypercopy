@@ -15,7 +15,7 @@ import { getArbUSDCBalance } from "@/helpers/arbitrum";
 import { useArbitrumUSDCDepositWithTransfer } from "@/hooks/hyperliquid";
 import { toast } from "sonner";
 import onBoardBg from "@/assets/icons/onboard-bg.png";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const Onboarding = () => {
   const { ready, login, authenticated } = usePrivy();
@@ -33,6 +33,14 @@ const Onboarding = () => {
   const [arbUSDCBalance, setArbUSDCBalance] = useState<number>(0);
   const [requestLock, setRequestLock] = useState<boolean>(false);
   const arbitrumUSDCDepositWithTransfer = useArbitrumUSDCDepositWithTransfer();
+
+  const from = useSearchParams().get("from") as "orderPlace" | string;
+
+  useEffect(() => {
+    if (authenticated && from !== "orderPlace") {
+      router.push(from);
+    }
+  }, [from, authenticated]);
 
   const buttonText = useMemo(() => {
     console.log(
@@ -140,11 +148,11 @@ const Onboarding = () => {
       return;
     }
     if (!tradingEnabled) {
-      enableTrading();
+      await enableTrading();
       return;
     }
     if (!builderFeeApproved) {
-      approveBuilderFee();
+      await approveBuilderFee();
       return;
     }
     router.push("/copyTrading");
@@ -167,8 +175,8 @@ const Onboarding = () => {
         <Image src={logoIcon} alt="logo" width={100} height={100} />
       </p>
       <div
+        className="mt-4"
         style={{
-          marginTop: "218px",
           paddingLeft: "48px",
           paddingRight: "48px",
         }}
@@ -292,6 +300,17 @@ const Onboarding = () => {
           {buttonText}
         </Button>
       </div>
+      <Button
+        className="mt-2 bg-transparent text-xs"
+        style={{
+          color: "gray",
+        }}
+        onClick={() => {
+          router.push("/copyTrading");
+        }}
+      >
+        Back to homepage
+      </Button>
     </div>
   );
 };
