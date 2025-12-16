@@ -8,7 +8,7 @@ import colors from "@/const/colors";
 import { usePrivy } from "@privy-io/react-auth";
 import { FullScreenLoader } from "@/components/ui/fullscreen-loader";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState, Suspense } from "react";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { getPerpsBalance } from "@/helpers/hyperliquid";
 import { getArbUSDCBalance } from "@/helpers/arbitrum";
@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import onBoardBg from "@/assets/icons/onboard-bg.png";
 import { useRouter, useSearchParams } from "next/navigation";
 
-const Onboarding = () => {
+const OnboardingContent = () => {
   const { ready, login, authenticated } = usePrivy();
   const router = useRouter();
   const {
@@ -37,10 +37,10 @@ const Onboarding = () => {
   const from = useSearchParams().get("from") as "orderPlace" | string;
 
   useEffect(() => {
-    if (authenticated && from !== "orderPlace") {
+    if (authenticated && from && from !== "orderPlace") {
       router.push(from);
     }
-  }, [from, authenticated]);
+  }, [from, authenticated, router]);
 
   const buttonText = useMemo(() => {
     console.log(
@@ -312,6 +312,14 @@ const Onboarding = () => {
         Back to homepage
       </Button>
     </div>
+  );
+};
+
+const Onboarding = () => {
+  return (
+    <Suspense fallback={<FullScreenLoader />}>
+      <OnboardingContent />
+    </Suspense>
   );
 };
 
