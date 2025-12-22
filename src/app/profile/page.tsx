@@ -39,7 +39,7 @@ const Profile = () => {
     null
   );
   const [accountValue, setAccountValue] = useState<number>(0);
-
+  const [followingSheetTitle, setFollowingSheetTitle] = useState("Following");
   const getProfileData = async () => {
     const data = await getProfileDataService();
     console.log(data);
@@ -121,6 +121,10 @@ const Profile = () => {
                 style={{
                   color: "rgba(165, 176, 176, 1)",
                 }}
+                onClick={() => {
+                  setFollowingSheetTitle("Following")
+                  setIsFollowingOpen(true)
+                }}
               >
                 <span className="font-medium">
                   {profileData.followingCount}
@@ -131,6 +135,10 @@ const Profile = () => {
                 className="text-sm ml-3 underline"
                 style={{
                   color: "rgba(165, 176, 176, 1)",
+                }}
+                onClick={() => {
+                  setFollowingSheetTitle("Followers")
+                  setIsFollowingOpen(true)
                 }}
               >
                 <span className="font-medium">{profileData.followerCount}</span>{" "}
@@ -393,6 +401,8 @@ const Profile = () => {
       <FollowingSheet
         isOpen={isFollowingOpen}
         handleClose={() => setIsFollowingOpen(false)}
+        dataList={profileData.followerList}
+        title={followingSheetTitle}
       />
     </div>
   ) : null;

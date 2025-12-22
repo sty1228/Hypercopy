@@ -83,6 +83,8 @@ const getInitialDefaultFollowSettings = () => {
   return DEFAULT_FOLLOW_SETTINGS;
 };
 
+const changedRowBorderColor = "rgba(234, 102, 99, 1)";
+
 export default function DefaultFollow() {
   const { infoClient } = useContext(HyperLiquidContext);
   const currentWallet = useCurrentWallet();
@@ -90,6 +92,16 @@ export default function DefaultFollow() {
     useState<IDefaultFollowSettings | null>(null);
   const [defaultFollowSettings, setDefaultFollowSettings] =
     useState<IDefaultFollowSettings>(getInitialDefaultFollowSettings());
+
+  const [rowChange, setRowChange] = useState({
+    tradeSize: false,
+    tradeSizeType: false,
+    leverage: false,
+    leverageType: false,
+    cutLoss: false,
+    takeProfit: false,
+    orderStyle: false,
+  });
 
   const loadDefaultFollowSettings = async () => {
     const data = await fetchDefaultFollowSettings();
@@ -113,6 +125,15 @@ export default function DefaultFollow() {
     };
     setCachedDefaultFollowSettings(transformedData);
     setDefaultFollowSettings(transformedData);
+    setRowChange({
+      tradeSize: false,
+      tradeSizeType: false,
+      leverage: false,
+      leverageType: false,
+      cutLoss: false,
+      takeProfit: false,
+      orderStyle: false,
+    });
   };
 
   useEffect(() => {
@@ -177,7 +198,9 @@ export default function DefaultFollow() {
           style={{
             backgroundColor: "rgba(13, 23, 28, 1)",
             borderWidth: "1px",
-            borderColor: "rgba(27, 36, 41, 1)",
+            borderColor: rowChange.tradeSize
+              ? changedRowBorderColor
+              : "rgba(27, 36, 41, 1)",
           }}
         >
           <div className="relative flex items-center w-full mr-4">
@@ -194,12 +217,20 @@ export default function DefaultFollow() {
               placeholder=""
               value={defaultFollowSettings?.tradeSize || ""}
               onChange={(e) => {
-                if (isNaN(Number(e.target.value))) {
+                const value = Number(e.target.value);
+                if (isNaN(value)) {
                   return;
                 }
                 setDefaultFollowSettings((prev) => ({
                   ...prev,
-                  tradeSize: Number(e.target.value),
+                  tradeSize: value,
+                }));
+                setRowChange((prev) => ({
+                  ...prev,
+                  tradeSize:
+                    value !== Number(cachedDefaultFollowSettings?.tradeSize) ||
+                    defaultFollowSettings.tradeSizeType !==
+                      cachedDefaultFollowSettings?.tradeSizeType,
                 }));
               }}
             />
@@ -215,6 +246,13 @@ export default function DefaultFollow() {
               setDefaultFollowSettings((prev) => ({
                 ...prev,
                 tradeSizeType: "USD",
+              }));
+              setRowChange((prev) => ({
+                ...prev,
+                tradeSize:
+                  cachedDefaultFollowSettings?.tradeSizeType !== "USD" ||
+                  Number(defaultFollowSettings.tradeSize) !==
+                    Number(cachedDefaultFollowSettings?.tradeSize),
               }));
             }}
           >
@@ -232,6 +270,13 @@ export default function DefaultFollow() {
                 ...prev,
                 tradeSizeType: "PCT",
               }));
+              setRowChange((prev) => ({
+                ...prev,
+                tradeSize:
+                  cachedDefaultFollowSettings?.tradeSizeType !== "PCT" ||
+                  Number(defaultFollowSettings.tradeSize) !==
+                    Number(cachedDefaultFollowSettings?.tradeSize),
+              }));
             }}
           >
             %
@@ -243,7 +288,9 @@ export default function DefaultFollow() {
           style={{
             backgroundColor: "rgba(13, 23, 28, 1)",
             borderWidth: "1px",
-            borderColor: "rgba(27, 36, 41, 1)",
+            borderColor: rowChange.leverage
+              ? changedRowBorderColor
+              : "rgba(27, 36, 41, 1)",
           }}
         >
           <Label
@@ -263,54 +310,81 @@ export default function DefaultFollow() {
                 : ""
             }
             onChange={(e) => {
+              const value = Number(e.target.value.replace("x", ""));
               setDefaultFollowSettings((prev) => ({
                 ...prev,
-                leverage: Number(e.target.value.replace("x", "")),
+                leverage: value,
+              }));
+              setRowChange((prev) => ({
+                ...prev,
+                leverage:
+                  value !== Number(cachedDefaultFollowSettings?.leverage),
               }));
             }}
           />
         </div>
         {/* leverage type */}
-        <div className="mt-2 flex h-[52px] leading-[52px] pl-4">
-          <span
-            className="flex-1 leading-[52px] font-normal text-base"
-            style={{ color: "rgba(148, 158, 156, 1)" }}
-          >
-            Leverage Type
-          </span>
-          <Button
-            className="w-[87px] h-[52px] leading-[52px] rounded-[16px] px-6 border-1 font-normal text-base"
-            style={
-              defaultFollowSettings.leverageType === "cross"
-                ? LEVERAGE_TYPE_STYLE.active
-                : LEVERAGE_TYPE_STYLE.default
-            }
-            onClick={() => {
-              setDefaultFollowSettings((prev) => ({
-                ...prev,
-                leverageType: "cross",
-              }));
-            }}
-          >
-            Cross
-          </Button>
+        <div
+          className="mt-2 rounded-[16px]"
+          style={{
+            borderWidth: "1px",
+            borderColor: rowChange.leverageType
+              ? changedRowBorderColor
+              : "transparent",
+            padding: rowChange.leverageType ? "4px" : "0",
+          }}
+        >
+          <div className="flex h-[52px] leading-[52px] pl-4 rounded-[16px]">
+            <span
+              className="flex-1 leading-[52px] font-normal text-base"
+              style={{ color: "rgba(148, 158, 156, 1)" }}
+            >
+              Leverage Type
+            </span>
+            <Button
+              className="w-[87px] h-[52px] leading-[52px] rounded-[16px] px-6 border-1 font-normal text-base"
+              style={
+                defaultFollowSettings.leverageType === "cross"
+                  ? LEVERAGE_TYPE_STYLE.active
+                  : LEVERAGE_TYPE_STYLE.default
+              }
+              onClick={() => {
+                setDefaultFollowSettings((prev) => ({
+                  ...prev,
+                  leverageType: "cross",
+                }));
+                setRowChange((prev) => ({
+                  ...prev,
+                  leverageType:
+                    cachedDefaultFollowSettings?.leverageType !== "cross",
+                }));
+              }}
+            >
+              Cross
+            </Button>
 
-          <Button
-            className="w-[87px] h-[52px] leading-[52px] rounded-[16px] px-6 border-1 ml-2 font-normal text-base"
-            style={
-              defaultFollowSettings.leverageType === "isolated"
-                ? LEVERAGE_TYPE_STYLE.active
-                : LEVERAGE_TYPE_STYLE.default
-            }
-            onClick={() => {
-              setDefaultFollowSettings((prev) => ({
-                ...prev,
-                leverageType: "isolated",
-              }));
-            }}
-          >
-            Isolated
-          </Button>
+            <Button
+              className="w-[87px] h-[52px] leading-[52px] rounded-[16px] px-6 border-1 ml-2 font-normal text-base"
+              style={
+                defaultFollowSettings.leverageType === "isolated"
+                  ? LEVERAGE_TYPE_STYLE.active
+                  : LEVERAGE_TYPE_STYLE.default
+              }
+              onClick={() => {
+                setDefaultFollowSettings((prev) => ({
+                  ...prev,
+                  leverageType: "isolated",
+                }));
+                setRowChange((prev) => ({
+                  ...prev,
+                  leverageType:
+                    cachedDefaultFollowSettings?.leverageType !== "isolated",
+                }));
+              }}
+            >
+              Isolated
+            </Button>
+          </div>
         </div>
       </div>
       {/* Automatically Close Trades */}
@@ -332,7 +406,9 @@ export default function DefaultFollow() {
           style={{
             backgroundColor: "rgba(13, 23, 28, 1)",
             borderWidth: "1px",
-            borderColor: "rgba(27, 36, 41, 1)",
+            borderColor: rowChange.cutLoss
+              ? changedRowBorderColor
+              : "rgba(27, 36, 41, 1)",
           }}
         >
           <div className="relative flex items-center w-full mr-4">
@@ -349,12 +425,20 @@ export default function DefaultFollow() {
               placeholder=""
               value={defaultFollowSettings?.cutLoss || ""}
               onChange={(e) => {
-                if (isNaN(Number(e.target.value))) {
+                const value = Number(e.target.value);
+                if (isNaN(value)) {
                   return;
                 }
                 setDefaultFollowSettings((prev) => ({
                   ...prev,
-                  cutLoss: Number(e.target.value),
+                  cutLoss: value,
+                }));
+                setRowChange((prev) => ({
+                  ...prev,
+                  cutLoss:
+                    value !== Number(cachedDefaultFollowSettings?.cutLoss) ||
+                    defaultFollowSettings.cutLossType !==
+                      cachedDefaultFollowSettings?.cutLossType,
                 }));
               }}
             />
@@ -370,6 +454,13 @@ export default function DefaultFollow() {
               setDefaultFollowSettings((prev) => ({
                 ...prev,
                 cutLossType: "USD",
+              }));
+              setRowChange((prev) => ({
+                ...prev,
+                cutLoss:
+                  cachedDefaultFollowSettings?.cutLossType !== "USD" ||
+                  Number(defaultFollowSettings.cutLoss) !==
+                    Number(cachedDefaultFollowSettings?.cutLoss),
               }));
             }}
           >
@@ -387,6 +478,13 @@ export default function DefaultFollow() {
                 ...prev,
                 cutLossType: "PCT",
               }));
+              setRowChange((prev) => ({
+                ...prev,
+                cutLoss:
+                  cachedDefaultFollowSettings?.cutLossType !== "PCT" ||
+                  Number(defaultFollowSettings.cutLoss) !==
+                    Number(cachedDefaultFollowSettings?.cutLoss),
+              }));
             }}
           >
             %
@@ -397,7 +495,9 @@ export default function DefaultFollow() {
           style={{
             backgroundColor: "rgba(13, 23, 28, 1)",
             borderWidth: "1px",
-            borderColor: "rgba(27, 36, 41, 1)",
+            borderColor: rowChange.takeProfit
+              ? changedRowBorderColor
+              : "rgba(27, 36, 41, 1)",
           }}
         >
           <div className="relative flex items-center w-full mr-4">
@@ -414,12 +514,20 @@ export default function DefaultFollow() {
               placeholder=""
               value={defaultFollowSettings?.takeProfit || ""}
               onChange={(e) => {
-                if (isNaN(Number(e.target.value))) {
+                const value = Number(e.target.value);
+                if (isNaN(value)) {
                   return;
                 }
                 setDefaultFollowSettings((prev) => ({
                   ...prev,
-                  takeProfit: Number(e.target.value),
+                  takeProfit: value,
+                }));
+                setRowChange((prev) => ({
+                  ...prev,
+                  takeProfit:
+                    value !== Number(cachedDefaultFollowSettings?.takeProfit) ||
+                    defaultFollowSettings.takeProfitType !==
+                      cachedDefaultFollowSettings?.takeProfitType,
                 }));
               }}
             />
@@ -435,6 +543,13 @@ export default function DefaultFollow() {
               setDefaultFollowSettings((prev) => ({
                 ...prev,
                 takeProfitType: "USD",
+              }));
+              setRowChange((prev) => ({
+                ...prev,
+                takeProfit:
+                  cachedDefaultFollowSettings?.takeProfitType !== "USD" ||
+                  Number(defaultFollowSettings.takeProfit) !==
+                    Number(cachedDefaultFollowSettings?.takeProfit),
               }));
             }}
           >
@@ -452,6 +567,13 @@ export default function DefaultFollow() {
                 ...prev,
                 takeProfitType: "PCT",
               }));
+              setRowChange((prev) => ({
+                ...prev,
+                takeProfit:
+                  cachedDefaultFollowSettings?.takeProfitType !== "PCT" ||
+                  Number(defaultFollowSettings.takeProfit) !==
+                    Number(cachedDefaultFollowSettings?.takeProfit),
+              }));
             }}
           >
             %
@@ -466,7 +588,9 @@ export default function DefaultFollow() {
           style={{
             backgroundColor: "rgba(13, 23, 28, 1)",
             borderWidth: "1px",
-            borderColor: "rgba(27, 36, 41, 1)",
+            borderColor: rowChange.orderStyle
+              ? changedRowBorderColor
+              : "rgba(27, 36, 41, 1)",
           }}
         >
           <div className="relative flex items-center w-full">
@@ -482,6 +606,10 @@ export default function DefaultFollow() {
                 setDefaultFollowSettings((prev) => ({
                   ...prev,
                   orderStyle: value as OrderStyleEnum,
+                }));
+                setRowChange((prev) => ({
+                  ...prev,
+                  orderStyle: value !== cachedDefaultFollowSettings?.orderStyle,
                 }));
               }}
             >

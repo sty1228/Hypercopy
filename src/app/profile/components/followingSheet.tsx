@@ -12,13 +12,18 @@ import { XIcon } from "lucide-react";
 import FollowingItem from "./followingItem";
 import Search from "@/app/copyTrading/components/search";
 import { MAX_WIDTH } from "@/app/layout";
+import { FollowerItem } from "@/service";
 
 export default function FollowingSheet({
   isOpen,
   handleClose,
+  dataList,
+  title = "Following",
 }: {
   isOpen: boolean;
   handleClose: () => void;
+  dataList: FollowerItem[];
+  title?: string;
 }) {
   const [sortBy, setSortBy] = useState("performance");
 
@@ -37,7 +42,7 @@ export default function FollowingSheet({
       >
         <SheetHeader className="px-0 py-0">
           <SheetTitle className="text-[22px] font-semibold text-white flex items-center justify-between">
-            <span>Following</span>
+            <span>{title}</span>
             <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
               <span className="animate-pulse">
                 <XIcon className="size-4" />
@@ -58,8 +63,8 @@ export default function FollowingSheet({
         </div>
 
         <div>
-          {Array.from({ length: 10 }).map((_, index) => (
-            <FollowingItem key={index} />
+          {dataList.map((item, index) => (
+            <FollowingItem key={index} data={item} />
           ))}
         </div>
       </SheetContent>

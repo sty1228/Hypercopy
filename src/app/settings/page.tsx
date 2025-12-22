@@ -66,10 +66,12 @@ export default function Settings() {
         </div>
       )}
       {activeTab === TabEnum.trader && (
-        <SpecificTraders
-          searchResult={specificTradersSearchResult}
-          handleSearch={handleSpecificTradersSearch}
-        />
+        <div className="mt-8 px-5">
+          <SpecificTraders
+            searchResult={specificTradersSearchResult}
+            handleSearch={handleSpecificTradersSearch}
+          />
+        </div>
       )}
     </div>
   );
