@@ -23,12 +23,15 @@ import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { getPerpsBalance } from "@/helpers/hyperliquid";
 import BottomButtons from "./bottomButtons";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import {
   getDefaultFollowSettings as fetchDefaultFollowSettings,
   LeverageType,
   TradeSizeType,
   updateDefaultFollowSettings,
 } from "@/service";
+import { SummaryDialog } from "./summaryDialog";
+import { IDefaultFollowSettings } from "./defaultFollow";
 
 const DOLLAR_OR_PERCENTAGE_STYLE = {
   default: {
@@ -106,6 +109,7 @@ export default function SpecificTraders({
   const [specificTradersSettings, setSpecificTradersSettings] =
     useState<ISpecificTradersSettings>(getInitialSpecificTradersSettings());
 
+  const [isLoading, setIsLoading] = useState(false);
   const [rowChange, setRowChange] = useState({
     tradeSize: false,
     tradeSizeType: false,
@@ -148,6 +152,16 @@ export default function SpecificTraders({
       takeProfit: false,
       orderStyle: false,
     });
+  };
+
+  const handleRowChangeLoading = () => {
+    if (isLoading) {
+      return;
+    }
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
   };
 
   useEffect(() => {
@@ -317,6 +331,7 @@ export default function SpecificTraders({
                 placeholder=""
                 value={specificTradersSettings?.tradeSize || ""}
                 onChange={(e) => {
+                  handleRowChangeLoading();
                   const value = Number(e.target.value);
                   if (isNaN(value)) {
                     return;
@@ -343,6 +358,7 @@ export default function SpecificTraders({
                   : DOLLAR_OR_PERCENTAGE_STYLE.default
               }
               onClick={() => {
+                handleRowChangeLoading();
                 setSpecificTradersSettings((prev) => ({
                   ...prev,
                   tradeSizeType: "USD",
@@ -366,6 +382,7 @@ export default function SpecificTraders({
                   : DOLLAR_OR_PERCENTAGE_STYLE.default
               }
               onClick={() => {
+                handleRowChangeLoading();
                 setSpecificTradersSettings((prev) => ({
                   ...prev,
                   tradeSizeType: "PCT",
@@ -410,6 +427,7 @@ export default function SpecificTraders({
                   : ""
               }
               onChange={(e) => {
+                handleRowChangeLoading();
                 const value = Number(e.target.value.replace("x", ""));
                 setSpecificTradersSettings((prev) => ({
                   ...prev,
@@ -449,6 +467,7 @@ export default function SpecificTraders({
                     : LEVERAGE_TYPE_STYLE.default
                 }
                 onClick={() => {
+                  handleRowChangeLoading();
                   setSpecificTradersSettings((prev) => ({
                     ...prev,
                     leverageType: "cross",
@@ -471,6 +490,7 @@ export default function SpecificTraders({
                     : LEVERAGE_TYPE_STYLE.default
                 }
                 onClick={() => {
+                  handleRowChangeLoading();
                   setSpecificTradersSettings((prev) => ({
                     ...prev,
                     leverageType: "isolated",
@@ -525,6 +545,7 @@ export default function SpecificTraders({
                 placeholder=""
                 value={specificTradersSettings?.cutLoss || ""}
                 onChange={(e) => {
+                  handleRowChangeLoading();
                   const value = Number(e.target.value);
                   if (isNaN(value)) {
                     return;
@@ -551,6 +572,7 @@ export default function SpecificTraders({
                   : DOLLAR_OR_PERCENTAGE_STYLE.default
               }
               onClick={() => {
+                handleRowChangeLoading();
                 setSpecificTradersSettings((prev) => ({
                   ...prev,
                   cutLossType: "USD",
@@ -574,6 +596,7 @@ export default function SpecificTraders({
                   : DOLLAR_OR_PERCENTAGE_STYLE.default
               }
               onClick={() => {
+                handleRowChangeLoading();
                 setSpecificTradersSettings((prev) => ({
                   ...prev,
                   cutLossType: "PCT",
@@ -614,6 +637,7 @@ export default function SpecificTraders({
                 placeholder=""
                 value={specificTradersSettings?.takeProfit || ""}
                 onChange={(e) => {
+                  handleRowChangeLoading();
                   const value = Number(e.target.value);
                   if (isNaN(value)) {
                     return;
@@ -640,6 +664,7 @@ export default function SpecificTraders({
                   : DOLLAR_OR_PERCENTAGE_STYLE.default
               }
               onClick={() => {
+                handleRowChangeLoading();
                 setSpecificTradersSettings((prev) => ({
                   ...prev,
                   takeProfitType: "USD",
@@ -663,6 +688,7 @@ export default function SpecificTraders({
                   : DOLLAR_OR_PERCENTAGE_STYLE.default
               }
               onClick={() => {
+                handleRowChangeLoading();
                 setSpecificTradersSettings((prev) => ({
                   ...prev,
                   takeProfitType: "PCT",
@@ -703,6 +729,7 @@ export default function SpecificTraders({
               <Select
                 value={specificTradersSettings.orderStyle}
                 onValueChange={(value) => {
+                  handleRowChangeLoading();
                   setSpecificTradersSettings((prev) => ({
                     ...prev,
                     orderStyle: value as OrderStyleEnum,
@@ -745,16 +772,41 @@ export default function SpecificTraders({
           >
             Summary
           </p>
-          <p className="font-normal text-xs mt-2">
-            You will be taking $500 market order positions on 5x leverage,
-            isolated to each position on your $5000
-          </p>
-          <p
-            className="font-medium text-xs"
-            style={{ color: "rgba(80, 210, 193, 1)" }}
-          >
-            read more...
-          </p>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2
+                className="animate-spin"
+                style={{ color: "rgba(80, 210, 193, 1)" }}
+                size={24}
+              />
+            </div>
+          ) : (
+            <>
+              <p className="font-normal text-xs mt-2">
+                You will be taking{" "}
+                {specificTradersSettings.takeProfitType === "USD"
+                  ? `$${specificTradersSettings.takeProfit}`
+                  : `${specificTradersSettings.takeProfit}%`}{" "}
+                {specificTradersSettings.orderStyle === OrderStyleEnum.market
+                  ? "market"
+                  : "limit"}{" "}
+                order positions on {specificTradersSettings.leverage}x leverage,
+                {specificTradersSettings.leverageType === "isolated"
+                  ? "isolated"
+                  : "cross"}{" "}
+                to each position on your{" "}
+                {specificTradersSettings.tradeSizeType === "USD"
+                  ? `$${specificTradersSettings.tradeSize}`
+                  : `${specificTradersSettings.tradeSize}%`}
+              </p>
+              <SummaryDialog
+                onConfirm={() => {}}
+                defaultFollowSettings={
+                  specificTradersSettings as IDefaultFollowSettings
+                }
+              />
+            </>
+          )}
         </div>
       </div>
       <div className="mt-5">

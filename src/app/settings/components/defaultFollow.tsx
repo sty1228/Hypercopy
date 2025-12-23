@@ -21,12 +21,14 @@ import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { getPerpsBalance } from "@/helpers/hyperliquid";
 import BottomButtons from "./bottomButtons";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 import {
   getDefaultFollowSettings as fetchDefaultFollowSettings,
   LeverageType,
   TradeSizeType,
   updateDefaultFollowSettings,
 } from "@/service";
+import { SummaryDialog } from "./summaryDialog";
 
 const DOLLAR_OR_PERCENTAGE_STYLE = {
   default: {
@@ -53,7 +55,7 @@ const LEVERAGE_TYPE_STYLE = {
   },
 };
 
-interface IDefaultFollowSettings {
+export interface IDefaultFollowSettings {
   perpsBalance: number;
   tradeSize: number;
   tradeSizeType: TradeSizeType;
@@ -93,6 +95,7 @@ export default function DefaultFollow() {
   const [defaultFollowSettings, setDefaultFollowSettings] =
     useState<IDefaultFollowSettings>(getInitialDefaultFollowSettings());
 
+  const [isLoading, setIsLoading] = useState(false);
   const [rowChange, setRowChange] = useState({
     tradeSize: false,
     tradeSizeType: false,
@@ -179,6 +182,16 @@ export default function DefaultFollow() {
     setCachedDefaultFollowSettings(newSettings);
   };
 
+  const handleRowChangeLoading = () => {
+    if (isLoading) {
+      return;
+    }
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+  };
+
   return (
     <div>
       <p className="flex justify-between items-center">
@@ -217,6 +230,7 @@ export default function DefaultFollow() {
               placeholder=""
               value={defaultFollowSettings?.tradeSize || ""}
               onChange={(e) => {
+                handleRowChangeLoading();
                 const value = Number(e.target.value);
                 if (isNaN(value)) {
                   return;
@@ -310,6 +324,7 @@ export default function DefaultFollow() {
                 : ""
             }
             onChange={(e) => {
+              handleRowChangeLoading();
               const value = Number(e.target.value.replace("x", ""));
               setDefaultFollowSettings((prev) => ({
                 ...prev,
@@ -371,6 +386,7 @@ export default function DefaultFollow() {
                   : LEVERAGE_TYPE_STYLE.default
               }
               onClick={() => {
+                handleRowChangeLoading();
                 setDefaultFollowSettings((prev) => ({
                   ...prev,
                   leverageType: "isolated",
@@ -425,6 +441,7 @@ export default function DefaultFollow() {
               placeholder=""
               value={defaultFollowSettings?.cutLoss || ""}
               onChange={(e) => {
+                handleRowChangeLoading();
                 const value = Number(e.target.value);
                 if (isNaN(value)) {
                   return;
@@ -451,6 +468,7 @@ export default function DefaultFollow() {
                 : DOLLAR_OR_PERCENTAGE_STYLE.default
             }
             onClick={() => {
+              handleRowChangeLoading();
               setDefaultFollowSettings((prev) => ({
                 ...prev,
                 cutLossType: "USD",
@@ -474,6 +492,7 @@ export default function DefaultFollow() {
                 : DOLLAR_OR_PERCENTAGE_STYLE.default
             }
             onClick={() => {
+              handleRowChangeLoading();
               setDefaultFollowSettings((prev) => ({
                 ...prev,
                 cutLossType: "PCT",
@@ -514,6 +533,7 @@ export default function DefaultFollow() {
               placeholder=""
               value={defaultFollowSettings?.takeProfit || ""}
               onChange={(e) => {
+                handleRowChangeLoading();
                 const value = Number(e.target.value);
                 if (isNaN(value)) {
                   return;
@@ -540,6 +560,7 @@ export default function DefaultFollow() {
                 : DOLLAR_OR_PERCENTAGE_STYLE.default
             }
             onClick={() => {
+              handleRowChangeLoading();
               setDefaultFollowSettings((prev) => ({
                 ...prev,
                 takeProfitType: "USD",
@@ -563,6 +584,7 @@ export default function DefaultFollow() {
                 : DOLLAR_OR_PERCENTAGE_STYLE.default
             }
             onClick={() => {
+              handleRowChangeLoading();
               setDefaultFollowSettings((prev) => ({
                 ...prev,
                 takeProfitType: "PCT",
@@ -603,6 +625,7 @@ export default function DefaultFollow() {
             <Select
               value={defaultFollowSettings.orderStyle}
               onValueChange={(value) => {
+                handleRowChangeLoading();
                 setDefaultFollowSettings((prev) => ({
                   ...prev,
                   orderStyle: value as OrderStyleEnum,
@@ -645,16 +668,39 @@ export default function DefaultFollow() {
         >
           Summary
         </p>
-        <p className="font-normal text-xs mt-2">
-          You will be taking $500 market order positions on 5x leverage,
-          isolated to each position on your $5000
-        </p>
-        <p
-          className="font-medium text-xs"
-          style={{ color: "rgba(80, 210, 193, 1)" }}
-        >
-          read more...
-        </p>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2
+              className="animate-spin"
+              style={{ color: "rgba(80, 210, 193, 1)" }}
+              size={24}
+            />
+          </div>
+        ) : (
+          <>
+            <p className="font-normal text-xs mt-2">
+              You will be taking{" "}
+              {defaultFollowSettings.takeProfitType === "USD"
+                ? `$${defaultFollowSettings.takeProfit}`
+                : `${defaultFollowSettings.takeProfit}%`}{" "}
+              {defaultFollowSettings.orderStyle === OrderStyleEnum.market
+                ? "market"
+                : "limit"}{" "}
+              order positions on {defaultFollowSettings.leverage}x leverage,
+              {defaultFollowSettings.leverageType === "isolated"
+                ? "isolated"
+                : "cross"}{" "}
+              to each position on your{" "}
+              {defaultFollowSettings.tradeSizeType === "USD"
+                ? `$${defaultFollowSettings.tradeSize}`
+                : `${defaultFollowSettings.tradeSize}%`}
+            </p>
+            <SummaryDialog
+              onConfirm={() => {}}
+              defaultFollowSettings={defaultFollowSettings}
+            />
+          </>
+        )}
       </div>
       <div className="mt-5">
         <BottomButtons

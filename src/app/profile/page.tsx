@@ -65,7 +65,7 @@ const Profile = () => {
   }, []);
 
   return profileData ? (
-    <div className="p-5">
+    <div className="p-3">
       <div
         className="border rounded-[26px]"
         style={{
@@ -101,7 +101,7 @@ const Profile = () => {
             {profileData.name.charAt(0).toUpperCase()}
           </span>
           <div className="flex flex-col ml-2">
-            <span className="font-SemiBold text-xl max-w-[100px] break-words">
+            <span className="font-SemiBold text-xl max-w-[100px] truncate">
               {profileData.name}
             </span>
             <p className="flex items-center h-[14px] mt-1">
@@ -184,13 +184,13 @@ const Profile = () => {
 
         <div className="px-5">
           <div
-            className="mt-9 border-t border-b flex flex-col"
+            className="mt-4 border-t border-b flex flex-col"
             style={{
               borderTopColor: "rgba(23, 42, 48, 1)",
               borderBottomColor: "rgba(23, 42, 48, 1)",
             }}
           >
-            <div className="flex items-center justify-between py-5">
+            <div className="flex items-center justify-between py-2">
               <div className="flex h-[30px] items-center">
                 <span style={{ color: "rgba(165, 176, 176, 1)" }}>
                   Traders Copying
@@ -258,7 +258,7 @@ const Profile = () => {
             </div>
 
             <div
-              className="flex items-center justify-between py-5 border-t"
+              className="flex items-center justify-between py-2 border-t"
               onClick={() => setIsFollowingOpen(true)}
               style={{
                 borderTopColor: "rgba(23, 42, 48, 1)",
@@ -297,7 +297,7 @@ const Profile = () => {
           </div>
 
           <div
-            className="mt-5 pb-5 border-b"
+            className="mt-3 pb-2 border-b"
             style={{
               borderBottomColor: "rgba(23, 42, 48, 1)",
             }}
@@ -354,7 +354,7 @@ const Profile = () => {
           </div>
 
           <div
-            className="mt-5 pb-5 border-b flex flex-col items-center"
+            className="mt-3 pb-2 border-b flex flex-col items-center"
             style={{
               borderBottomColor: "rgba(23, 42, 48, 1)",
             }}
@@ -379,7 +379,7 @@ const Profile = () => {
             </p>
           </div>
 
-          <div className="mt-5 pb-5  flex flex-col items-center">
+          <div className="mt-3 pb-2 flex flex-col items-center">
             <Image src={pointsIcon} alt="points" width={18} height={18} />
             <p className="mt-2 text-2xl">{profileData.collectedPoints} Pts</p>
             <p className="flex items-center mt-2">
