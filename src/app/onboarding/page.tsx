@@ -530,17 +530,40 @@ const OnboardingContent = () => {
       </div>
 
       {/* ── explore link ── */}
-      <Button
-        className="mt-2 bg-transparent text-[11px] relative z-10 transition-colors duration-300 hover:text-[rgba(80,210,193,0.8)] tracking-[2px] uppercase"
-        style={{
-          color: "rgba(255,255,255,0.4)",
-          animation: "fadeIn 1s ease-out 1.1s both",
-          fontFamily: "var(--font-orbitron)",
-        }}
+      <div
+        className="relative mx-[48px] mt-3 z-10 cursor-pointer group"
+        style={{ animation: "fadeIn 1s ease-out 1.1s both" }}
         onClick={() => router.push("/dashboard")}
       >
-        Explore top traders →
-      </Button>
+        <div
+          className="h-[52px] rounded-[28px] flex items-center justify-center gap-2 transition-all duration-300 group-hover:border-[rgba(80,210,193,0.4)]"
+          style={{
+            border: "1px solid rgba(255,255,255,0.1)",
+            background: "rgba(255,255,255,0.02)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <span
+            className="text-[11px] tracking-[2px] uppercase transition-colors duration-300 group-hover:text-[rgba(80,210,193,0.9)]"
+            style={{
+              color: "rgba(255,255,255,0.35)",
+              fontFamily: "var(--font-orbitron)",
+            }}
+          >
+            Explore top traders
+          </span>
+          <svg
+            className="w-3.5 h-3.5 transition-all duration-300 group-hover:translate-x-1 group-hover:text-[rgba(80,210,193,0.9)]"
+            style={{ color: "rgba(255,255,255,0.25)" }}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
     </div>
   );
 };
