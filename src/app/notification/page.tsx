@@ -282,7 +282,7 @@ export default function NotificationPage() {
               <BellOff size={28} className="text-gray-500" />
             </div>
             <p className="text-gray-400 text-sm mb-1">No notifications</p>
-            <p className="text-gray-600 text-xs">You're all caught up!</p>
+            <p className="text-gray-600 text-xs">You&apos;re all caught up!</p>
           </div>
         ) : (
           <div className="space-y-2">
