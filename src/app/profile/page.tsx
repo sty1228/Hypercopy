@@ -14,6 +14,7 @@ import FollowingSheet from "./components/followingSheet";
 import TradersCopyingSheet from "./components/tradersCopyingSheet";
 import type { FollowingUser } from "./components/followingItem";
 import type { CopyingTrader } from "./components/traderCopyingItem";
+import UserMenu from "@/components/UserMenu";
 
 /* ── Radar Chart ─────────────────────────────────── */
 const RadarChart = ({ data, size = 190 }: { data: Record<string, number>; size?: number }) => {
@@ -264,12 +265,7 @@ export default function KOLProfilePage() {
             <Image src={copyRankIcon} alt="copy-rank" width={16} height={16} />
             <span className="text-[13px] font-semibold text-teal-400">#64</span>
           </div>
-          <div
-            className="w-[38px] h-[38px] rounded-full flex items-center justify-center text-sm font-bold text-white"
-            style={{ backgroundColor: "#2528CA", boxShadow: "0 0 25px rgba(59,130,246,0.4)" }}
-          >
-            J
-          </div>
+          <UserMenu />
         </div>
       </div>
 
@@ -337,30 +333,9 @@ export default function KOLProfilePage() {
               {/* Grade Badge */}
               <div className="flex flex-col items-center">
                 <div className="relative" style={{ width: 52, height: 52 }}>
-                  {/* Animated glow ring */}
-                  <div
-                    className="absolute inset-0 rounded-full"
-                    style={{
-                      background: `conic-gradient(from 0deg, ${kolGrade.color}, ${kolGrade.color}33, ${kolGrade.color}, ${kolGrade.color}33, ${kolGrade.color})`,
-                      filter: `blur(1px)`,
-                      opacity: 0.7,
-                    }}
-                  />
-                  {/* Inner dark circle */}
-                  <div
-                    className="absolute rounded-full flex items-center justify-center"
-                    style={{
-                      inset: 2,
-                      background: "linear-gradient(145deg, #141c24 0%, #0a0f14 100%)",
-                    }}
-                  >
-                    {/* Grade text */}
-                    <span
-                      className="text-xl font-black tracking-tight"
-                      style={{ color: kolGrade.color, textShadow: `0 0 12px ${kolGrade.glow}` }}
-                    >
-                      {kolGrade.grade}
-                    </span>
+                  <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(from 0deg, ${kolGrade.color}, ${kolGrade.color}33, ${kolGrade.color}, ${kolGrade.color}33, ${kolGrade.color})`, filter: `blur(1px)`, opacity: 0.7 }} />
+                  <div className="absolute rounded-full flex items-center justify-center" style={{ inset: 2, background: "linear-gradient(145deg, #141c24 0%, #0a0f14 100%)" }}>
+                    <span className="text-xl font-black tracking-tight" style={{ color: kolGrade.color, textShadow: `0 0 12px ${kolGrade.glow}` }}>{kolGrade.grade}</span>
                   </div>
                 </div>
                 <span className="text-[8px] text-gray-500 mt-1 tracking-widest">GRADE</span>
@@ -370,9 +345,7 @@ export default function KOLProfilePage() {
             <div className="flex items-center gap-2 mb-3">
               <div className="flex -space-x-2">
                 {kolData.followedBy.map((u, i) => (
-                  <div key={i} className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border-2 border-[#0a0f14]" style={{ backgroundColor: u.bg }}>
-                    {u.avatar}
-                  </div>
+                  <div key={i} className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border-2 border-[#0a0f14]" style={{ backgroundColor: u.bg }}>{u.avatar}</div>
                 ))}
               </div>
               <span className="text-[10px] text-gray-400">
@@ -423,7 +396,6 @@ export default function KOLProfilePage() {
       <div className="relative z-10 px-4 pb-24">
         {activeTab === "overview" && (
           <div className="space-y-2">
-            {/* Radar */}
             <div className="rounded-xl p-2" style={cardStyle}>
               <div className="flex items-center justify-between mb-0">
                 <span className="text-[11px] font-semibold text-white">Performance Radar</span>
@@ -432,7 +404,6 @@ export default function KOLProfilePage() {
               <RadarChart data={radarData} size={170} />
             </div>
 
-            {/* Weekly Returns */}
             <div className="rounded-xl p-3" style={cardStyle}>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-semibold text-white">Weekly Returns</span>
@@ -441,7 +412,6 @@ export default function KOLProfilePage() {
               <PerformanceChart data={performanceData} />
             </div>
 
-            {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-1.5">
               <div className="rounded-xl px-2.5 py-1.5" style={cardStyle}>
                 <div className="flex items-center gap-1.5 mb-0.5">
@@ -476,7 +446,6 @@ export default function KOLProfilePage() {
               </div>
             </div>
 
-            {/* Metrics - no title */}
             <div className="rounded-xl p-3" style={cardStyle}>
               <div className="flex items-center gap-3 mb-2.5">
                 <span className="text-[9px] text-gray-400 shrink-0">Signal vs Noise</span>

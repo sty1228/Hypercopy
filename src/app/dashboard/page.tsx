@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import profileIcon from "@/assets/icons/profile.png";
 import copyCountIcon from "@/assets/icons/copy-count.png";
 import copyRankIcon from "@/assets/icons/copy-rank.png";
@@ -11,6 +12,7 @@ import TimeRangeTab from "./components/TimeRangeTab";
 import type { TimeRange } from "./components/balanceChart";
 import { balanceHistory } from "@/service";
 import { Copy, Users, ArrowUpDown, CheckCircle2, Settings } from "lucide-react";
+import UserMenu from "@/components/UserMenu";
 
 export interface BalanceChartData {
   label: string;
@@ -19,6 +21,7 @@ export interface BalanceChartData {
 
 const Home = () => {
   const router = useRouter();
+  const { authenticated, login, logout } = usePrivy();
   const [timeRange, setTimeRange] = useState<TimeRange>("M");
   const [chartData, setChartData] = useState<BalanceChartData[]>([]);
   const [chartAnimated, setChartAnimated] = useState(false);
@@ -110,53 +113,26 @@ const Home = () => {
     return getPathD() + " L 100 80 L 0 80 Z";
   };
 
+  const handleLogout = async () => {
+    await logout();
+    router.push("/");
+  };
+
   return (
     <div className="min-h-screen text-white relative overflow-hidden" style={{ background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)" }}>
-      {/* Animation Styles */}
       <style jsx>{`
-        @keyframes drawLine {
-          from { stroke-dashoffset: 1000; }
-          to { stroke-dashoffset: 0; }
-        }
-        @keyframes fadeInArea {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes dotAppear {
-          from { transform: translate(-50%, -50%) scale(0); opacity: 0; }
-          to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-        }
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateX(-10px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-        .chart-line {
-          stroke-dasharray: 1000;
-          stroke-dashoffset: 1000;
-        }
-        .chart-line.animated {
-          animation: drawLine 2.5s ease-out forwards;
-        }
-        .chart-area {
-          opacity: 0;
-        }
-        .chart-area.animated {
-          animation: fadeInArea 0.8s ease-out 0.8s forwards;
-        }
-        .chart-dot {
-          transform: translate(-50%, -50%) scale(0);
-          opacity: 0;
-        }
-        .chart-dot.animated {
-          animation: dotAppear 0.3s ease-out forwards;
-        }
-        .row-animate {
-          animation: slideIn 0.3s ease-out forwards;
-        }
+        @keyframes drawLine { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
+        @keyframes fadeInArea { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes dotAppear { from { transform: translate(-50%, -50%) scale(0); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        .chart-line { stroke-dasharray: 1000; stroke-dashoffset: 1000; }
+        .chart-line.animated { animation: drawLine 2.5s ease-out forwards; }
+        .chart-area { opacity: 0; }
+        .chart-area.animated { animation: fadeInArea 0.8s ease-out 0.8s forwards; }
+        .chart-dot { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+        .chart-dot.animated { animation: dotAppear 0.3s ease-out forwards; }
+        .row-animate { animation: slideIn 0.3s ease-out forwards; }
       `}</style>
 
       {/* Ambient glow */}
@@ -165,9 +141,38 @@ const Home = () => {
         <div className="absolute bottom-1/3 -right-20 w-[200px] h-[200px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)", filter: "blur(40px)" }} />
       </div>
 
+      {/* Login Banner */}
+      {!authenticated && (
+        <div
+          className="relative z-10 mx-4 mt-3 mb-1 rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer transition-all duration-300 hover:scale-[1.01]"
+          style={{
+            background: "linear-gradient(135deg, rgba(45,212,191,0.1) 0%, rgba(45,212,191,0.03) 100%)",
+            border: "1px solid rgba(45,212,191,0.2)",
+          }}
+          onClick={() => login()}
+        >
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(45,212,191,0.15)" }}>
+              <svg className="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-white">Connect to start trading</p>
+              <p className="text-[10px] text-gray-500">Link your wallet to copy top traders</p>
+            </div>
+          </div>
+          <span className="text-xs font-semibold text-teal-400">Connect →</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="relative z-10 mt-4 mb-3 flex items-center justify-between px-4">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all hover:bg-white/10" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+          onClick={handleLogout}
+        >
           <Image src={profileIcon} alt="profile" width={16} height={16} />
         </div>
         <div className="flex items-center gap-3">
@@ -179,9 +184,7 @@ const Home = () => {
             <Image src={copyRankIcon} alt="copy-rank" width={16} height={16} />
             <span className="text-[13px] font-semibold text-teal-400">#64</span>
           </div>
-          <div className="w-[38px] h-[38px] rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: "#2528CA", boxShadow: "0 0 25px rgba(59,130,246,0.4)" }}>
-            J
-          </div>
+          <UserMenu />
         </div>
       </div>
 
@@ -290,46 +293,14 @@ const Home = () => {
       {/* Followed / Current Position Section */}
       <div className="relative z-10 px-4 mt-4 mb-24">
         <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
-          {/* Tab Header with sliding indicator */}
           <div className="relative flex border-b border-white/10">
-            <div
-              className="absolute bottom-0 h-0.5 bg-teal-400 transition-all duration-300 ease-out"
-              style={{
-                width: "50%",
-                left: activeTab === "followed" ? "0%" : "50%",
-                boxShadow: "0 0 10px rgba(45,212,191,0.5)",
-              }}
-            />
-            {[
-              { key: "followed", label: "Followed" },
-              { key: "position", label: "Positions" },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key as "followed" | "position")}
-                className="flex-1 py-3 text-xs font-semibold transition-all duration-300 cursor-pointer"
-                style={{
-                  color: activeTab === tab.key ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.4)",
-                }}
-              >
-                {tab.label}
-              </button>
+            <div className="absolute bottom-0 h-0.5 bg-teal-400 transition-all duration-300 ease-out" style={{ width: "50%", left: activeTab === "followed" ? "0%" : "50%", boxShadow: "0 0 10px rgba(45,212,191,0.5)" }} />
+            {[{ key: "followed", label: "Followed" }, { key: "position", label: "Positions" }].map((tab) => (
+              <button key={tab.key} onClick={() => setActiveTab(tab.key as "followed" | "position")} className="flex-1 py-3 text-xs font-semibold transition-all duration-300 cursor-pointer" style={{ color: activeTab === tab.key ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.4)" }}>{tab.label}</button>
             ))}
           </div>
-
-          {/* Content with fade animation */}
           <div className="relative overflow-hidden">
-            {/* Followed Tab */}
-            <div
-              className="transition-all duration-300 ease-out"
-              style={{
-                opacity: activeTab === "followed" ? 1 : 0,
-                transform: activeTab === "followed" ? "translateX(0)" : "translateX(-20px)",
-                position: activeTab === "followed" ? "relative" : "absolute",
-                pointerEvents: activeTab === "followed" ? "auto" : "none",
-                width: "100%",
-              }}
-            >
+            <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "followed" ? 1 : 0, transform: activeTab === "followed" ? "translateX(0)" : "translateX(-20px)", position: activeTab === "followed" ? "relative" : "absolute", pointerEvents: activeTab === "followed" ? "auto" : "none", width: "100%" }}>
               <div className="grid grid-cols-[1fr_70px_80px_40px_30px] gap-2 px-4 py-3 border-b border-white/10">
                 <span className="text-[10px] text-gray-500 uppercase tracking-wide">Trader</span>
                 <span className="text-[10px] text-gray-500 text-right uppercase tracking-wide">Gain</span>
@@ -339,11 +310,7 @@ const Home = () => {
               </div>
               <div className="divide-y divide-white/5">
                 {followedTraders.map((trader, index) => (
-                  <div
-                    key={trader.id}
-                    className="grid grid-cols-[1fr_70px_80px_40px_30px] gap-2 px-4 py-3 items-center hover:bg-white/5 transition-all duration-200 row-animate"
-                    style={{ animationDelay: `${index * 0.05}s` }}
-                  >
+                  <div key={trader.id} className="grid grid-cols-[1fr_70px_80px_40px_30px] gap-2 px-4 py-3 items-center hover:bg-white/5 transition-all duration-200 row-animate" style={{ animationDelay: `${index * 0.05}s` }}>
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: trader.avatarBg }}>{trader.avatar}</div>
                       <span className="text-sm text-gray-300">{trader.name}</span>
@@ -356,19 +323,7 @@ const Home = () => {
                 ))}
               </div>
             </div>
-
-            {/* Position Tab */}
-            <div
-              className="transition-all duration-300 ease-out"
-              style={{
-                opacity: activeTab === "position" ? 1 : 0,
-                transform: activeTab === "position" ? "translateX(0)" : "translateX(20px)",
-                position: activeTab === "position" ? "relative" : "absolute",
-                pointerEvents: activeTab === "position" ? "auto" : "none",
-                width: "100%",
-                top: 0,
-              }}
-            >
+            <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "position" ? 1 : 0, transform: activeTab === "position" ? "translateX(0)" : "translateX(20px)", position: activeTab === "position" ? "relative" : "absolute", pointerEvents: activeTab === "position" ? "auto" : "none", width: "100%", top: 0 }}>
               <div className="grid grid-cols-[1fr_80px_90px_70px] gap-2 px-4 py-3 border-b border-white/10">
                 <span className="text-[10px] text-gray-500 uppercase tracking-wide">Token</span>
                 <span className="text-[10px] text-gray-500 text-right uppercase tracking-wide">Size</span>
@@ -377,11 +332,7 @@ const Home = () => {
               </div>
               <div className="divide-y divide-white/5">
                 {currentPositions.map((pos, index) => (
-                  <div
-                    key={pos.id}
-                    className="grid grid-cols-[1fr_80px_90px_70px] gap-2 px-4 py-3 items-center hover:bg-white/5 transition-all duration-200 row-animate"
-                    style={{ animationDelay: `${index * 0.05}s` }}
-                  >
+                  <div key={pos.id} className="grid grid-cols-[1fr_80px_90px_70px] gap-2 px-4 py-3 items-center hover:bg-white/5 transition-all duration-200 row-animate" style={{ animationDelay: `${index * 0.05}s` }}>
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
                         <img src={pos.iconUrl} alt={pos.token} className="w-8 h-8 object-cover" onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentElement!.innerHTML = `<span class="text-xs font-bold text-white">${pos.token[0]}</span>`; }} />
@@ -406,15 +357,8 @@ const Home = () => {
             </div>
           </div>
         </div>
-
-        {/* View Trade History */}
-        <div
-          onClick={() => router.push("/tradeHistory")}
-          className="mt-3 flex items-center justify-center gap-1.5 py-2.5 cursor-pointer group"
-        >
-          <span className="text-[11px] text-gray-500 group-hover:text-gray-300 transition-colors">
-            View Trade History
-          </span>
+        <div onClick={() => router.push("/tradeHistory")} className="mt-3 flex items-center justify-center gap-1.5 py-2.5 cursor-pointer group">
+          <span className="text-[11px] text-gray-500 group-hover:text-gray-300 transition-colors">View Trade History</span>
           <svg className="w-3 h-3 text-gray-500 group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>

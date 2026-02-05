@@ -9,6 +9,7 @@ import Tab from "./components/tab";
 import DefaultFollow from "./components/defaultFollow";
 import SpecificTraders from "./components/specificTraders";
 import { TabEnum } from "./types";
+import UserMenu from "@/components/UserMenu";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState(TabEnum.follow);
@@ -65,7 +66,7 @@ export default function SettingsPage() {
         />
       </div>
 
-      {/* Header - same as Home */}
+      {/* Header */}
       <div className="relative z-10 mt-4 mb-3 flex items-center justify-between px-4">
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
@@ -98,15 +99,7 @@ export default function SettingsPage() {
             <Image src={copyRankIcon} alt="copy-rank" width={16} height={16} />
             <span className="text-[13px] font-semibold text-teal-400">#64</span>
           </div>
-          <div
-            className="w-[38px] h-[38px] rounded-full flex items-center justify-center text-sm font-bold text-white"
-            style={{
-              backgroundColor: "#2528CA",
-              boxShadow: "0 0 25px rgba(59,130,246,0.4)",
-            }}
-          >
-            J
-          </div>
+          <UserMenu />
         </div>
       </div>
 

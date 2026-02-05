@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useContext } from "react";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import homeIcon from "@/assets/icons/home.png";
 import homeActiveIcon from "@/assets/icons/home-active.png";
@@ -16,8 +14,6 @@ import notificationActiveIcon from "@/assets/icons/notification-active.png";
 import settingsIcon from "@/assets/icons/settings.png";
 import settingsActiveIcon from "@/assets/icons/settings-active.png";
 import { MAX_WIDTH } from "@/app/layout";
-import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { toast } from "sonner";
 
 const navItems = [
   { href: "/dashboard", label: "Home", icon: homeIcon, activeIcon: homeActiveIcon },
@@ -29,16 +25,6 @@ const navItems = [
 
 const Navbar = () => {
   const pathname = usePathname();
-  const router = useRouter();
-  const { authenticated } = usePrivy();
-
-  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (href === "/copyTrading") return;
-    if (authenticated) return;
-    e.preventDefault();
-    toast.warning("Please login to visit more page");
-    router.push(`/onboarding?from=${encodeURIComponent(href)}`);
-  };
 
   return (
     <nav
@@ -65,7 +51,6 @@ const Navbar = () => {
             <li key={item.href}>
               <Link
                 href={item.href}
-                onClick={(e) => handleLinkClick(e, item.href)}
                 className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 cursor-pointer"
                 style={{
                   background: isActive ? "rgba(45,212,191,0.1)" : "transparent",

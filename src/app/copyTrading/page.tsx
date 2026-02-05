@@ -10,6 +10,7 @@ import Search from "./components/search";
 import KolList from "./components/kolList";
 import KolDetailSheet from "./components/kolDetailSheet";
 import { randomColor } from "./components/kolItem";
+import UserMenu from "@/components/UserMenu";
 
 export default function CopyTrading() {
   const [isOpen, setIsOpen] = useState(false);
@@ -106,9 +107,7 @@ export default function CopyTrading() {
             <Image src={copyRankIcon} alt="copy-rank" width={16} height={16} />
             <span className="text-[13px] font-semibold text-teal-400">#64</span>
           </div>
-          <div className="w-[38px] h-[38px] rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: "#2528CA", boxShadow: "0 0 25px rgba(59,130,246,0.4)" }}>
-            J
-          </div>
+          <UserMenu />
         </div>
       </div>
 

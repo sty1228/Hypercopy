@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import { LeaderboardItem, UserSignalResponse, userSignals } from "@/service";
 import BigNumber from "bignumber.js";
 import SignalItem from "./signalItem";
@@ -16,6 +17,7 @@ export default function KolDetailSheet({
 }) {
   const [userSignalsData, setUserSignalsData] = useState<UserSignalResponse | null>(null);
   const [currentClickItemId, setCurrentClickItemId] = useState<number | null>(null);
+  const { authenticated, login } = usePrivy();
 
   useEffect(() => {
     if (isOpen) {
@@ -33,6 +35,15 @@ export default function KolDetailSheet({
     setUserSignalsData(response);
   };
 
+  const handleCopyAction = (action: "copy" | "counter") => {
+    if (!authenticated) {
+      login();
+      return;
+    }
+    // TODO: actual copy/counter logic
+    console.log(`${action} action for`, data.x_handle);
+  };
+
   const profit = data?.results_pct || 0;
   const isPositive = profit >= 0;
 
@@ -47,14 +58,14 @@ export default function KolDetailSheet({
         onClick={handleClose}
       />
 
-      {/* Sheet - 从右边滑入 */}
+      {/* Sheet */}
       <div
         className={`absolute inset-0 z-50 transition-transform duration-500 ease-out ${isOpen ? "translate-x-0" : "translate-x-full"}`}
         style={{
           background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)",
         }}
       >
-        {/* Ambient glow - 和主页面一样 */}
+        {/* Ambient glow */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-20 left-1/3 w-[300px] h-[300px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.08) 0%, transparent 60%)", filter: "blur(60px)" }} />
           <div className="absolute bottom-1/3 -right-20 w-[200px] h-[200px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)", filter: "blur(40px)" }} />
@@ -90,7 +101,6 @@ export default function KolDetailSheet({
                 boxShadow: "0 0 30px rgba(45,212,191,0.1), inset 0 0 40px rgba(45,212,191,0.03)",
               }}
             >
-              {/* Green glow effect */}
               <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15) 0%, transparent 60%)" }} />
 
               <div className="relative">
@@ -141,15 +151,17 @@ export default function KolDetailSheet({
                   </div>
                 </div>
 
-                {/* Action Buttons */}
+                {/* Action Buttons - login check added */}
                 <div className="flex gap-3">
                   <button
+                    onClick={() => handleCopyAction("counter")}
                     className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                     style={{ background: "rgba(244,63,94,0.12)", border: "1px solid rgba(244,63,94,0.25)" }}
                   >
                     <span className="text-rose-400">Counter All</span>
                   </button>
                   <button
+                    onClick={() => handleCopyAction("copy")}
                     className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                     style={{ background: "rgba(45,212,191,0.12)", border: "1px solid rgba(45,212,191,0.25)" }}
                   >

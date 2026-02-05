@@ -16,12 +16,11 @@ import {
   AlertTriangle,
   Wallet,
   Gift,
-  Users,
   Check,
   Trash2,
-  Bell,
   BellOff,
 } from "lucide-react";
+import UserMenu from "@/components/UserMenu";
 
 type NotificationType = "all" | "trades" | "social" | "system";
 
@@ -175,8 +174,6 @@ export default function NotificationPage() {
       className="min-h-screen text-white relative overflow-hidden"
       style={{ background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)" }}
     >
-
-
       {/* Ambient glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div
@@ -212,12 +209,7 @@ export default function NotificationPage() {
             <Image src={copyRankIcon} alt="copy-rank" width={16} height={16} />
             <span className="text-[13px] font-semibold text-teal-400">#64</span>
           </div>
-          <div
-            className="w-[38px] h-[38px] rounded-full flex items-center justify-center text-sm font-bold text-white"
-            style={{ backgroundColor: "#2528CA", boxShadow: "0 0 25px rgba(59,130,246,0.4)" }}
-          >
-            J
-          </div>
+          <UserMenu />
         </div>
       </div>
 
@@ -270,7 +262,6 @@ export default function NotificationPage() {
       {/* Notifications List */}
       <div className="relative z-10 px-4 pb-24">
         {filteredNotifications.length === 0 ? (
-          /* Empty State */
           <div
             className="rounded-2xl p-8 flex flex-col items-center justify-center"
             style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}
@@ -286,7 +277,7 @@ export default function NotificationPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {filteredNotifications.map((notification, index) => {
+            {filteredNotifications.map((notification) => {
               const iconConfig = getNotificationIcon(notification.type);
               const IconComponent = iconConfig.icon;
 
@@ -303,7 +294,6 @@ export default function NotificationPage() {
                   onClick={() => markAsRead(notification.id)}
                 >
                   <div className="flex items-start gap-3">
-                    {/* Icon */}
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                       style={{ background: iconConfig.bg }}
@@ -311,7 +301,6 @@ export default function NotificationPage() {
                       <IconComponent size={18} className={iconConfig.color} />
                     </div>
 
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
@@ -327,7 +316,6 @@ export default function NotificationPage() {
 
                       <p className="text-xs text-gray-400 mb-2">{notification.description}</p>
 
-                      {/* Extra Data */}
                       {notification.data && (
                         <div className="flex items-center gap-2">
                           {notification.data.token && (
@@ -358,7 +346,6 @@ export default function NotificationPage() {
                       )}
                     </div>
 
-                    {/* Delete Button */}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
