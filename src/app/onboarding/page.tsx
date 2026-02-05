@@ -96,7 +96,7 @@ const OnboardingContent = () => {
       "tradingEnabled", tradingEnabled,
       "builderFeeApproved", builderFeeApproved
     );
-    if (!authenticated) return "CONTINUE";
+    if (!authenticated) return "GET STARTED";
     if (perpsBalance <= 0) {
       return arbUSDCBalance <= 0.1
         ? "NOT ENOUGH ARBITRUM USDC"
@@ -531,14 +531,15 @@ const OnboardingContent = () => {
 
       {/* ── explore link ── */}
       <Button
-        className="mt-2 bg-transparent text-base relative z-10 transition-colors duration-300 hover:text-[rgba(80,210,193,0.8)] flex items-center gap-1.5"
-        style={{ color: "rgba(80,210,193,0.5)", animation: "fadeIn 1s ease-out 1.1s both" }}
+        className="mt-2 bg-transparent text-[11px] relative z-10 transition-colors duration-300 hover:text-[rgba(80,210,193,0.8)] tracking-[2px] uppercase"
+        style={{
+          color: "rgba(255,255,255,0.4)",
+          animation: "fadeIn 1s ease-out 1.1s both",
+          fontFamily: "var(--font-orbitron)",
+        }}
         onClick={() => router.push("/dashboard")}
       >
-        👀 Explore top traders
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
+        Explore top traders →
       </Button>
     </div>
   );
