@@ -1,39 +1,42 @@
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
+
 export default function BottomButtons({
   onCancel,
   onSave,
   onReset,
+  hasChanges = false,
 }: {
   onCancel: () => void;
   onSave: () => void;
   onReset: () => void;
+  hasChanges?: boolean;
 }) {
   return (
-    <div className="mt-8">
-      <div className="w-full flex gap-2">
+    <div className="space-y-3">
+      <div className="flex gap-3">
         <ConfirmDialog
           triggerText="Cancel"
-          triggerClassName="flex-1 h-[52px] rounded-[16px] font-semibold text-base border-1"
+          triggerClassName="flex-1 h-14 rounded-2xl font-semibold text-sm transition-all border border-white/15 text-white/70 bg-transparent hover:bg-white/5"
           title="Confirm revert changes"
           description="This action will revert all changes you have made to previous settings."
           onConfirm={onCancel}
         />
-        <Button
-          className="flex-1 h-[52px] rounded-[16px] font-semibold text-base "
+        <button
+          className="flex-1 h-14 rounded-2xl font-semibold text-sm transition-all"
           style={{
-            backgroundColor: "rgba(80, 210, 193, 1)",
-            color: "rgba(15, 26, 31, 1)",
+            background: hasChanges ? "rgba(45,212,191,1)" : "rgba(45,212,191,0.5)",
+            color: "#0a0f14",
+            boxShadow: hasChanges ? "0 0 25px rgba(45,212,191,0.4)" : "none",
           }}
           onClick={onSave}
         >
-          Save
-        </Button>
+          Save Changes
+        </button>
       </div>
-
       <ConfirmDialog
         triggerText="Reset to default"
-        triggerClassName="mt-4 w-full h-[52px] rounded-[16px] font-semibold text-base border-1"
+        triggerClassName="w-full h-12 rounded-2xl text-sm transition-all text-white/40 bg-transparent hover:text-white/60"
         title="Confirm reset to default settings"
         description="This action will reset all settings to default."
         onConfirm={onReset}

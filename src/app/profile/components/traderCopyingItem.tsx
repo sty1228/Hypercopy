@@ -1,98 +1,91 @@
-import Image from "next/image";
-import clockIcon from "@/assets/icons/clock.png";
-import { TradersCopyingItem } from "@/service";
+"use client";
+import React from "react";
+import { TrendingUp, TrendingDown, Copy } from "lucide-react";
 
-const formatTimeAgo = (timestamp: number): string => {
-  const now = Date.now();
-  const diff = now - timestamp;
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
+export interface CopyingTrader {
+  id: string;
+  name: string;
+  handle: string;
+  avatar: string;
+  avatarBg: string;
+  pnl: number;
+  copiedSince: string;
+  tradesFollowed: number;
+  winRate: number;
+}
 
-  if (days > 0) {
-    return `${days} d`;
-  } else if (hours > 0) {
-    return `${hours} h`;
-  } else if (minutes > 0) {
-    return `${minutes} m`;
-  } else {
-    return "now";
-  }
-};
+interface TraderCopyingItemProps {
+  trader: CopyingTrader;
+}
 
-const TraderCopyingItem = ({ data }: { data: TradersCopyingItem }) => {
-  const firstLetter = data.name.charAt(0).toUpperCase();
-  const timeAgo = formatTimeAgo(data.timestamp);
+export default function TraderCopyingItem({ trader }: TraderCopyingItemProps) {
+  const isPositive = trader.pnl >= 0;
 
   return (
-    <div
-      className="mt-5 border-t pt-4 flex items-center justify-between gap-4"
-      style={{
-        borderTopColor: "rgba(23, 42, 48, 1)",
-      }}
-    >
-      <div className="flex items-center flex-1 min-w-0">
-        <p
-          className="flex items-center justify-center font-medium text-base w-[36px] h-[36px] rounded-full flex-shrink-0"
-          style={{
-            backgroundColor: "rgba(37, 40, 202, 1)",
-          }}
+    <div className="flex items-center justify-between py-3 px-4 hover:bg-white/5 transition-all">
+      <div className="flex items-center gap-3">
+        {/* Avatar */}
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
+          style={{ backgroundColor: trader.avatarBg }}
         >
-          {firstLetter}
-        </p>
-        <div className="flex flex-col ml-3 min-w-0 flex-1">
-          <p className="font-medium text-base truncate">{data.name}</p>
-          <p
-            className="flex items-center font-light text-sm min-w-0"
-            style={{ color: "rgba(165, 176, 176, 1)" }}
-          >
-            <span className="truncate">@{data.twitterId}</span>
-            <Image
-              src={clockIcon}
-              alt="clock"
-              width={10}
-              height={10}
-              className="ml-2 flex-shrink-0"
-            />
-            <span className="ml-1 flex-shrink-0">{timeAgo}</span>
-          </p>
+          {trader.avatar}
+        </div>
+
+        {/* Info */}
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-semibold text-white truncate">{trader.name}</span>
+            <Copy size={10} className="text-teal-400 shrink-0" />
+          </div>
+          <span className="text-[11px] text-gray-500 block truncate">{trader.handle}</span>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[9px] text-gray-500">
+              Since <span className="text-gray-400">{trader.copiedSince}</span>
+            </span>
+            <span className="text-[9px] text-gray-600">·</span>
+            <span className="text-[9px] text-gray-500">
+              <span className="text-gray-400">{trader.tradesFollowed}</span> trades
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center flex-shrink-0 gap-6">
-        <div className="flex flex-col items-end">
-          <p
-            className="w-full font-medium text-base whitespace-nowrap align-left"
-            style={{
-              background: "linear-gradient(0deg, #50D2C1, #028C7A)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
+      {/* PnL & WinRate */}
+      <div className="flex flex-col items-end shrink-0">
+        <div className="flex items-center gap-1">
+          {isPositive ? (
+            <TrendingUp size={12} className="text-teal-400" />
+          ) : (
+            <TrendingDown size={12} className="text-rose-400" />
+          )}
+          <span
+            className="text-sm font-bold"
+            style={{ color: isPositive ? "rgba(45,212,191,1)" : "rgba(244,63,94,1)" }}
           >
-            {data.signalCount}
-          </p>
-          <p className="text-sm whitespace-nowrap" style={{ color: "rgba(165, 176, 176, 1)" }}>
-            Signals
-          </p>
+            {isPositive ? "+" : ""}
+            {trader.pnl}%
+          </span>
         </div>
-        <div className="flex flex-col items-end">
-          <p
-            className="w-full font-medium text-base whitespace-nowrap align-left"
-            style={{
-              color: "rgba(79, 202, 21, 1)",
-            }}
-          >
-            ${data.pnlValue.toLocaleString()}
-          </p>
-          <p className="text-sm whitespace-nowrap" style={{ color: "rgba(165, 176, 176, 1)" }}>
-            $ Generated
-          </p>
+        {/* Win Rate bar */}
+        <div className="flex items-center gap-1.5 mt-1">
+          <div className="w-12 h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${trader.winRate}%`,
+                background:
+                  trader.winRate >= 60
+                    ? "linear-gradient(90deg, rgba(45,212,191,1), rgba(45,212,191,0.7))"
+                    : trader.winRate >= 40
+                    ? "linear-gradient(90deg, rgba(251,191,36,1), rgba(251,191,36,0.7))"
+                    : "linear-gradient(90deg, rgba(244,63,94,1), rgba(244,63,94,0.7))",
+              }}
+            />
+          </div>
+          <span className="text-[9px] text-gray-500">{trader.winRate}%</span>
         </div>
       </div>
     </div>
   );
-};
-
-export default TraderCopyingItem;
+}

@@ -1,853 +1,529 @@
 "use client";
 
 import { useState, useContext, useEffect } from "react";
-import Image from "next/image";
-import Divider from "@/components/divider";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import infoIcon from "@/assets/icons/info.png";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { OrderStyleEnum } from "../page";
-import Search from "@/app/copyTrading/components/search";
-import Avatar from "@/app/copyTrading/components/avatar";
+  Search,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  X,
+  AlertTriangle,
+  Bell,
+  Loader2,
+} from "lucide-react";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
-import { getPerpsBalance } from "@/helpers/hyperliquid";
-import BottomButtons from "./bottomButtons";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-import {
-  getDefaultFollowSettings as fetchDefaultFollowSettings,
-  LeverageType,
-  TradeSizeType,
-  updateDefaultFollowSettings,
-} from "@/service";
-import { SummaryDialog } from "./summaryDialog";
-import { IDefaultFollowSettings } from "./defaultFollow";
+import { TradeSizeType } from "@/service";
 
-const DOLLAR_OR_PERCENTAGE_STYLE = {
-  default: {
-    borderWidth: "1px",
-    borderColor: "rgba(80, 210, 193, 1)",
-    color: "rgba(128, 236, 184, 1)",
-  },
-  active: {
-    backgroundColor: "rgba(80, 210, 193, 1)",
-    color: "rgba(15, 26, 31, 1)",
-  },
-};
-
-const LEVERAGE_TYPE_STYLE = {
-  default: {
-    color: "rgba(255, 255, 255, 0.4)",
-    borderColor: "rgba(27, 36, 41, 1)",
-    backgroundColor: "rgba(13, 23, 28, 1)",
-  },
-  active: {
-    color: "rgba(80, 210, 193, 1)",
-    borderColor: "rgba(80, 210, 193, 1)",
-    backgroundColor: "rgba(13, 23, 28, 1)",
-  },
-};
-
-interface ISpecificTradersSettings {
-  perpsBalance: number;
+interface TraderSettings {
   tradeSize: number;
   tradeSizeType: TradeSizeType;
   leverage: number;
-  leverageType: LeverageType;
+  leverageType: "cross" | "isolated";
   cutLoss: number;
   cutLossType: TradeSizeType;
   takeProfit: number;
   takeProfitType: TradeSizeType;
-  orderStyle: OrderStyleEnum;
+  notifications: boolean;
 }
 
-const DEFAULT_SPECIFIC_TRADERS_SETTINGS = {
-  perpsBalance: 0,
-  tradeSize: 100,
-  tradeSizeType: "USD" as TradeSizeType,
-  leverage: 5,
-  leverageType: "cross" as LeverageType,
-  cutLoss: 10,
-  cutLossType: "USD" as TradeSizeType,
-  takeProfit: 10,
-  takeProfitType: "USD" as TradeSizeType,
-  orderStyle: "0" as OrderStyleEnum,
-};
+interface Trader {
+  id: number;
+  name: string;
+  handle: string;
+  color: string;
+  winRate: number;
+  pnl: number;
+  useCustom: boolean;
+  settings: TraderSettings;
+}
 
-const getInitialSpecificTradersSettings = () => {
-  return DEFAULT_SPECIFIC_TRADERS_SETTINGS;
-};
+// Toggle Component
+const Toggle = ({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) => (
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      onToggle();
+    }}
+    className="w-11 h-6 rounded-full transition-all relative"
+    style={{
+      background: enabled ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.1)",
+    }}
+  >
+    <div
+      className="w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all"
+      style={{ left: enabled ? "22px" : "2px" }}
+    />
+  </button>
+);
 
-const changedRowBorderColor = "rgba(234, 102, 99, 1)";
+const MOCK_TRADERS: Trader[] = [
+  {
+    id: 1,
+    name: "Damian Terry",
+    handle: "@damian",
+    color: "#3b82f6",
+    winRate: 68,
+    pnl: 12450,
+    useCustom: false,
+    settings: {
+      tradeSize: 500,
+      tradeSizeType: "USD",
+      leverage: 5,
+      leverageType: "isolated",
+      cutLoss: 100,
+      cutLossType: "USD",
+      takeProfit: 150,
+      takeProfitType: "USD",
+      notifications: true,
+    },
+  },
+  {
+    id: 2,
+    name: "Gerry Gedard",
+    handle: "@gedderd",
+    color: "#22c55e",
+    winRate: 72,
+    pnl: 28300,
+    useCustom: true,
+    settings: {
+      tradeSize: 500,
+      tradeSizeType: "USD",
+      leverage: 3,
+      leverageType: "cross",
+      cutLoss: 80,
+      cutLossType: "USD",
+      takeProfit: 200,
+      takeProfitType: "USD",
+      notifications: true,
+    },
+  },
+  {
+    id: 3,
+    name: "Harry Freman",
+    handle: "@daytrader",
+    color: "#a855f7",
+    winRate: 55,
+    pnl: 4200,
+    useCustom: false,
+    settings: {
+      tradeSize: 300,
+      tradeSizeType: "USD",
+      leverage: 5,
+      leverageType: "isolated",
+      cutLoss: 50,
+      cutLossType: "USD",
+      takeProfit: 100,
+      takeProfitType: "USD",
+      notifications: true,
+    },
+  },
+  {
+    id: 4,
+    name: "Maria Feticia",
+    handle: "@mariaeficia88",
+    color: "#06b6d4",
+    winRate: 81,
+    pnl: 45600,
+    useCustom: true,
+    settings: {
+      tradeSize: 300,
+      tradeSizeType: "USD",
+      leverage: 10,
+      leverageType: "isolated",
+      cutLoss: 60,
+      cutLossType: "USD",
+      takeProfit: 120,
+      takeProfitType: "USD",
+      notifications: false,
+    },
+  },
+  {
+    id: 5,
+    name: "Emerson Curtis",
+    handle: "@emercurt",
+    color: "#22c55e",
+    winRate: 63,
+    pnl: 8900,
+    useCustom: false,
+    settings: {
+      tradeSize: 200,
+      tradeSizeType: "USD",
+      leverage: 5,
+      leverageType: "cross",
+      cutLoss: 40,
+      cutLossType: "USD",
+      takeProfit: 80,
+      takeProfitType: "USD",
+      notifications: true,
+    },
+  },
+];
 
-export default function SpecificTraders({
-  searchResult,
-  handleSearch,
-}: {
-  searchResult: {
-    id: string;
-    name: string;
-    color: string;
-  }[];
-  handleSearch: (value: string) => void;
-}) {
-  const { infoClient } = useContext(HyperLiquidContext);
-  const currentWallet = useCurrentWallet();
+export default function SpecificTraders() {
+  const [traders, setTraders] = useState<Trader[]>(MOCK_TRADERS);
+  const [expandedTrader, setExpandedTrader] = useState<number | null>(null);
   const [searchValue, setSearchValue] = useState("");
-  const [cachedSpecificTradersSettings, setCachedSpecificTradersSettings] =
-    useState<ISpecificTradersSettings | null>(null);
-  const [specificTradersSettings, setSpecificTradersSettings] =
-    useState<ISpecificTradersSettings>(getInitialSpecificTradersSettings());
+  const [hasChanges, setHasChanges] = useState(false);
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [rowChange, setRowChange] = useState({
-    tradeSize: false,
-    tradeSizeType: false,
-    leverage: false,
-    leverageType: false,
-    cutLoss: false,
-    takeProfit: false,
-    orderStyle: false,
-  });
-
-  const loadSpecificTradersSettings = async () => {
-    const data = await fetchDefaultFollowSettings();
-    console.log(data);
-
-    // 将 API 返回的数据映射到组件 state 结构
-    const transformedData = {
-      ...getInitialSpecificTradersSettings(),
-      tradeSize: data.tradeSize,
-      tradeSizeType: data.tradeSizeType,
-      leverage: data.leverage,
-      leverageType: data.leverageType,
-      cutLoss: data.sl.value,
-      cutLossType: data.sl.type,
-      takeProfit: data.tp.value,
-      takeProfitType: data.tp.type,
-      orderStyle:
-        data.orderType === "market"
-          ? OrderStyleEnum.market
-          : OrderStyleEnum.limit,
-    };
-    console.log("transformedData", transformedData);
-    setCachedSpecificTradersSettings(transformedData);
-    setSpecificTradersSettings(transformedData);
-    setRowChange({
-      tradeSize: false,
-      tradeSizeType: false,
-      leverage: false,
-      leverageType: false,
-      cutLoss: false,
-      takeProfit: false,
-      orderStyle: false,
-    });
+  const updateTraderSetting = <K extends keyof TraderSettings>(
+    traderId: number,
+    key: K,
+    value: TraderSettings[K]
+  ) => {
+    setTraders((prev) =>
+      prev.map((t) => (t.id === traderId ? { ...t, settings: { ...t.settings, [key]: value } } : t))
+    );
+    setHasChanges(true);
   };
 
-  const handleRowChangeLoading = () => {
-    if (isLoading) {
-      return;
-    }
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
+  const toggleTraderCustom = (traderId: number) => {
+    setTraders((prev) => prev.map((t) => (t.id === traderId ? { ...t, useCustom: !t.useCustom } : t)));
+    setHasChanges(true);
   };
 
-  useEffect(() => {
-    console.log(">>> call specific traders page data");
-    loadSpecificTradersSettings();
-    getPerpsBalance({
-      exchClient: infoClient!,
-      walletAddress: currentWallet?.address ?? "",
-    }).then((res) => {
-      if (!res) {
-        return;
-      }
-      console.log("res", res);
-      setSpecificTradersSettings((prev) => ({
-        ...prev,
-        perpsBalance: Number(res.marginSummary.accountValue),
-      }));
-    });
-  }, []);
+  const unfollowTrader = (traderId: number) => {
+    setTraders((prev) => prev.filter((t) => t.id !== traderId));
+    setExpandedTrader(null);
+    setHasChanges(true);
+  };
 
-  const handleSave = async (newSettings: ISpecificTradersSettings) => {
-    console.log("newSettings", newSettings);
-    await updateDefaultFollowSettings({
-      address: currentWallet?.address ?? "",
-      tradeSizeType: newSettings.tradeSizeType,
-      tradeSize: newSettings.tradeSize,
-      leverage: newSettings.leverage,
-      leverageType: newSettings.leverageType,
-      sl: {
-        type: newSettings.cutLossType,
-        value: newSettings.cutLoss,
-      },
-      tp: {
-        type: newSettings.takeProfitType,
-        value: newSettings.takeProfit,
-      },
-      orderType:
-        newSettings.orderStyle === OrderStyleEnum.market ? "market" : "limit",
-    }).catch(() => {
-      toast.error("Failed to save settings");
-      throw new Error("Failed to save settings");
-    });
-    setCachedSpecificTradersSettings(newSettings);
-    setRowChange({
-      tradeSize: false,
-      tradeSizeType: false,
-      leverage: false,
-      leverageType: false,
-      cutLoss: false,
-      takeProfit: false,
-      orderStyle: false,
-    });
+  const handleSave = () => {
+    // TODO: API call to save trader settings
+    setHasChanges(false);
+    toast.success("Settings saved successfully");
   };
 
   return (
-    <div className="mt-8">
-      <div>
-        <div>
-          <Search
-            placeholder="Search..."
-            className="border-1 mb-2"
-            style={{
-              borderColor: "rgba(27, 36, 41, 1)",
-            }}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onSearchIconClick={() => {
-              handleSearch(searchValue);
-            }}
-            onEnterClick={() => {
-              handleSearch(searchValue);
-            }}
-          />
-        </div>
-        {searchResult.length > 0 && (
-          <div>
-            {searchResult.map((item) => (
-              <div key={item.id} className="h-[42px] flex items-center px-5">
-                <Avatar
-                  name={item.name[0].toUpperCase()}
-                  backgroundColor={item.color}
-                  size={22}
-                />
-                <p className="flex flex-1 items-center">
-                  <span className="ml-2 font-medium text-sm">{item.name}</span>
-                  <span
-                    className="ml-2 text-xs font-normal"
-                    style={{ color: "rgba(165, 176, 176, 1)" }}
-                  >
-                    @{item.id}
-                  </span>
-                </p>
-                <Button
-                  className="w-[28px] h-[22px] p-0 rounded-lg font-medium text-xs border-1"
-                  style={{
-                    color: "rgba(80, 210, 193, 1)",
-                    borderColor: "rgba(80, 210, 193, 1)",
-                  }}
-                >
-                  TP
-                </Button>
-                <Button
-                  className="ml-1 w-[28px] h-[22px] p-0 rounded-lg font-medium text-xs border-1"
-                  style={{
-                    color: "rgba(80, 210, 193, 1)",
-                    borderColor: "rgba(80, 210, 193, 1)",
-                  }}
-                >
-                  SL
-                </Button>
-                <Button
-                  className="ml-1 h-[22px] px-1 rounded-lg font-medium text-xs border-1"
-                  style={{
-                    color: "rgba(80, 210, 193, 1)",
-                    borderColor: "rgba(80, 210, 193, 1)",
-                  }}
-                >
-                  $500
-                </Button>
+    <div>
+      {/* Search */}
+      <div
+        className="rounded-2xl h-12 flex items-center px-4 gap-3 mb-4"
+        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+      >
+        <Search size={16} className="text-gray-500" />
+        <input
+          type="text"
+          placeholder="Search traders to follow..."
+          value={searchValue}
+          onChange={(e) => setSearchValue(e.target.value)}
+          className="flex-1 bg-transparent text-sm text-white outline-none placeholder-gray-500"
+        />
+      </div>
+
+      {/* Followed Traders List */}
+      <div className="mb-4">
+        <p className="text-xs text-gray-500 mb-3">Followed Traders ({traders.length})</p>
+        <div className="space-y-2">
+          {traders.map((trader) => (
+            <div key={trader.id}>
+              {/* Trader Row */}
+              <div
+                className="rounded-2xl p-3 cursor-pointer transition-all"
+                style={{
+                  background:
+                    expandedTrader === trader.id
+                      ? "linear-gradient(135deg, rgba(45,212,191,0.08) 0%, rgba(45,212,191,0.02) 100%)"
+                      : "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)",
+                  border:
+                    expandedTrader === trader.id
+                      ? "1px solid rgba(45,212,191,0.3)"
+                      : "1px solid rgba(255,255,255,0.08)",
+                }}
+                onClick={() => setExpandedTrader(expandedTrader === trader.id ? null : trader.id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                      style={{ backgroundColor: trader.color }}
+                    >
+                      {trader.name[0]}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">{trader.name}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">{trader.handle}</span>
+                        <span className="text-xs text-teal-400">{trader.winRate}% win</span>
+                        <span className="text-xs text-green-400">+${(trader.pnl / 1000).toFixed(1)}k</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {trader.useCustom && trader.settings.leverage >= 10 && (
+                      <AlertTriangle size={14} className="text-orange-400" />
+                    )}
+                    <span
+                      className="text-xs px-2 py-1 rounded-lg"
+                      style={{
+                        background: trader.useCustom ? "rgba(45,212,191,0.15)" : "rgba(255,255,255,0.05)",
+                        color: trader.useCustom ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.5)",
+                      }}
+                    >
+                      {trader.useCustom ? `$${trader.settings.tradeSize}` : "Default"}
+                    </span>
+                    {expandedTrader === trader.id ? (
+                      <ChevronUp size={16} className="text-gray-400" />
+                    ) : (
+                      <ChevronDown size={16} className="text-gray-400" />
+                    )}
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-        <div
-          className="w-full h-4"
-          style={{
-            boxShadow: "0px 1px 0px 0px rgba(27, 36, 41, 1)",
-            background:
-              "linear-gradient(180deg, rgba(15, 26, 31, 0) 0%, rgba(11, 20, 23, 1) 100%)",
-          }}
-        />
+
+              {/* Expanded Settings */}
+              {expandedTrader === trader.id && (
+                <div
+                  className="mt-1 rounded-2xl p-4"
+                  style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.05)" }}
+                >
+                  {/* Toggle Custom Settings */}
+                  <div
+                    className="flex items-center justify-between mb-4 pb-3"
+                    style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+                  >
+                    <div>
+                      <p className="text-sm text-white">Custom Settings</p>
+                      <p className="text-xs text-gray-500">Override default follow settings</p>
+                    </div>
+                    <Toggle enabled={trader.useCustom} onToggle={() => toggleTraderCustom(trader.id)} />
+                  </div>
+
+                  {trader.useCustom ? (
+                    <div className="space-y-3">
+                      {/* High Leverage Warning */}
+                      {trader.settings.leverage >= 10 && (
+                        <div
+                          className="flex items-center gap-2 p-2 rounded-lg mb-2"
+                          style={{
+                            background: "rgba(251,146,60,0.1)",
+                            border: "1px solid rgba(251,146,60,0.2)",
+                          }}
+                        >
+                          <AlertTriangle size={14} className="text-orange-400 flex-shrink-0" />
+                          <span className="text-xs text-orange-300">High leverage increases liquidation risk</span>
+                        </div>
+                      )}
+
+                      {/* Trade Size */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Trade Size</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={trader.settings.tradeSize}
+                            onChange={(e) =>
+                              updateTraderSetting(trader.id, "tradeSize", Number(e.target.value) || 0)
+                            }
+                            className="w-16 bg-transparent text-right text-sm text-white outline-none"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="flex gap-1">
+                            {(["USD", "PCT"] as TradeSizeType[]).map((type) => (
+                              <button
+                                key={type}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateTraderSetting(trader.id, "tradeSizeType", type);
+                                }}
+                                className="w-7 h-7 rounded text-xs font-medium transition-all"
+                                style={
+                                  trader.settings.tradeSizeType === type
+                                    ? { backgroundColor: "rgba(45,212,191,1)", color: "#0a0f14" }
+                                    : {
+                                        border: "1px solid rgba(45,212,191,0.4)",
+                                        color: "rgba(45,212,191,0.8)",
+                                      }
+                                }
+                              >
+                                {type === "USD" ? "$" : "%"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Leverage */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Leverage</span>
+                        <div className="flex items-center gap-2">
+                          {[3, 5, 10, 20].map((v) => (
+                            <button
+                              key={v}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateTraderSetting(trader.id, "leverage", v);
+                              }}
+                              className="px-2 py-1 rounded text-xs font-medium transition-all"
+                              style={
+                                trader.settings.leverage === v
+                                  ? {
+                                      background: "rgba(45,212,191,0.2)",
+                                      color: "rgba(45,212,191,1)",
+                                      border: "1px solid rgba(45,212,191,0.5)",
+                                    }
+                                  : {
+                                      background: "rgba(255,255,255,0.05)",
+                                      color: "rgba(255,255,255,0.5)",
+                                      border: "1px solid transparent",
+                                    }
+                              }
+                            >
+                              {v}x
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Stop Loss */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Stop Loss</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={trader.settings.cutLoss}
+                            onChange={(e) =>
+                              updateTraderSetting(trader.id, "cutLoss", Number(e.target.value) || 0)
+                            }
+                            className="w-16 bg-transparent text-right text-sm text-orange-400 outline-none"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="flex gap-1">
+                            {(["USD", "PCT"] as TradeSizeType[]).map((type) => (
+                              <button
+                                key={type}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateTraderSetting(trader.id, "cutLossType", type);
+                                }}
+                                className="w-7 h-7 rounded text-xs font-medium transition-all"
+                                style={
+                                  trader.settings.cutLossType === type
+                                    ? { backgroundColor: "rgba(45,212,191,1)", color: "#0a0f14" }
+                                    : {
+                                        border: "1px solid rgba(45,212,191,0.4)",
+                                        color: "rgba(45,212,191,0.8)",
+                                      }
+                                }
+                              >
+                                {type === "USD" ? "$" : "%"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Take Profit */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Take Profit</span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={trader.settings.takeProfit}
+                            onChange={(e) =>
+                              updateTraderSetting(trader.id, "takeProfit", Number(e.target.value) || 0)
+                            }
+                            className="w-16 bg-transparent text-right text-sm text-green-400 outline-none"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div className="flex gap-1">
+                            {(["USD", "PCT"] as TradeSizeType[]).map((type) => (
+                              <button
+                                key={type}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateTraderSetting(trader.id, "takeProfitType", type);
+                                }}
+                                className="w-7 h-7 rounded text-xs font-medium transition-all"
+                                style={
+                                  trader.settings.takeProfitType === type
+                                    ? { backgroundColor: "rgba(45,212,191,1)", color: "#0a0f14" }
+                                    : {
+                                        border: "1px solid rgba(45,212,191,0.4)",
+                                        color: "rgba(45,212,191,0.8)",
+                                      }
+                                }
+                              >
+                                {type === "USD" ? "$" : "%"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Notifications */}
+                      <div
+                        className="flex items-center justify-between pt-3 mt-1"
+                        style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Bell size={14} className="text-gray-500" />
+                          <span className="text-xs text-gray-500">Notifications</span>
+                        </div>
+                        <Toggle
+                          enabled={trader.settings.notifications}
+                          onToggle={() =>
+                            updateTraderSetting(trader.id, "notifications", !trader.settings.notifications)
+                          }
+                        />
+                      </div>
+
+                      {/* Unfollow */}
+                      <div className="pt-3 mt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            unfollowTrader(trader.id);
+                          }}
+                          className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 transition-colors"
+                        >
+                          <X size={14} />
+                          <span>Unfollow {trader.name.split(" ")[0]}</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="flex items-center gap-2 text-xs text-gray-400 mb-3">
+                        <Check size={14} className="text-teal-400" />
+                        <span>Using default follow settings</span>
+                      </div>
+                      {/* Unfollow */}
+                      <div className="pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            unfollowTrader(trader.id);
+                          }}
+                          className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 transition-colors"
+                        >
+                          <X size={14} />
+                          <span>Unfollow {trader.name.split(" ")[0]}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div>
-        <p className="flex justify-between items-center mt-2">
-          <span className="font-semibold text-xl">Filter Types</span>
-          <span className="text-sm" style={{ color: "rgba(80, 210, 193, 1)" }}>
-            Balance: ${specificTradersSettings?.perpsBalance || "-"}
-          </span>
-        </p>
-        <p className="mt-5 mb-2">
-          <Divider />
-        </p>
-        {/* Risk management */}
-        <div>
-          <p className="font-semibold text-base">Risk management</p>
-          <div
-            className="mt-2 rounded-[16px] w-full h-[52px] flex items-center pr-2"
-            style={{
-              backgroundColor: "rgba(13, 23, 28, 1)",
-              borderWidth: "1px",
-              borderColor: rowChange.tradeSize
-                ? changedRowBorderColor
-                : "rgba(27, 36, 41, 1)",
-            }}
-          >
-            <div className="relative flex items-center w-full mr-4">
-              <Label
-                htmlFor="tradeSize"
-                className="absolute left-4 text-sm text-muted-foreground pointer-events-none font-normal text-base"
-              >
-                Trade Sizing
-              </Label>
-              <Input
-                id="tradeSize"
-                name="tradeSize"
-                className="h-[34px] pl-[100px] text-right border-none font-normal text-base"
-                placeholder=""
-                value={specificTradersSettings?.tradeSize || ""}
-                onChange={(e) => {
-                  handleRowChangeLoading();
-                  const value = Number(e.target.value);
-                  if (isNaN(value)) {
-                    return;
-                  }
-                  setSpecificTradersSettings((prev) => ({
-                    ...prev,
-                    tradeSize: value,
-                  }));
-                  setRowChange((prev) => ({
-                    ...prev,
-                    tradeSize:
-                      value !== Number(cachedSpecificTradersSettings?.tradeSize) ||
-                      specificTradersSettings.tradeSizeType !==
-                        cachedSpecificTradersSettings?.tradeSizeType,
-                  }));
-                }}
-              />
-            </div>
-            <Button
-              className="w-[34px] h-[34px] rounded-lg font-medium text-sm"
-              style={
-                specificTradersSettings.tradeSizeType === "USD"
-                  ? DOLLAR_OR_PERCENTAGE_STYLE.active
-                  : DOLLAR_OR_PERCENTAGE_STYLE.default
-              }
-              onClick={() => {
-                handleRowChangeLoading();
-                setSpecificTradersSettings((prev) => ({
-                  ...prev,
-                  tradeSizeType: "USD",
-                }));
-                setRowChange((prev) => ({
-                  ...prev,
-                  tradeSize:
-                    cachedSpecificTradersSettings?.tradeSizeType !== "USD" ||
-                    Number(specificTradersSettings.tradeSize) !==
-                      Number(cachedSpecificTradersSettings?.tradeSize),
-                }));
-              }}
-            >
-              $
-            </Button>
-            <Button
-              className="w-[34px] h-[34px] rounded-lg font-medium text-sm ml-1"
-              style={
-                specificTradersSettings.tradeSizeType === "PCT"
-                  ? DOLLAR_OR_PERCENTAGE_STYLE.active
-                  : DOLLAR_OR_PERCENTAGE_STYLE.default
-              }
-              onClick={() => {
-                handleRowChangeLoading();
-                setSpecificTradersSettings((prev) => ({
-                  ...prev,
-                  tradeSizeType: "PCT",
-                }));
-                setRowChange((prev) => ({
-                  ...prev,
-                  tradeSize:
-                    cachedSpecificTradersSettings?.tradeSizeType !== "PCT" ||
-                    Number(specificTradersSettings.tradeSize) !==
-                      Number(cachedSpecificTradersSettings?.tradeSize),
-                }));
-              }}
-            >
-              %
-            </Button>
-          </div>
-          {/* leverage */}
-          <div
-            className="mt-2 rounded-[16px] w-full h-[52px] flex items-center relative"
-            style={{
-              backgroundColor: "rgba(13, 23, 28, 1)",
-              borderWidth: "1px",
-              borderColor: rowChange.leverage
-                ? changedRowBorderColor
-                : "rgba(27, 36, 41, 1)",
-            }}
-          >
-            <Label
-              htmlFor="leverage"
-              className="absolute left-4 text-sm text-muted-foreground pointer-events-none font-normal text-base"
-            >
-              Leverage
-            </Label>
-            <Input
-              id="leverage"
-              name="leverage"
-              className="h-full pl-[100px] text-right border-none font-normal text-base"
-              placeholder=""
-              value={
-                specificTradersSettings?.leverage
-                  ? `${specificTradersSettings.leverage}x`
-                  : ""
-              }
-              onChange={(e) => {
-                handleRowChangeLoading();
-                const value = Number(e.target.value.replace("x", ""));
-                setSpecificTradersSettings((prev) => ({
-                  ...prev,
-                  leverage: value,
-                }));
-                setRowChange((prev) => ({
-                  ...prev,
-                  leverage:
-                    value !== Number(cachedSpecificTradersSettings?.leverage),
-                }));
-              }}
-            />
-          </div>
-          {/* leverage type */}
-          <div
-            className="mt-2 rounded-[16px]"
-            style={{
-              borderWidth: "1px",
-              borderColor: rowChange.leverageType
-                ? changedRowBorderColor
-                : "transparent",
-              padding: rowChange.leverageType ? "4px" : "0",
-            }}
-          >
-            <div className="flex h-[52px] leading-[52px] pl-4 rounded-[16px]">
-              <span
-                className="flex-1 leading-[52px] font-normal text-base"
-                style={{ color: "rgba(148, 158, 156, 1)" }}
-              >
-                Leverage Type
-              </span>
-              <Button
-                className="w-[87px] h-[52px] leading-[52px] rounded-[16px] px-6 border-1 font-normal text-base"
-                style={
-                  specificTradersSettings.leverageType === "cross"
-                    ? LEVERAGE_TYPE_STYLE.active
-                    : LEVERAGE_TYPE_STYLE.default
-                }
-                onClick={() => {
-                  handleRowChangeLoading();
-                  setSpecificTradersSettings((prev) => ({
-                    ...prev,
-                    leverageType: "cross",
-                  }));
-                  setRowChange((prev) => ({
-                    ...prev,
-                    leverageType:
-                      cachedSpecificTradersSettings?.leverageType !== "cross",
-                  }));
-                }}
-              >
-                Cross
-              </Button>
-
-              <Button
-                className="w-[87px] h-[52px] leading-[52px] rounded-[16px] px-6 border-1 ml-2 font-normal text-base"
-                style={
-                  specificTradersSettings.leverageType === "isolated"
-                    ? LEVERAGE_TYPE_STYLE.active
-                    : LEVERAGE_TYPE_STYLE.default
-                }
-                onClick={() => {
-                  handleRowChangeLoading();
-                  setSpecificTradersSettings((prev) => ({
-                    ...prev,
-                    leverageType: "isolated",
-                  }));
-                  setRowChange((prev) => ({
-                    ...prev,
-                    leverageType:
-                      cachedSpecificTradersSettings?.leverageType !== "isolated",
-                  }));
-                }}
-              >
-                Isolated
-              </Button>
-            </div>
-          </div>
-        </div>
-        {/* Automatically Close Trades */}
-        <div className="mt-5">
-          <p className="flex items-center">
-            <span className="font-semibold text-base">
-              Automatically Close Trades
-            </span>
-            <Image
-              src={infoIcon}
-              alt="info"
-              width={16}
-              height={16}
-              className="ml-2"
-            />
-          </p>
-          <div
-            className="mt-2 rounded-[16px] w-full h-[52px] flex items-center pr-2"
-            style={{
-              backgroundColor: "rgba(13, 23, 28, 1)",
-              borderWidth: "1px",
-              borderColor: rowChange.cutLoss
-                ? changedRowBorderColor
-                : "rgba(27, 36, 41, 1)",
-            }}
-          >
-            <div className="relative flex items-center w-full mr-4">
-              <Label
-                htmlFor="cutLoss"
-                className="absolute left-4 text-sm text-muted-foreground pointer-events-none font-normal text-base"
-              >
-                Cut Loss
-              </Label>
-              <Input
-                id="cutLoss"
-                name="cutLoss"
-                className="h-[34px] pl-[100px] text-right border-none font-normal text-base"
-                placeholder=""
-                value={specificTradersSettings?.cutLoss || ""}
-                onChange={(e) => {
-                  handleRowChangeLoading();
-                  const value = Number(e.target.value);
-                  if (isNaN(value)) {
-                    return;
-                  }
-                  setSpecificTradersSettings((prev) => ({
-                    ...prev,
-                    cutLoss: value,
-                  }));
-                  setRowChange((prev) => ({
-                    ...prev,
-                    cutLoss:
-                      value !== Number(cachedSpecificTradersSettings?.cutLoss) ||
-                      specificTradersSettings.cutLossType !==
-                        cachedSpecificTradersSettings?.cutLossType,
-                  }));
-                }}
-              />
-            </div>
-            <Button
-              className="w-[34px] h-[34px] rounded-lg font-medium text-sm"
-              style={
-                specificTradersSettings.cutLossType === "USD"
-                  ? DOLLAR_OR_PERCENTAGE_STYLE.active
-                  : DOLLAR_OR_PERCENTAGE_STYLE.default
-              }
-              onClick={() => {
-                handleRowChangeLoading();
-                setSpecificTradersSettings((prev) => ({
-                  ...prev,
-                  cutLossType: "USD",
-                }));
-                setRowChange((prev) => ({
-                  ...prev,
-                  cutLoss:
-                    cachedSpecificTradersSettings?.cutLossType !== "USD" ||
-                    Number(specificTradersSettings.cutLoss) !==
-                      Number(cachedSpecificTradersSettings?.cutLoss),
-                }));
-              }}
-            >
-              $
-            </Button>
-            <Button
-              className="w-[34px] h-[34px] rounded-lg font-medium text-sm ml-1"
-              style={
-                specificTradersSettings.cutLossType === "PCT"
-                  ? DOLLAR_OR_PERCENTAGE_STYLE.active
-                  : DOLLAR_OR_PERCENTAGE_STYLE.default
-              }
-              onClick={() => {
-                handleRowChangeLoading();
-                setSpecificTradersSettings((prev) => ({
-                  ...prev,
-                  cutLossType: "PCT",
-                }));
-                setRowChange((prev) => ({
-                  ...prev,
-                  cutLoss:
-                    cachedSpecificTradersSettings?.cutLossType !== "PCT" ||
-                    Number(specificTradersSettings.cutLoss) !==
-                      Number(cachedSpecificTradersSettings?.cutLoss),
-                }));
-              }}
-            >
-              %
-            </Button>
-          </div>
-          <div
-            className="mt-2 rounded-[16px] w-full h-[52px] flex items-center pr-2"
-            style={{
-              backgroundColor: "rgba(13, 23, 28, 1)",
-              borderWidth: "1px",
-              borderColor: rowChange.takeProfit
-                ? changedRowBorderColor
-                : "rgba(27, 36, 41, 1)",
-            }}
-          >
-            <div className="relative flex items-center w-full mr-4">
-              <Label
-                htmlFor="takeProfit"
-                className="absolute left-4 text-sm text-muted-foreground pointer-events-none font-normal text-base"
-              >
-                Take Profit
-              </Label>
-              <Input
-                id="takeProfit"
-                name="takeProfit"
-                className="h-[34px] pl-[100px] text-right border-none font-normal text-base"
-                placeholder=""
-                value={specificTradersSettings?.takeProfit || ""}
-                onChange={(e) => {
-                  handleRowChangeLoading();
-                  const value = Number(e.target.value);
-                  if (isNaN(value)) {
-                    return;
-                  }
-                  setSpecificTradersSettings((prev) => ({
-                    ...prev,
-                    takeProfit: value,
-                  }));
-                  setRowChange((prev) => ({
-                    ...prev,
-                    takeProfit:
-                      value !== Number(cachedSpecificTradersSettings?.takeProfit) ||
-                      specificTradersSettings.takeProfitType !==
-                        cachedSpecificTradersSettings?.takeProfitType,
-                  }));
-                }}
-              />
-            </div>
-            <Button
-              className="w-[34px] h-[34px] rounded-lg font-medium text-sm"
-              style={
-                specificTradersSettings.takeProfitType === "USD"
-                  ? DOLLAR_OR_PERCENTAGE_STYLE.active
-                  : DOLLAR_OR_PERCENTAGE_STYLE.default
-              }
-              onClick={() => {
-                handleRowChangeLoading();
-                setSpecificTradersSettings((prev) => ({
-                  ...prev,
-                  takeProfitType: "USD",
-                }));
-                setRowChange((prev) => ({
-                  ...prev,
-                  takeProfit:
-                    cachedSpecificTradersSettings?.takeProfitType !== "USD" ||
-                    Number(specificTradersSettings.takeProfit) !==
-                      Number(cachedSpecificTradersSettings?.takeProfit),
-                }));
-              }}
-            >
-              $
-            </Button>
-            <Button
-              className="w-[34px] h-[34px] rounded-lg font-medium text-sm ml-1"
-              style={
-                specificTradersSettings.takeProfitType === "PCT"
-                  ? DOLLAR_OR_PERCENTAGE_STYLE.active
-                  : DOLLAR_OR_PERCENTAGE_STYLE.default
-              }
-              onClick={() => {
-                handleRowChangeLoading();
-                setSpecificTradersSettings((prev) => ({
-                  ...prev,
-                  takeProfitType: "PCT",
-                }));
-                setRowChange((prev) => ({
-                  ...prev,
-                  takeProfit:
-                    cachedSpecificTradersSettings?.takeProfitType !== "PCT" ||
-                    Number(specificTradersSettings.takeProfit) !==
-                      Number(cachedSpecificTradersSettings?.takeProfit),
-                }));
-              }}
-            >
-              %
-            </Button>
-          </div>
-        </div>
-        {/* Execution */}
-        <div className="mt-5">
-          <p className="font-semibold text-base">Execution</p>
-          <div
-            className="mt-2 rounded-[16px] w-full h-[52px] flex items-center"
-            style={{
-              backgroundColor: "rgba(13, 23, 28, 1)",
-              borderWidth: "1px",
-              borderColor: rowChange.orderStyle
-                ? changedRowBorderColor
-                : "rgba(27, 36, 41, 1)",
-            }}
-          >
-            <div className="relative flex items-center w-full">
-              <Label
-                htmlFor="orderStyle"
-                className="absolute left-4 text-sm text-muted-foreground pointer-events-none font-normal text-base"
-              >
-                Order Style
-              </Label>
-              <Select
-                value={specificTradersSettings.orderStyle}
-                onValueChange={(value) => {
-                  handleRowChangeLoading();
-                  setSpecificTradersSettings((prev) => ({
-                    ...prev,
-                    orderStyle: value as OrderStyleEnum,
-                  }));
-                  setRowChange((prev) => ({
-                    ...prev,
-                    orderStyle: value !== cachedSpecificTradersSettings?.orderStyle,
-                  }));
-                }}
-              >
-                <SelectTrigger className="w-full border-none font-normal text-base pl-[100px] pr-0 justify-end pr-2">
-                  <SelectValue placeholder="" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value={OrderStyleEnum.market}>
-                      Market Order
-                    </SelectItem>
-                    <SelectItem value={OrderStyleEnum.limit}>
-                      Limit Order
-                    </SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-        {/* Summary */}
-        <div
-          className="mt-5 rounded-[16px] w-full p-4"
+      {/* Save Button */}
+      <div className="space-y-3 mt-6">
+        <button
+          className="w-full h-14 rounded-2xl font-semibold text-sm transition-all"
           style={{
-            backgroundColor: "rgba(13, 23, 28, 1)",
-            borderWidth: "1px",
-            borderColor: "rgba(27, 36, 41, 1)",
+            background: hasChanges ? "rgba(45,212,191,1)" : "rgba(45,212,191,0.5)",
+            color: "#0a0f14",
+            boxShadow: hasChanges ? "0 0 25px rgba(45,212,191,0.4)" : "none",
           }}
+          onClick={handleSave}
         >
-          <p
-            className="font-normal text-base"
-            style={{ color: "rgba(148, 158, 156, 1)" }}
-          >
-            Summary
-          </p>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-4">
-              <Loader2
-                className="animate-spin"
-                style={{ color: "rgba(80, 210, 193, 1)" }}
-                size={24}
-              />
-            </div>
-          ) : (
-            <>
-              <p className="font-normal text-xs mt-2">
-                You will be taking{" "}
-                {specificTradersSettings.takeProfitType === "USD"
-                  ? `$${specificTradersSettings.takeProfit}`
-                  : `${specificTradersSettings.takeProfit}%`}{" "}
-                {specificTradersSettings.orderStyle === OrderStyleEnum.market
-                  ? "market"
-                  : "limit"}{" "}
-                order positions on {specificTradersSettings.leverage}x leverage,
-                {specificTradersSettings.leverageType === "isolated"
-                  ? "isolated"
-                  : "cross"}{" "}
-                to each position on your{" "}
-                {specificTradersSettings.tradeSizeType === "USD"
-                  ? `$${specificTradersSettings.tradeSize}`
-                  : `${specificTradersSettings.tradeSize}%`}
-              </p>
-              <SummaryDialog
-                onConfirm={() => {}}
-                defaultFollowSettings={
-                  specificTradersSettings as IDefaultFollowSettings
-                }
-              />
-            </>
-          )}
-        </div>
-      </div>
-      <div className="mt-5">
-        <BottomButtons
-          onCancel={async () => {
-            console.log("cancel");
-            const newSettings = cachedSpecificTradersSettings!;
-            setSpecificTradersSettings(newSettings);
-            setRowChange({
-              tradeSize: false,
-              tradeSizeType: false,
-              leverage: false,
-              leverageType: false,
-              cutLoss: false,
-              takeProfit: false,
-              orderStyle: false,
-            });
-            await handleSave(newSettings);
-            toast.success("Settings reverted successfully");
-          }}
-          onSave={async () => {
-            await handleSave(specificTradersSettings);
-            toast.success("Settings saved successfully");
-          }}
-          onReset={async () => {
-            console.log("reset");
-            const newSettings = getInitialSpecificTradersSettings();
-            setSpecificTradersSettings(newSettings);
-            setRowChange({
-              tradeSize: false,
-              tradeSizeType: false,
-              leverage: false,
-              leverageType: false,
-              cutLoss: false,
-              takeProfit: false,
-              orderStyle: false,
-            });
-            await handleSave(newSettings);
-            toast.success("Settings reset successfully");
-          }}
-        />
+          Save Changes
+        </button>
       </div>
     </div>
   );

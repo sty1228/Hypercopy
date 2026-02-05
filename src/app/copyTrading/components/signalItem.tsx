@@ -1,26 +1,16 @@
 "use client";
 
-import Image from "next/image";
-import bullishIcon from "@/assets/icons/bullish.png";
-import bearishIcon from "@/assets/icons/bearish.png";
-import commentIcon from "@/assets/icons/comment.png";
-import retweetIcon from "@/assets/icons/retweet.png";
-import likeIcon from "@/assets/icons/like.png";
 import { UserSignalItem } from "@/service";
 import { numberToPercentageString } from "@/lib/number";
-import counterTradeIcon from "@/assets/icons/counter-trade-tip.png";
-import copyTradeIcon from "@/assets/icons/copy-trade-tip.png";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { useContext, useState } from "react";
+import { useContext } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import BigNumber from "bignumber.js";
 import { OrderGrouping, OrderParams, placeOrder } from "@/helpers/hyperliquid";
 import { toast } from "sonner";
 
-const SIDE_MAP: {
-  [key: string]: "long" | "short";
-} = {
+const SIDE_MAP: { [key: string]: "long" | "short" } = {
   bullish: "long",
   bearish: "short",
 };
@@ -29,29 +19,22 @@ export default function SignalItem({
   data,
   onClick,
   currentClickItemId,
+  index = 0,
 }: {
   data: UserSignalItem;
   onClick: (signalId: number) => void;
   currentClickItemId: number | null;
+  index?: number;
 }) {
-  const {
-    tradingEnabled,
-    builderFeeApproved,
-    placeOrderAssets,
-    exchClient,
-    infoClient,
-    assetsInfoMap,
-  } = useContext(HyperLiquidContext);
+  const { tradingEnabled, builderFeeApproved, placeOrderAssets, exchClient, infoClient, assetsInfoMap } = useContext(HyperLiquidContext);
   const { authenticated } = usePrivy();
   const router = useRouter();
-  const [itemHoverStyle, setItemHoverStyle] = useState({});
-  const [counterTradeButtonHoverStyle, setCounterTradeButtonHoverStyle] =
-    useState({});
-  const [copyTradeButtonHoverStyle, setCopyTradeButtonHoverStyle] = useState(
-    {}
-  );
-  const symbol = data?.ticker.replaceAll("USDT", "");
-  const assetInfo = assetsInfoMap[symbol];
+  const symbol = data?.ticker?.replaceAll("USDT", "") || "";
+  const assetInfo = assetsInfoMap?.[symbol];
+  const isExpanded = currentClickItemId === data.signal_id;
+  const change = data?.change_since_tweet || 0;
+  const isPositiveChange = change >= 0;
+  const isBullish = data.bull_or_bear === "bullish";
 
   const handleTrade = async (side: "copy" | "counter") => {
     if (!(tradingEnabled && authenticated && builderFeeApproved)) {
@@ -59,33 +42,15 @@ export default function SignalItem({
       router.push(`/onboarding?from=${encodeURIComponent("orderPlace")}`);
       return;
     }
-    const tradeSide =
-      SIDE_MAP[
-        side === "copy"
-          ? data.bull_or_bear
-          : data.bull_or_bear === "bearish"
-          ? "bullish"
-          : "bearish"
-      ];
-    const realtimeOrderbook = await infoClient!.l2Book({
-      coin: symbol,
-      // nSigFigs: 2,
-    });
+    const tradeSide = SIDE_MAP[side === "copy" ? data.bull_or_bear : data.bull_or_bear === "bearish" ? "bullish" : "bearish"];
+    const realtimeOrderbook = await infoClient!.l2Book({ coin: symbol });
     const { levels } = realtimeOrderbook;
     const [bids, asks] = levels || [];
     const orderPrice = tradeSide === "long" ? bids[0].px : asks[0].px;
-    console.log("orderPrice", orderPrice);
     const placeOrderAssetId = placeOrderAssets[symbol.toUpperCase()];
-
-    const priceDecimals = Number(orderPrice).toString().includes(".")
-      ? orderPrice.toString().split(".")[1].length
-      : 0;
-    const tpPrice = new BigNumber(orderPrice)
-      .multipliedBy(tradeSide === "long" ? 1.1 : 0.9)
-      .toFixed(priceDecimals);
-    const slPrice = new BigNumber(orderPrice)
-      .multipliedBy(tradeSide === "long" ? 0.9 : 1.1)
-      .toFixed(priceDecimals);
+    const priceDecimals = Number(orderPrice).toString().includes(".") ? orderPrice.toString().split(".")[1].length : 0;
+    const tpPrice = new BigNumber(orderPrice).multipliedBy(tradeSide === "long" ? 1.1 : 0.9).toFixed(priceDecimals);
+    const slPrice = new BigNumber(orderPrice).multipliedBy(tradeSide === "long" ? 0.9 : 1.1).toFixed(priceDecimals);
 
     const orderParams: OrderParams = {
       side: tradeSide,
@@ -93,220 +58,200 @@ export default function SignalItem({
       size: 0.1,
       coin: placeOrderAssetId,
       leverage: 1,
-      takeProfit: {
-        price: tpPrice,
-        grouping: OrderGrouping.NormalTpsl,
-      },
-      stopLoss: {
-        price: slPrice,
-        grouping: OrderGrouping.NormalTpsl,
-      },
+      takeProfit: { price: tpPrice, grouping: OrderGrouping.NormalTpsl },
+      stopLoss: { price: slPrice, grouping: OrderGrouping.NormalTpsl },
     };
 
-    const mockPrice =
-      tradeSide === "long"
-        ? new BigNumber(orderPrice).multipliedBy(0.95).toFixed(priceDecimals)
-        : new BigNumber(orderPrice).multipliedBy(1.05).toFixed(priceDecimals);
-    const mockSize = new BigNumber(20)
-      .dividedBy(mockPrice)
-      .decimalPlaces(assetInfo.szDecimals, BigNumber.ROUND_DOWN)
-      .toNumber();
+    const mockPrice = tradeSide === "long"
+      ? new BigNumber(orderPrice).multipliedBy(0.95).toFixed(priceDecimals)
+      : new BigNumber(orderPrice).multipliedBy(1.05).toFixed(priceDecimals);
+    const mockSize = new BigNumber(20).dividedBy(mockPrice).decimalPlaces(assetInfo?.szDecimals || 2, BigNumber.ROUND_DOWN).toNumber();
     const mockOrderParams = {
       ...orderParams,
       price: mockPrice,
       size: mockSize,
-      takeProfit: {
-        price: new BigNumber(mockPrice)
-          .multipliedBy(tradeSide === "long" ? 1.1 : 0.9)
-          .toFixed(priceDecimals),
-        grouping: OrderGrouping.NormalTpsl,
-      },
-      stopLoss: {
-        price: new BigNumber(mockPrice)
-          .multipliedBy(tradeSide === "long" ? 0.9 : 1.1)
-          .toFixed(priceDecimals),
-        grouping: OrderGrouping.NormalTpsl,
-      },
+      takeProfit: { price: new BigNumber(mockPrice).multipliedBy(tradeSide === "long" ? 1.1 : 0.9).toFixed(priceDecimals), grouping: OrderGrouping.NormalTpsl },
+      stopLoss: { price: new BigNumber(mockPrice).multipliedBy(tradeSide === "long" ? 0.9 : 1.1).toFixed(priceDecimals), grouping: OrderGrouping.NormalTpsl },
     };
-    const res = confirm(
-      `Order confirm: ${JSON.stringify(
-        orderParams
-      )}. \n⚠️ For testing, will place order with mock order params: ${JSON.stringify(
-        mockOrderParams
-      )}`
-    );
-    if (!(res && exchClient)) {
-      console.log("res", res);
-      console.log("exchClient", exchClient);
-      return;
-    }
-    console.log("orderParams", orderParams);
-    console.log("mockOrderParams", mockOrderParams);
-    await placeOrder({
-      exchClient,
-      orderParams: mockOrderParams,
-    });
+
+    const res = confirm(`Order confirm: ${JSON.stringify(orderParams)}. \n⚠️ For testing, will place order with mock order params: ${JSON.stringify(mockOrderParams)}`);
+    if (!(res && exchClient)) return;
+    await placeOrder({ exchClient, orderParams: mockOrderParams });
   };
 
   return (
     <div
-      className="rounded-[20px] p-4 mt-2"
-      style={{
-        background: "linear-gradient(0deg, #26424B, #26424B)",
-        ...itemHoverStyle,
-      }}
       onClick={() => onClick(data.signal_id)}
-      onMouseEnter={() =>
-        setItemHoverStyle({
-          border: "1px solid rgba(43, 234, 223, 1)",
-        })
-      }
-      onMouseLeave={() =>
-        setItemHoverStyle({
-          border: "none",
-        })
-      }
+      className="rounded-2xl cursor-pointer relative overflow-hidden"
+      style={{
+        background: isExpanded
+          ? "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)"
+          : isBullish
+            ? "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.02) 100%)"
+            : "linear-gradient(135deg, rgba(251,113,133,0.06) 0%, rgba(251,113,133,0.02) 100%)",
+        border: isExpanded
+          ? "1px solid rgba(255,255,255,0.25)"
+          : "1px solid rgba(255,255,255,0.06)",
+        boxShadow: isExpanded
+          ? "0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1), inset 0 1px 0 rgba(255,255,255,0.1)"
+          : "none",
+        transform: isExpanded ? "scale(1.02) translateY(-2px)" : "scale(1) translateY(0)",
+        transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        animation: `fadeInUp 0.5s ease-out ${index * 0.08}s both`,
+      }}
     >
-      <div className="flex justify-between items-center">
-        <div className="flex items-center">
-          <span className="mr-1 text-base font-normal">{data.updateTime}</span>
-          {data.bull_or_bear === "bullish" ? (
-            <Image src={bullishIcon} alt="bullish" height={16} />
-          ) : (
-            <Image src={bearishIcon} alt="bearish" height={16} />
-          )}
+      {/* Left color bar - 展开时变宽变亮 */}
+      <div
+        className="absolute left-0 top-0 bottom-0 rounded-l-2xl transition-all duration-300"
+        style={{
+          width: isExpanded ? "4px" : "3px",
+          background: isBullish
+            ? "linear-gradient(180deg, #2dd4bf 0%, #14b8a6 100%)"
+            : "linear-gradient(180deg, #fb7185 0%, #f43f5e 100%)",
+          boxShadow: isExpanded
+            ? isBullish
+              ? "0 0 12px rgba(45,212,191,0.6)"
+              : "0 0 12px rgba(251,113,133,0.6)"
+            : "none",
+        }}
+      />
+
+      <div className="relative pl-4 pr-3 py-3">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            {/* Time with icon */}
+            <div className="flex items-center gap-1.5 text-xs text-gray-400">
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span>{data.updateTime}</span>
+            </div>
+            {/* Direction badge */}
+            <div
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-300 ${isBullish ? "text-teal-400" : "text-rose-400"}`}
+              style={{
+                background: isBullish ? "rgba(45,212,191,0.15)" : "rgba(251,113,133,0.15)",
+                boxShadow: isExpanded
+                  ? isBullish
+                    ? "0 0 8px rgba(45,212,191,0.4)"
+                    : "0 0 8px rgba(251,113,133,0.4)"
+                  : "none",
+              }}
+            >
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                {isBullish ? <path d="M7 17L17 7M17 7H10M17 7V14" /> : <path d="M7 7L17 17M17 17H10M17 17V10" />}
+              </svg>
+              <span>{isBullish ? "Bullish" : "Bearish"}</span>
+            </div>
+          </div>
+          <button className="text-gray-600 hover:text-gray-400 transition-colors px-1">•••</button>
         </div>
-        {/* <Image
-          src={dotsMoreIcon}
-          alt="dots-more"
-          className="w-[17px] h-[4px]"
-        /> */}
-      </div>
-      <div className="mt-2">
-        <p>{data?.content || ""}</p>
-        <span
-          className=""
-          style={{
-            color: "rgba(43, 234, 223, 1)",
-          }}
-        >
-          See More...
-        </span>
-      </div>
-      <div className="mt-6 flex justify-between">
-        <div className="flex">
-          <div className="flex items-center">
-            <Image src={commentIcon} alt="comment" height={16} />
-            <span className="ml-1">
-              {data?.commentsCount >= 0 ? data.commentsCount : "-"}
+
+        {/* Content */}
+        <p className="text-sm text-gray-200 leading-relaxed mb-2">{data?.content || ""}</p>
+
+        {/* Stats Row - ticker & change 放右边 */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4 text-gray-500 text-xs">
+            <span className="flex items-center gap-1.5 hover:text-gray-300 transition-colors">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+              {data?.commentsCount ?? 0}
+            </span>
+            <span className="flex items-center gap-1.5 hover:text-gray-300 transition-colors">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                <path d="M17 1l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 23l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+              </svg>
+              {data?.retweetsCount ?? 0}
+            </span>
+            <span className="flex items-center gap-1.5 hover:text-rose-400 transition-colors">
+              <svg className="w-4 h-4 text-rose-400/60" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+              {data?.likesCount ?? 0}
             </span>
           </div>
-          <div className="flex items-center ml-4">
-            <Image src={retweetIcon} alt="retweet" height={16} />
-            <span className="ml-1">
-              {data?.retweetsCount >= 0 ? data.retweetsCount : "-"}
+          {/* Ticker & Change - 右下角 */}
+          <div className="flex items-center gap-1.5">
+            <span
+              className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+              style={{
+                background: "rgba(251,191,36,0.12)",
+                border: "1px solid rgba(251,191,36,0.25)",
+                color: "#fbbf24",
+              }}
+            >
+              ${data?.ticker || "-"}
             </span>
-          </div>
-          <div className="flex items-center ml-4">
-            <Image src={likeIcon} alt="like" height={16} />
-            <span className="ml-1">
-              {data?.likesCount >= 0 ? data.likesCount : "-"}
+            <span
+              className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+              style={{
+                background: isPositiveChange ? "rgba(74,222,128,0.12)" : "rgba(251,113,133,0.12)",
+                border: isPositiveChange ? "1px solid rgba(74,222,128,0.25)" : "1px solid rgba(251,113,133,0.25)",
+                color: isPositiveChange ? "#4ade80" : "#fb7185",
+              }}
+            >
+              {numberToPercentageString(change)}
             </span>
           </div>
         </div>
-        <div className="flex">
-          <span
-            className="px-1 rounded-[6px] font-medium text-xs"
+
+        {/* Expand/Collapse */}
+        {isExpanded ? (
+          <div
+            className="flex gap-3 mt-3 pt-3 border-t border-white/10"
             style={{
-              backgroundColor: "rgba(43, 234, 223, 1)",
-              color: "rgba(14, 26, 30, 1)",
-              lineHeight: "24px",
+              animation: "slideUp 0.3s ease-out",
             }}
           >
-            ${data?.ticker || "-"}
-          </span>
-          <span
-            className="px-1 ml-1 rounded-[6px] font-medium text-xs"
-            style={{
-              backgroundColor: "rgba(38, 211, 159, 1)",
-              color: "rgba(14, 26, 30, 1)",
-              lineHeight: "24px",
-            }}
-          >
-            {numberToPercentageString(data?.change_since_tweet || 0)}
-          </span>
-        </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleTrade("counter"); }}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]"
+              style={{
+                background: "rgba(244,63,94,0.15)",
+                border: "1px solid rgba(244,63,94,0.3)",
+                animation: "slideUp 0.3s ease-out 0.05s both",
+              }}
+            >
+              <span className="text-rose-400">Counter</span>
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); handleTrade("copy"); }}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]"
+              style={{
+                background: "rgba(45,212,191,0.15)",
+                border: "1px solid rgba(45,212,191,0.3)",
+                animation: "slideUp 0.3s ease-out 0.1s both",
+              }}
+            >
+              <span className="text-teal-400">Copy</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center mt-1">
+            <svg className="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        )}
       </div>
 
-      {currentClickItemId === data.signal_id && (
-        <div
-          className="mt-6 pt-2 border-t-[1px] flex items-center"
-          style={{
-            borderTopColor: "rgba(255, 255, 255, 0.1)",
-          }}
-        >
-          <div
-            className="flex flex-1 items-center justify-center h-[18px] font-normal text-sm h-[36px]"
-            onClick={() => handleTrade("copy")}
-          >
-            <div
-              className="flex items-center h-full px-4 rounded-[10px]"
-              style={{
-                ...counterTradeButtonHoverStyle,
-              }}
-              onMouseEnter={() =>
-                setCounterTradeButtonHoverStyle({
-                  color: "rgba(14, 26, 30, 1)",
-                  backgroundColor: "rgba(43, 234, 223, 1)",
-                })
-              }
-              onMouseLeave={() => setCounterTradeButtonHoverStyle({})}
-            >
-              Counter Trade
-              <Image
-                src={counterTradeIcon}
-                alt="counter-trade"
-                className="ml-2"
-                width={12}
-                height={12}
-              />
-            </div>
-          </div>
-          <p
-            className="h-[18px] w-[1px]"
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-            }}
-          />
-          <div
-            className="flex flex-1 items-center justify-center h-[18px] font-normal text-sm h-[36px]"
-            onClick={() => handleTrade("counter")}
-          >
-            <div
-              className="flex items-center h-full px-4 rounded-[10px]"
-              style={{
-                ...copyTradeButtonHoverStyle,
-              }}
-              onMouseEnter={() =>
-                setCopyTradeButtonHoverStyle({
-                  color: "rgba(14, 26, 30, 1)",
-                  backgroundColor: "rgba(43, 234, 223, 1)",
-                })
-              }
-              onMouseLeave={() => setCopyTradeButtonHoverStyle({})}
-            >
-              Copy Trade
-              <Image
-                src={copyTradeIcon}
-                alt="copy-trade"
-                className="ml-2"
-                width={12}
-                height={12}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* CSS for animations */}
+      <style jsx>{`
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }

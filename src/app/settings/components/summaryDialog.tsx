@@ -9,7 +9,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { IDefaultFollowSettings } from "./defaultFollow";
-import { OrderStyleEnum } from "../page";
+import { OrderStyleEnum } from "../types";
 
 export const SummaryDialog = ({
   onConfirm,
@@ -21,12 +21,7 @@ export const SummaryDialog = ({
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <p
-          className="font-medium text-xs"
-          style={{ color: "rgba(80, 210, 193, 1)" }}
-        >
-          read more...
-        </p>
+        <button className="text-xs text-teal-400 font-medium">read more...</button>
       </AlertDialogTrigger>
       <AlertDialogContent
         style={{
@@ -36,40 +31,60 @@ export const SummaryDialog = ({
       >
         <AlertDialogHeader>
           <AlertDialogTitle>Summary</AlertDialogTitle>
-          <AlertDialogDescription>
-            {" "}
-            You will be taking profit at{" "}
-            {defaultFollowSettings.takeProfitType === "USD"
-              ? `$${defaultFollowSettings.takeProfit}`
-              : `${defaultFollowSettings.takeProfit}%`}{" "}
-            and cut loss at{" "}
-            {defaultFollowSettings.cutLossType === "USD"
-              ? `$${defaultFollowSettings.cutLoss}`
-              : `${defaultFollowSettings.cutLoss}%`}{" "}
-            ,with{" "}
-            {defaultFollowSettings.orderStyle === OrderStyleEnum.market
-              ? "market"
-              : "limit"}{" "}
-            order positions on {defaultFollowSettings.leverage}x leverage,
-            {defaultFollowSettings.leverageType === "isolated"
-              ? "isolated"
-              : "cross"}{" "}
-            to each position on your{" "}
-            {defaultFollowSettings.tradeSizeType === "USD"
-              ? `$${defaultFollowSettings.tradeSize}`
-              : `${defaultFollowSettings.tradeSize}%`}
+          <AlertDialogDescription className="space-y-2 text-sm">
+            <p>
+              <span className="text-gray-400">Trade Size:</span>{" "}
+              <span className="text-white">
+                {defaultFollowSettings.tradeSizeType === "USD"
+                  ? `$${defaultFollowSettings.tradeSize}`
+                  : `${defaultFollowSettings.tradeSize}%`}{" "}
+                of your balance per copied trade
+              </span>
+            </p>
+            <p>
+              <span className="text-gray-400">Leverage:</span>{" "}
+              <span className="text-white">
+                {defaultFollowSettings.leverage}x {defaultFollowSettings.leverageType}
+              </span>
+            </p>
+            <p>
+              <span className="text-gray-400">Stop Loss:</span>{" "}
+              <span className="text-orange-400">
+                {defaultFollowSettings.cutLossType === "USD"
+                  ? `$${defaultFollowSettings.cutLoss}`
+                  : `${defaultFollowSettings.cutLoss}%`}
+              </span>
+            </p>
+            <p>
+              <span className="text-gray-400">Take Profit:</span>{" "}
+              <span className="text-green-400">
+                {defaultFollowSettings.takeProfitType === "USD"
+                  ? `$${defaultFollowSettings.takeProfit}`
+                  : `${defaultFollowSettings.takeProfit}%`}
+              </span>
+            </p>
+            <p>
+              <span className="text-gray-400">Order Type:</span>{" "}
+              <span className="text-white">
+                {defaultFollowSettings.orderStyle === OrderStyleEnum.market ? "Market" : "Limit"}
+              </span>
+            </p>
+            <p>
+              <span className="text-gray-400">Max Positions:</span>{" "}
+              <span className="text-white">{defaultFollowSettings.maxPositions}</span>
+            </p>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex flex-row gap-8 justify-center">
           <AlertDialogAction
             className="w-full"
             style={{
-              backgroundColor: "rgba(80, 210, 193, 1)",
-              color: "rgba(15, 26, 31, 1)",
+              backgroundColor: "rgba(45,212,191,1)",
+              color: "#0a0f14",
             }}
             onClick={onConfirm}
           >
-            Confirm
+            Got it
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

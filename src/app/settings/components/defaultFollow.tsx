@@ -1,62 +1,24 @@
 "use client";
 
-import Image from "next/image";
-import Divider from "@/components/divider";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import infoIcon from "@/assets/icons/info.png";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { OrderStyleEnum } from "../page";
-import { HyperLiquidContext } from "@/providers/hyperliquid";
 import { useContext, useEffect, useState } from "react";
+import { Wallet, TrendingUp, Shield, Zap, Bell, AlertCircle, Loader2 } from "lucide-react";
+import { HyperLiquidContext } from "@/providers/hyperliquid";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { getPerpsBalance } from "@/helpers/hyperliquid";
-import BottomButtons from "./bottomButtons";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
 import {
   getDefaultFollowSettings as fetchDefaultFollowSettings,
   LeverageType,
   TradeSizeType,
   updateDefaultFollowSettings,
 } from "@/service";
-import { SummaryDialog } from "./summaryDialog";
-
-const DOLLAR_OR_PERCENTAGE_STYLE = {
-  default: {
-    borderWidth: "1px",
-    borderColor: "rgba(80, 210, 193, 1)",
-    color: "rgba(128, 236, 184, 1)",
-  },
-  active: {
-    backgroundColor: "rgba(80, 210, 193, 1)",
-    color: "rgba(15, 26, 31, 1)",
-  },
-};
-
-const LEVERAGE_TYPE_STYLE = {
-  default: {
-    color: "rgba(255, 255, 255, 0.4)",
-    borderColor: "rgba(27, 36, 41, 1)",
-    backgroundColor: "rgba(13, 23, 28, 1)",
-  },
-  active: {
-    color: "rgba(80, 210, 193, 1)",
-    borderColor: "rgba(80, 210, 193, 1)",
-    backgroundColor: "rgba(13, 23, 28, 1)",
-  },
-};
+import { OrderStyleEnum } from "../types";
+import BottomButtons from "./bottomButtons";
 
 export interface IDefaultFollowSettings {
   perpsBalance: number;
+  availableBalance: number;
+  usedBalance: number;
   tradeSize: number;
   tradeSizeType: TradeSizeType;
   leverage: number;
@@ -66,10 +28,14 @@ export interface IDefaultFollowSettings {
   takeProfit: number;
   takeProfitType: TradeSizeType;
   orderStyle: OrderStyleEnum;
+  maxPositions: number;
+  notifications: boolean;
 }
 
-const DEFAULT_FOLLOW_SETTINGS = {
+const DEFAULT_FOLLOW_SETTINGS: IDefaultFollowSettings = {
   perpsBalance: 0,
+  availableBalance: 0,
+  usedBalance: 0,
   tradeSize: 100,
   tradeSizeType: "USD" as TradeSizeType,
   leverage: 5,
@@ -78,652 +44,502 @@ const DEFAULT_FOLLOW_SETTINGS = {
   cutLossType: "USD" as TradeSizeType,
   takeProfit: 10,
   takeProfitType: "USD" as TradeSizeType,
-  orderStyle: "0" as OrderStyleEnum,
+  orderStyle: OrderStyleEnum.market,
+  maxPositions: 10,
+  notifications: true,
 };
 
-const getInitialDefaultFollowSettings = () => {
-  return DEFAULT_FOLLOW_SETTINGS;
+// Toggle Component
+const Toggle = ({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) => (
+  <button
+    onClick={onToggle}
+    className="w-10 h-5 rounded-full transition-all duration-300 relative active:scale-95 cursor-pointer"
+    style={{ background: enabled ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.1)" }}
+  >
+    <div
+      className="w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all duration-300"
+      style={{ left: enabled ? "20px" : "2px" }}
+    />
+  </button>
+);
+
+// Type Button Component
+const TypeButton = ({
+  active,
+  onClick,
+  children,
+  color = "teal",
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  color?: "teal" | "orange";
+}) => {
+  const colors = {
+    teal: { activeBg: "rgba(45,212,191,1)", activeText: "#0a0f14", border: "rgba(45,212,191,0.4)", text: "rgba(45,212,191,0.8)" },
+    orange: { activeBg: "rgba(251,146,60,0.15)", activeText: "rgba(251,146,60,1)", border: "rgba(251,146,60,0.3)", text: "rgba(251,146,60,0.6)" },
+  };
+  const c = colors[color];
+  return (
+    <button
+      onClick={onClick}
+      className="w-8 h-8 rounded-lg font-medium text-xs transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
+      style={
+        active
+          ? { backgroundColor: c.activeBg, color: c.activeText, border: color === "orange" ? "1px solid rgba(251,146,60,0.4)" : "none" }
+          : { border: `1px solid ${c.border}`, color: c.text, background: "transparent" }
+      }
+    >
+      {children}
+    </button>
+  );
 };
 
-const changedRowBorderColor = "rgba(234, 102, 99, 1)";
+// Leverage Preset Button
+const LeveragePreset = ({ value, active, onClick }: { value: number; active: boolean; onClick: () => void }) => (
+  <button
+    onClick={onClick}
+    className="px-2 py-1 rounded text-xs font-medium transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
+    style={
+      active
+        ? { background: "rgba(45,212,191,0.2)", color: "rgba(45,212,191,1)", border: "1px solid rgba(45,212,191,0.5)" }
+        : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid transparent" }
+    }
+  >
+    {value}x
+  </button>
+);
+
+// Section Card Component
+const SectionCard = ({
+  icon: Icon,
+  title,
+  children,
+  color = "teal",
+}: {
+  icon: React.ElementType;
+  title: string;
+  children: React.ReactNode;
+  color?: "teal" | "orange" | "purple";
+}) => (
+  <div
+    className="rounded-xl p-3 mb-3"
+    style={{
+      background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)",
+      border: "1px solid rgba(255,255,255,0.08)",
+    }}
+  >
+    <div className="flex items-center gap-2 mb-3">
+      <div
+        className="w-6 h-6 rounded-md flex items-center justify-center"
+        style={{
+          background:
+            color === "teal"
+              ? "rgba(45,212,191,0.15)"
+              : color === "orange"
+              ? "rgba(251,146,60,0.15)"
+              : "rgba(168,85,247,0.15)",
+        }}
+      >
+        <Icon
+          size={12}
+          className={color === "teal" ? "text-teal-400" : color === "orange" ? "text-orange-400" : "text-purple-400"}
+        />
+      </div>
+      <span className="text-xs font-semibold text-white">{title}</span>
+    </div>
+    {children}
+  </div>
+);
+
+// Input Row Component
+const InputRow = ({
+  label,
+  value,
+  onChange,
+  suffix,
+  typeValue,
+  onTypeChange,
+  showTypeButtons = true,
+  color = "teal",
+}: {
+  label: string;
+  value: number;
+  onChange: (value: string) => void;
+  suffix?: string;
+  typeValue?: string;
+  onTypeChange?: (value: TradeSizeType) => void;
+  showTypeButtons?: boolean;
+  color?: "teal" | "orange";
+}) => (
+  <div
+    className="rounded-lg h-10 flex items-center px-3 gap-2 mb-1.5 last:mb-0"
+    style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.05)" }}
+  >
+    <span className="text-xs text-gray-500 flex-shrink-0 w-20">{label}</span>
+    <input
+      type="text"
+      value={suffix ? `${value}${suffix}` : value}
+      onChange={(e) => onChange(e.target.value.replace(suffix || "", ""))}
+      className="flex-1 bg-transparent text-right text-white text-sm font-medium outline-none"
+    />
+    {showTypeButtons && typeValue && onTypeChange && (
+      <div className="flex gap-1 ml-2">
+        <TypeButton active={typeValue === "USD"} onClick={() => onTypeChange("USD")} color={color}>
+          $
+        </TypeButton>
+        <TypeButton active={typeValue === "PCT"} onClick={() => onTypeChange("PCT")} color={color}>
+          %
+        </TypeButton>
+      </div>
+    )}
+  </div>
+);
 
 export default function DefaultFollow() {
   const { infoClient } = useContext(HyperLiquidContext);
   const currentWallet = useCurrentWallet();
-  const [cachedDefaultFollowSettings, setCachedDefaultFollowSettings] =
-    useState<IDefaultFollowSettings | null>(null);
-  const [defaultFollowSettings, setDefaultFollowSettings] =
-    useState<IDefaultFollowSettings>(getInitialDefaultFollowSettings());
-
+  const [cachedSettings, setCachedSettings] = useState<IDefaultFollowSettings | null>(null);
+  const [settings, setSettings] = useState<IDefaultFollowSettings>(DEFAULT_FOLLOW_SETTINGS);
+  const [hasChanges, setHasChanges] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [rowChange, setRowChange] = useState({
-    tradeSize: false,
-    tradeSizeType: false,
-    leverage: false,
-    leverageType: false,
-    cutLoss: false,
-    takeProfit: false,
-    orderStyle: false,
-  });
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
 
-  const loadDefaultFollowSettings = async () => {
-    const data = await fetchDefaultFollowSettings();
-    console.log(data);
+  const updateSetting = <K extends keyof IDefaultFollowSettings>(key: K, value: IDefaultFollowSettings[K]) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+    setHasChanges(true);
+  };
 
-    // 将 API 返回的数据映射到组件 state 结构
-    const transformedData = {
-      ...defaultFollowSettings,
-      tradeSize: data.tradeSize,
-      tradeSizeType: data.tradeSizeType,
-      leverage: data.leverage,
-      leverageType: data.leverageType,
-      cutLoss: data.sl.value,
-      cutLossType: data.sl.type,
-      takeProfit: data.tp.value,
-      takeProfitType: data.tp.type,
-      orderStyle:
-        data.orderType === "market"
-          ? OrderStyleEnum.market
-          : OrderStyleEnum.limit,
-    };
-    setCachedDefaultFollowSettings(transformedData);
-    setDefaultFollowSettings(transformedData);
-    setRowChange({
-      tradeSize: false,
-      tradeSizeType: false,
-      leverage: false,
-      leverageType: false,
-      cutLoss: false,
-      takeProfit: false,
-      orderStyle: false,
-    });
+  const loadSettings = async () => {
+    setIsLoading(true);
+    try {
+      const data = await fetchDefaultFollowSettings();
+      const transformed: IDefaultFollowSettings = {
+        ...DEFAULT_FOLLOW_SETTINGS,
+        tradeSize: data.tradeSize,
+        tradeSizeType: data.tradeSizeType,
+        leverage: data.leverage,
+        leverageType: data.leverageType,
+        cutLoss: data.sl.value,
+        cutLossType: data.sl.type,
+        takeProfit: data.tp.value,
+        takeProfitType: data.tp.type,
+        orderStyle: data.orderType === "market" ? OrderStyleEnum.market : OrderStyleEnum.limit,
+      };
+      setCachedSettings(transformed);
+      setSettings(transformed);
+      setHasChanges(false);
+    } catch (error) {
+      console.error("Failed to load settings:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
-    console.log(">>> call page data");
-    loadDefaultFollowSettings();
+    loadSettings();
     getPerpsBalance({
       exchClient: infoClient!,
       walletAddress: currentWallet?.address ?? "",
     }).then((res) => {
-      if (!res) {
-        return;
-      }
-      console.log("res", res);
-      setDefaultFollowSettings((prev) => ({
+      if (!res) return;
+      const total = Number(res.marginSummary.accountValue);
+      const available = Number(res.withdrawable || 0);
+      setSettings((prev) => ({
         ...prev,
-        perpsBalance: Number(res.marginSummary.accountValue),
+        perpsBalance: total,
+        availableBalance: available,
+        usedBalance: total - available,
       }));
     });
   }, []);
 
-  const handleSave = async (newSettings: IDefaultFollowSettings) => {
-    console.log("newSettings", newSettings);
-    await updateDefaultFollowSettings({
-      address: currentWallet?.address ?? "",
-      tradeSizeType: newSettings.tradeSizeType,
-      tradeSize: newSettings.tradeSize,
-      leverage: newSettings.leverage,
-      leverageType: newSettings.leverageType,
-      sl: {
-        type: newSettings.cutLossType,
-        value: newSettings.cutLoss,
-      },
-      tp: {
-        type: newSettings.takeProfitType,
-        value: newSettings.takeProfit,
-      },
-      orderType:
-        newSettings.orderStyle === OrderStyleEnum.market ? "market" : "limit",
-    }).catch(() => {
+  const handleSave = async () => {
+    try {
+      await updateDefaultFollowSettings({
+        address: currentWallet?.address ?? "",
+        tradeSizeType: settings.tradeSizeType,
+        tradeSize: settings.tradeSize,
+        leverage: settings.leverage,
+        leverageType: settings.leverageType,
+        sl: { type: settings.cutLossType, value: settings.cutLoss },
+        tp: { type: settings.takeProfitType, value: settings.takeProfit },
+        orderType: settings.orderStyle === OrderStyleEnum.market ? "market" : "limit",
+      });
+      setCachedSettings(settings);
+      setHasChanges(false);
+      toast.success("Settings saved successfully");
+    } catch {
       toast.error("Failed to save settings");
-      throw new Error("Failed to save settings");
-    });
-    setCachedDefaultFollowSettings(newSettings);
+    }
   };
 
-  const handleRowChangeLoading = () => {
-    if (isLoading) {
-      return;
+  const handleCancel = () => {
+    if (cachedSettings) {
+      setSettings(cachedSettings);
+      setHasChanges(false);
+      toast.success("Changes reverted");
     }
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
   };
+
+  const handleReset = async () => {
+    setSettings(DEFAULT_FOLLOW_SETTINGS);
+    setHasChanges(true);
+    toast.success("Settings reset to default");
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="animate-spin text-teal-400" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div>
-      <p className="flex justify-between items-center">
-        <span className="font-semibold text-xl">Filter Types</span>
-        <span className="text-sm" style={{ color: "rgba(80, 210, 193, 1)" }}>
-          Balance: ${defaultFollowSettings?.perpsBalance || "-"}
-        </span>
-      </p>
-      <p className="mt-5 mb-2">
-        <Divider />
-      </p>
-      {/* Risk management */}
-      <div>
-        <p className="font-semibold text-base">Risk management</p>
+      {/* Unsaved Changes Banner */}
+      {hasChanges && (
         <div
-          className="mt-2 rounded-[16px] w-full h-[52px] flex items-center pr-2"
-          style={{
-            backgroundColor: "rgba(13, 23, 28, 1)",
-            borderWidth: "1px",
-            borderColor: rowChange.tradeSize
-              ? changedRowBorderColor
-              : "rgba(27, 36, 41, 1)",
-          }}
+          className="rounded-lg px-3 py-2 flex items-center gap-2 mb-3"
+          style={{ background: "rgba(251,146,60,0.1)", border: "1px solid rgba(251,146,60,0.2)" }}
         >
-          <div className="relative flex items-center w-full mr-4">
-            <Label
-              htmlFor="tradeSize"
-              className="absolute left-4 text-sm text-muted-foreground pointer-events-none font-normal text-base"
-            >
-              Trade Sizing
-            </Label>
-            <Input
-              id="tradeSize"
-              name="tradeSize"
-              className="h-[34px] pl-[100px] text-right border-none font-normal text-base"
-              placeholder=""
-              value={defaultFollowSettings?.tradeSize || ""}
-              onChange={(e) => {
-                handleRowChangeLoading();
-                const value = Number(e.target.value);
-                if (isNaN(value)) {
-                  return;
-                }
-                setDefaultFollowSettings((prev) => ({
-                  ...prev,
-                  tradeSize: value,
-                }));
-                setRowChange((prev) => ({
-                  ...prev,
-                  tradeSize:
-                    value !== Number(cachedDefaultFollowSettings?.tradeSize) ||
-                    defaultFollowSettings.tradeSizeType !==
-                      cachedDefaultFollowSettings?.tradeSizeType,
-                }));
-              }}
-            />
-          </div>
-          <Button
-            className="w-[34px] h-[34px] rounded-lg font-medium text-sm"
-            style={
-              defaultFollowSettings.tradeSizeType === "USD"
-                ? DOLLAR_OR_PERCENTAGE_STYLE.active
-                : DOLLAR_OR_PERCENTAGE_STYLE.default
-            }
-            onClick={() => {
-              setDefaultFollowSettings((prev) => ({
-                ...prev,
-                tradeSizeType: "USD",
-              }));
-              setRowChange((prev) => ({
-                ...prev,
-                tradeSize:
-                  cachedDefaultFollowSettings?.tradeSizeType !== "USD" ||
-                  Number(defaultFollowSettings.tradeSize) !==
-                    Number(cachedDefaultFollowSettings?.tradeSize),
-              }));
-            }}
-          >
-            $
-          </Button>
-          <Button
-            className="w-[34px] h-[34px] rounded-lg font-medium text-sm ml-1"
-            style={
-              defaultFollowSettings.tradeSizeType === "PCT"
-                ? DOLLAR_OR_PERCENTAGE_STYLE.active
-                : DOLLAR_OR_PERCENTAGE_STYLE.default
-            }
-            onClick={() => {
-              setDefaultFollowSettings((prev) => ({
-                ...prev,
-                tradeSizeType: "PCT",
-              }));
-              setRowChange((prev) => ({
-                ...prev,
-                tradeSize:
-                  cachedDefaultFollowSettings?.tradeSizeType !== "PCT" ||
-                  Number(defaultFollowSettings.tradeSize) !==
-                    Number(cachedDefaultFollowSettings?.tradeSize),
-              }));
-            }}
-          >
-            %
-          </Button>
+          <AlertCircle size={12} className="text-orange-400" />
+          <span className="text-xs text-orange-300">You have unsaved changes</span>
         </div>
-        {/* leverage */}
-        <div
-          className="mt-2 rounded-[16px] w-full h-[52px] flex items-center relative"
-          style={{
-            backgroundColor: "rgba(13, 23, 28, 1)",
-            borderWidth: "1px",
-            borderColor: rowChange.leverage
-              ? changedRowBorderColor
-              : "rgba(27, 36, 41, 1)",
-          }}
-        >
-          <Label
-            htmlFor="leverage"
-            className="absolute left-4 text-sm text-muted-foreground pointer-events-none font-normal text-base"
-          >
-            Leverage
-          </Label>
-          <Input
-            id="leverage"
-            name="leverage"
-            className="h-full pl-[100px] text-right border-none font-normal text-base"
-            placeholder=""
-            value={
-              defaultFollowSettings?.leverage
-                ? `${defaultFollowSettings.leverage}x`
-                : ""
-            }
-            onChange={(e) => {
-              handleRowChangeLoading();
-              const value = Number(e.target.value.replace("x", ""));
-              setDefaultFollowSettings((prev) => ({
-                ...prev,
-                leverage: value,
-              }));
-              setRowChange((prev) => ({
-                ...prev,
-                leverage:
-                  value !== Number(cachedDefaultFollowSettings?.leverage),
-              }));
-            }}
-          />
-        </div>
-        {/* leverage type */}
-        <div
-          className="mt-2 rounded-[16px]"
-          style={{
-            borderWidth: "1px",
-            borderColor: rowChange.leverageType
-              ? changedRowBorderColor
-              : "transparent",
-            padding: rowChange.leverageType ? "4px" : "0",
-          }}
-        >
-          <div className="flex h-[52px] leading-[52px] pl-4 rounded-[16px]">
-            <span
-              className="flex-1 leading-[52px] font-normal text-base"
-              style={{ color: "rgba(148, 158, 156, 1)" }}
-            >
-              Leverage Type
-            </span>
-            <Button
-              className="w-[87px] h-[52px] leading-[52px] rounded-[16px] px-6 border-1 font-normal text-base"
-              style={
-                defaultFollowSettings.leverageType === "cross"
-                  ? LEVERAGE_TYPE_STYLE.active
-                  : LEVERAGE_TYPE_STYLE.default
-              }
-              onClick={() => {
-                setDefaultFollowSettings((prev) => ({
-                  ...prev,
-                  leverageType: "cross",
-                }));
-                setRowChange((prev) => ({
-                  ...prev,
-                  leverageType:
-                    cachedDefaultFollowSettings?.leverageType !== "cross",
-                }));
-              }}
-            >
-              Cross
-            </Button>
+      )}
 
-            <Button
-              className="w-[87px] h-[52px] leading-[52px] rounded-[16px] px-6 border-1 ml-2 font-normal text-base"
-              style={
-                defaultFollowSettings.leverageType === "isolated"
-                  ? LEVERAGE_TYPE_STYLE.active
-                  : LEVERAGE_TYPE_STYLE.default
-              }
-              onClick={() => {
-                handleRowChangeLoading();
-                setDefaultFollowSettings((prev) => ({
-                  ...prev,
-                  leverageType: "isolated",
-                }));
-                setRowChange((prev) => ({
-                  ...prev,
-                  leverageType:
-                    cachedDefaultFollowSettings?.leverageType !== "isolated",
-                }));
-              }}
-            >
-              Isolated
-            </Button>
-          </div>
-        </div>
-      </div>
-      {/* Automatically Close Trades */}
-      <div className="mt-5">
-        <p className="flex items-center">
-          <span className="font-semibold text-base">
-            Automatically Close Trades
-          </span>
-          <Image
-            src={infoIcon}
-            alt="info"
-            width={16}
-            height={16}
-            className="ml-2"
-          />
-        </p>
-        <div
-          className="mt-2 rounded-[16px] w-full h-[52px] flex items-center pr-2"
-          style={{
-            backgroundColor: "rgba(13, 23, 28, 1)",
-            borderWidth: "1px",
-            borderColor: rowChange.cutLoss
-              ? changedRowBorderColor
-              : "rgba(27, 36, 41, 1)",
-          }}
-        >
-          <div className="relative flex items-center w-full mr-4">
-            <Label
-              htmlFor="cutLoss"
-              className="absolute left-4 text-sm text-muted-foreground pointer-events-none font-normal text-base"
-            >
-              Cut Loss
-            </Label>
-            <Input
-              id="cutLoss"
-              name="cutLoss"
-              className="h-[34px] pl-[100px] text-right border-none font-normal text-base"
-              placeholder=""
-              value={defaultFollowSettings?.cutLoss || ""}
-              onChange={(e) => {
-                handleRowChangeLoading();
-                const value = Number(e.target.value);
-                if (isNaN(value)) {
-                  return;
-                }
-                setDefaultFollowSettings((prev) => ({
-                  ...prev,
-                  cutLoss: value,
-                }));
-                setRowChange((prev) => ({
-                  ...prev,
-                  cutLoss:
-                    value !== Number(cachedDefaultFollowSettings?.cutLoss) ||
-                    defaultFollowSettings.cutLossType !==
-                      cachedDefaultFollowSettings?.cutLossType,
-                }));
-              }}
-            />
-          </div>
-          <Button
-            className="w-[34px] h-[34px] rounded-lg font-medium text-sm"
-            style={
-              defaultFollowSettings.cutLossType === "USD"
-                ? DOLLAR_OR_PERCENTAGE_STYLE.active
-                : DOLLAR_OR_PERCENTAGE_STYLE.default
-            }
-            onClick={() => {
-              handleRowChangeLoading();
-              setDefaultFollowSettings((prev) => ({
-                ...prev,
-                cutLossType: "USD",
-              }));
-              setRowChange((prev) => ({
-                ...prev,
-                cutLoss:
-                  cachedDefaultFollowSettings?.cutLossType !== "USD" ||
-                  Number(defaultFollowSettings.cutLoss) !==
-                    Number(cachedDefaultFollowSettings?.cutLoss),
-              }));
-            }}
-          >
-            $
-          </Button>
-          <Button
-            className="w-[34px] h-[34px] rounded-lg font-medium text-sm ml-1"
-            style={
-              defaultFollowSettings.cutLossType === "PCT"
-                ? DOLLAR_OR_PERCENTAGE_STYLE.active
-                : DOLLAR_OR_PERCENTAGE_STYLE.default
-            }
-            onClick={() => {
-              handleRowChangeLoading();
-              setDefaultFollowSettings((prev) => ({
-                ...prev,
-                cutLossType: "PCT",
-              }));
-              setRowChange((prev) => ({
-                ...prev,
-                cutLoss:
-                  cachedDefaultFollowSettings?.cutLossType !== "PCT" ||
-                  Number(defaultFollowSettings.cutLoss) !==
-                    Number(cachedDefaultFollowSettings?.cutLoss),
-              }));
-            }}
-          >
-            %
-          </Button>
-        </div>
-        <div
-          className="mt-2 rounded-[16px] w-full h-[52px] flex items-center pr-2"
-          style={{
-            backgroundColor: "rgba(13, 23, 28, 1)",
-            borderWidth: "1px",
-            borderColor: rowChange.takeProfit
-              ? changedRowBorderColor
-              : "rgba(27, 36, 41, 1)",
-          }}
-        >
-          <div className="relative flex items-center w-full mr-4">
-            <Label
-              htmlFor="takeProfit"
-              className="absolute left-4 text-sm text-muted-foreground pointer-events-none font-normal text-base"
-            >
-              Take Profit
-            </Label>
-            <Input
-              id="takeProfit"
-              name="takeProfit"
-              className="h-[34px] pl-[100px] text-right border-none font-normal text-base"
-              placeholder=""
-              value={defaultFollowSettings?.takeProfit || ""}
-              onChange={(e) => {
-                handleRowChangeLoading();
-                const value = Number(e.target.value);
-                if (isNaN(value)) {
-                  return;
-                }
-                setDefaultFollowSettings((prev) => ({
-                  ...prev,
-                  takeProfit: value,
-                }));
-                setRowChange((prev) => ({
-                  ...prev,
-                  takeProfit:
-                    value !== Number(cachedDefaultFollowSettings?.takeProfit) ||
-                    defaultFollowSettings.takeProfitType !==
-                      cachedDefaultFollowSettings?.takeProfitType,
-                }));
-              }}
-            />
-          </div>
-          <Button
-            className="w-[34px] h-[34px] rounded-lg font-medium text-sm"
-            style={
-              defaultFollowSettings.takeProfitType === "USD"
-                ? DOLLAR_OR_PERCENTAGE_STYLE.active
-                : DOLLAR_OR_PERCENTAGE_STYLE.default
-            }
-            onClick={() => {
-              handleRowChangeLoading();
-              setDefaultFollowSettings((prev) => ({
-                ...prev,
-                takeProfitType: "USD",
-              }));
-              setRowChange((prev) => ({
-                ...prev,
-                takeProfit:
-                  cachedDefaultFollowSettings?.takeProfitType !== "USD" ||
-                  Number(defaultFollowSettings.takeProfit) !==
-                    Number(cachedDefaultFollowSettings?.takeProfit),
-              }));
-            }}
-          >
-            $
-          </Button>
-          <Button
-            className="w-[34px] h-[34px] rounded-lg font-medium text-sm ml-1"
-            style={
-              defaultFollowSettings.takeProfitType === "PCT"
-                ? DOLLAR_OR_PERCENTAGE_STYLE.active
-                : DOLLAR_OR_PERCENTAGE_STYLE.default
-            }
-            onClick={() => {
-              handleRowChangeLoading();
-              setDefaultFollowSettings((prev) => ({
-                ...prev,
-                takeProfitType: "PCT",
-              }));
-              setRowChange((prev) => ({
-                ...prev,
-                takeProfit:
-                  cachedDefaultFollowSettings?.takeProfitType !== "PCT" ||
-                  Number(defaultFollowSettings.takeProfit) !==
-                    Number(cachedDefaultFollowSettings?.takeProfit),
-              }));
-            }}
-          >
-            %
-          </Button>
-        </div>
-      </div>
-      {/* Execution */}
-      <div className="mt-5">
-        <p className="font-semibold text-base">Execution</p>
-        <div
-          className="mt-2 rounded-[16px] w-full h-[52px] flex items-center"
-          style={{
-            backgroundColor: "rgba(13, 23, 28, 1)",
-            borderWidth: "1px",
-            borderColor: rowChange.orderStyle
-              ? changedRowBorderColor
-              : "rgba(27, 36, 41, 1)",
-          }}
-        >
-          <div className="relative flex items-center w-full">
-            <Label
-              htmlFor="orderStyle"
-              className="absolute left-4 text-sm text-muted-foreground pointer-events-none font-normal text-base"
-            >
-              Order Style
-            </Label>
-            <Select
-              value={defaultFollowSettings.orderStyle}
-              onValueChange={(value) => {
-                handleRowChangeLoading();
-                setDefaultFollowSettings((prev) => ({
-                  ...prev,
-                  orderStyle: value as OrderStyleEnum,
-                }));
-                setRowChange((prev) => ({
-                  ...prev,
-                  orderStyle: value !== cachedDefaultFollowSettings?.orderStyle,
-                }));
-              }}
-            >
-              <SelectTrigger className="w-full border-none font-normal text-base pl-[100px] pr-0 justify-end pr-2">
-                <SelectValue placeholder="" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value={OrderStyleEnum.market}>
-                    Market Order
-                  </SelectItem>
-                  <SelectItem value={OrderStyleEnum.limit}>
-                    Limit Order
-                  </SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-      {/* Summary */}
+      {/* Balance Card */}
       <div
-        className="mt-5 rounded-[16px] w-full p-4"
+        className="rounded-xl px-4 py-3 mb-3 flex items-center justify-between"
         style={{
-          backgroundColor: "rgba(13, 23, 28, 1)",
-          borderWidth: "1px",
-          borderColor: "rgba(27, 36, 41, 1)",
+          background: "linear-gradient(135deg, rgba(45,212,191,0.08) 0%, rgba(45,212,191,0.02) 100%)",
+          border: "1px solid rgba(45,212,191,0.2)",
         }}
       >
-        <p
-          className="font-normal text-base"
-          style={{ color: "rgba(148, 158, 156, 1)" }}
-        >
-          Summary
-        </p>
-        {isLoading ? (
-          <div className="flex items-center justify-center py-4">
-            <Loader2
-              className="animate-spin"
-              style={{ color: "rgba(80, 210, 193, 1)" }}
-              size={24}
-            />
+        <div className="flex items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{ background: "rgba(45,212,191,0.15)" }}
+          >
+            <Wallet size={14} className="text-teal-400" />
           </div>
-        ) : (
-          <>
-            <p className="font-normal text-xs mt-2">
-              You will be taking{" "}
-              {defaultFollowSettings.takeProfitType === "USD"
-                ? `$${defaultFollowSettings.takeProfit}`
-                : `${defaultFollowSettings.takeProfit}%`}{" "}
-              {defaultFollowSettings.orderStyle === OrderStyleEnum.market
-                ? "market"
-                : "limit"}{" "}
-              order positions on {defaultFollowSettings.leverage}x leverage,
-              {defaultFollowSettings.leverageType === "isolated"
-                ? "isolated"
-                : "cross"}{" "}
-              to each position on your{" "}
-              {defaultFollowSettings.tradeSizeType === "USD"
-                ? `$${defaultFollowSettings.tradeSize}`
-                : `${defaultFollowSettings.tradeSize}%`}
+          <div>
+            <p className="text-[10px] text-gray-400">Current Balance</p>
+            <p className="text-base font-bold text-white">
+              ${settings.perpsBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
-            <SummaryDialog
-              onConfirm={() => {}}
-              defaultFollowSettings={defaultFollowSettings}
-            />
-          </>
-        )}
+          </div>
+        </div>
+        <div className="flex gap-6">
+          <div>
+            <p className="text-[10px] text-gray-500">Available</p>
+            <p className="text-sm font-medium text-gray-300">
+              ${settings.availableBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] text-gray-500">Used</p>
+            <p className="text-sm font-medium text-teal-400">
+              ${settings.usedBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+        </div>
       </div>
-      <div className="mt-5">
-        <BottomButtons
-          onCancel={async () => {
-            console.log("cancel");
-            const newSettings = cachedDefaultFollowSettings!;
-            setDefaultFollowSettings(newSettings);
-            await handleSave(newSettings);
-            toast.success("Settings reverted successfully");
-          }}
-          onSave={async () => {
-            await handleSave(defaultFollowSettings);
-            toast.success("Settings saved successfully");
-          }}
-          onReset={async () => {
-            console.log("reset");
-            const newSettings = getInitialDefaultFollowSettings();
-            setDefaultFollowSettings(newSettings);
-            await handleSave(newSettings);
-            toast.success("Settings reset successfully");
-          }}
+
+      {/* Position Size Section */}
+      <SectionCard icon={TrendingUp} title="Position Size" color="teal">
+        <InputRow
+          label="Trade Size"
+          value={settings.tradeSize}
+          onChange={(v) => updateSetting("tradeSize", Number(v) || 0)}
+          typeValue={settings.tradeSizeType}
+          onTypeChange={(v) => updateSetting("tradeSizeType", v)}
         />
+        <InputRow
+          label="Leverage"
+          value={settings.leverage}
+          suffix="x"
+          onChange={(v) => updateSetting("leverage", Number(v) || 0)}
+          showTypeButtons={false}
+        />
+        <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center gap-1">
+            {[1, 3, 5, 10, 20].map((v) => (
+              <LeveragePreset
+                key={v}
+                value={v}
+                active={settings.leverage === v}
+                onClick={() => updateSetting("leverage", v)}
+              />
+            ))}
+          </div>
+          <div className="flex gap-1">
+            {(["cross", "isolated"] as LeverageType[]).map((type) => (
+              <button
+                key={type}
+                onClick={() => updateSetting("leverageType", type)}
+                className="px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 capitalize hover:scale-105 active:scale-95 cursor-pointer"
+                style={
+                  settings.leverageType === type
+                    ? { background: "rgba(45,212,191,0.15)", color: "rgba(45,212,191,1)", border: "1px solid rgba(45,212,191,0.4)" }
+                    : { background: "transparent", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.1)" }
+                }
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* Risk Controls Section */}
+      <SectionCard icon={Shield} title="Risk Controls" color="orange">
+        <InputRow
+          label="Stop Loss"
+          value={settings.cutLoss}
+          onChange={(v) => updateSetting("cutLoss", Number(v) || 0)}
+          typeValue={settings.cutLossType}
+          onTypeChange={(v) => updateSetting("cutLossType", v)}
+          color="orange"
+        />
+        <InputRow
+          label="Take Profit"
+          value={settings.takeProfit}
+          onChange={(v) => updateSetting("takeProfit", Number(v) || 0)}
+          typeValue={settings.takeProfitType}
+          onTypeChange={(v) => updateSetting("takeProfitType", v)}
+          color="orange"
+        />
+        <div className="flex items-center justify-between mt-2">
+          <span className="text-xs text-gray-400">Max Positions</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => updateSetting("maxPositions", Math.max(1, settings.maxPositions - 1))}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 text-sm transition-all duration-200 hover:bg-white/10 active:scale-95 cursor-pointer"
+              style={{ background: "rgba(255,255,255,0.05)" }}
+            >
+              -
+            </button>
+            <span className="text-sm font-medium text-white w-6 text-center">{settings.maxPositions}</span>
+            <button
+              onClick={() => updateSetting("maxPositions", settings.maxPositions + 1)}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 text-sm transition-all duration-200 hover:bg-white/10 active:scale-95 cursor-pointer"
+              style={{ background: "rgba(255,255,255,0.05)" }}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* Execution Section */}
+      <SectionCard icon={Zap} title="Execution" color="purple">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-500">Order Type</span>
+          <div className="flex gap-1">
+            {[
+              { value: OrderStyleEnum.market, label: "market" },
+              { value: OrderStyleEnum.limit, label: "limit" },
+            ].map((type) => (
+              <button
+                key={type.value}
+                onClick={() => updateSetting("orderStyle", type.value)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 capitalize hover:scale-105 active:scale-95 cursor-pointer"
+                style={
+                  settings.orderStyle === type.value
+                    ? { background: "rgba(168,85,247,0.15)", color: "rgba(168,85,247,1)", border: "1px solid rgba(168,85,247,0.4)" }
+                    : { background: "transparent", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.1)" }
+                }
+              >
+                {type.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center gap-2">
+            <Bell size={12} className="text-gray-500" />
+            <span className="text-xs text-gray-400">Notifications</span>
+          </div>
+          <Toggle enabled={settings.notifications} onToggle={() => updateSetting("notifications", !settings.notifications)} />
+        </div>
+      </SectionCard>
+
+      {/* Summary */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between">
+          <p className="text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
+            {settings.tradeSizeType === "USD" ? `$${settings.tradeSize}` : `${settings.tradeSize}%`} per trade · {settings.leverage}x {settings.leverageType}
+            {!summaryExpanded && (
+              <button
+                onClick={() => setSummaryExpanded(true)}
+                className="ml-1 hover:opacity-80 transition-opacity cursor-pointer"
+                style={{ color: "rgba(45,212,191,0.5)" }}
+              >
+                ...more
+              </button>
+            )}
+          </p>
+          {summaryExpanded && (
+            <button
+              onClick={() => setSummaryExpanded(false)}
+              className="text-xs hover:opacity-80 transition-opacity cursor-pointer"
+              style={{ color: "rgba(255,255,255,0.45)" }}
+            >
+              close
+            </button>
+          )}
+        </div>
+
+        {/* Expanded view */}
+        <div
+          className={`overflow-hidden transition-all duration-300 ease-out ${
+            summaryExpanded ? "max-h-[500px] opacity-100 mt-3 pt-3" : "max-h-0 opacity-0"
+          }`}
+          style={summaryExpanded ? { borderTop: "1px solid rgba(255,255,255,0.06)" } : {}}
+        >
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Trade Size</span>
+              <span className="text-gray-300">
+                {settings.tradeSizeType === "USD" ? `$${settings.tradeSize}` : `${settings.tradeSize}%`} of your balance per copied trade
+              </span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Leverage</span>
+              <span className="text-gray-300">
+                {settings.leverage}x {settings.leverageType} — position size multiplied by {settings.leverage}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Stop Loss</span>
+              <span style={{ color: "rgba(251,146,60,0.8)" }}>
+                Auto-closes if loss reaches {settings.cutLossType === "USD" ? `$${settings.cutLoss}` : `${settings.cutLoss}%`}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Take Profit</span>
+              <span style={{ color: "rgba(74,222,128,0.8)" }}>
+                Auto-closes if profit reaches {settings.takeProfitType === "USD" ? `$${settings.takeProfit}` : `${settings.takeProfit}%`}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Order Type</span>
+              <span className="text-gray-300">
+                {settings.orderStyle === OrderStyleEnum.market ? "Market — executes immediately" : "Limit — executes at specified price"}
+              </span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Max Positions</span>
+              <span className="text-gray-300">Up to {settings.maxPositions} trades open at once</span>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Buttons */}
+      <BottomButtons onCancel={handleCancel} onSave={handleSave} onReset={handleReset} hasChanges={hasChanges} />
     </div>
   );
 }

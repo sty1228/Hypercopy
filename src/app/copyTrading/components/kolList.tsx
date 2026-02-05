@@ -10,23 +10,16 @@ export default function KolList({
   dataList: LeaderboardItem[];
   onClick: (item: LeaderboardItem) => void;
 }) {
-  const handleClick = (item: LeaderboardItem) => {
-    onClick(item);
-  };
-
   return (
-    <div>
-      {dataList.map((item: LeaderboardItem) => {
-        return (
-          <KolItem
-            key={item.x_handle}
-            data={item}
-            onClick={() => {
-              handleClick(item);
-            }}
-          />
-        );
-      })}
+    <div className="space-y-2">
+      {dataList.map((item: LeaderboardItem, index: number) => (
+        <KolItem
+          key={item.x_handle}
+          data={item}
+          index={index}
+          onClick={() => onClick(item)}
+        />
+      ))}
     </div>
   );
 }

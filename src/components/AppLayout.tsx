@@ -7,7 +7,6 @@ import { useContext, useEffect, useRef } from "react";
 import Onboarding from "@/app/onboarding/page";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { usePathname } from "next/navigation";
-import Script from "next/script";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { authenticated, logout, ready } = usePrivy();
@@ -19,18 +18,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isOnboardingPage = pathname === "/onboarding";
 
   useEffect(() => {
-    // 清除之前的定时器
     if (logoutTimeoutRef.current) {
       clearTimeout(logoutTimeoutRef.current);
       logoutTimeoutRef.current = null;
     }
 
-    // 只有在 Privy 和钱包都准备好之后才检查
-    // 给 embedded wallet 创建一些时间（最多等待 5 秒）
     if (ready && walletsReady && authenticated && !currentWallet?.address) {
       logoutTimeoutRef.current = setTimeout(() => {
-        // 5 秒后如果还是没有钱包地址，才执行 logout
-        // 这通常发生在用户直接在钱包中断开连接的情况
         if (authenticated && !currentWallet?.address) {
           logout();
         }
@@ -48,22 +42,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <>
       <main
         className="flex-1 w-full"
-        style={{ paddingBottom: isOnboardingPage ? "0" : "62px" }}
+        style={{ paddingBottom: isOnboardingPage ? "0" : "80px" }}
       >
         {children}
       </main>
       {!isOnboardingPage && <Navbar />}
     </>
-  );
-
-  return tradingEnabled && authenticated && builderFeeApproved ? (
-    <>
-      <main className="flex-1 w-full" style={{ paddingBottom: "62px" }}>
-        {children}
-      </main>
-      <Navbar />
-    </>
-  ) : (
-    <Onboarding />
   );
 }

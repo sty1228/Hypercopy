@@ -1,19 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import * as SheetPrimitive from "@radix-ui/react-dialog";
-import Avatar from "./avatar";
-import { XIcon } from "lucide-react";
-import wifiIcon from "@/assets/icons/wifi.png";
-import Image from "next/image";
-import SignalItem from "./signalItem";
 import { LeaderboardItem, UserSignalResponse, userSignals } from "@/service";
+import BigNumber from "bignumber.js";
+import SignalItem from "./signalItem";
 
 export default function KolDetailSheet({
   data,
@@ -24,11 +14,8 @@ export default function KolDetailSheet({
   isOpen: boolean;
   handleClose: () => void;
 }) {
-  const [userSignalsData, setUserSignalsData] =
-    useState<UserSignalResponse | null>(null);
-  const [currentClickItemId, setCurrentClickItemId] = useState<number | null>(
-    null
-  );
+  const [userSignalsData, setUserSignalsData] = useState<UserSignalResponse | null>(null);
+  const [currentClickItemId, setCurrentClickItemId] = useState<number | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -36,7 +23,8 @@ export default function KolDetailSheet({
     } else {
       setTimeout(() => {
         setUserSignalsData(null);
-      }, 300);
+        setCurrentClickItemId(null);
+      }, 500);
     }
   }, [isOpen]);
 
@@ -45,72 +33,162 @@ export default function KolDetailSheet({
     setUserSignalsData(response);
   };
 
+  const profit = data?.results_pct || 0;
+  const isPositive = profit >= 0;
+
+  if (!data) return null;
+
   return (
-    data && (
-      <Sheet open={isOpen} onOpenChange={handleClose}>
-        <SheetContent
-          side="bottom"
-          className="rounded-t-[20px] px-5 py-8 gap-0 overflow-y-auto"
-          style={{
-            borderTop: "none",
-            background: "linear-gradient(0deg, #172A30, #0E1A1E)",
-            height: "92%",
-          }}
-          showCloseButton={false}
-        >
-          <SheetHeader className="px-0 py-0">
-            <SheetTitle className="text-[22px] font-semibold text-white flex items-center justify-between">
-              <span>Signals</span>
-              <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
-                <span className="animate-pulse">
-                  <XIcon className="size-4" />
-                </span>
-                <span className="sr-only">Close</span>
-              </SheetPrimitive.Close>
-            </SheetTitle>
-          </SheetHeader>
-          <div className="mt-5 flex items-center justify-between">
-            <div className="flex">
-              <Avatar
-                name={data.x_handle[0].toUpperCase()}
-                backgroundColor={data.avatarColor!}
-                size={36}
-              />
-              <div className="flex flex-col ml-3">
-                <span className="text-base font-medium">{data.x_handle}</span>
-                <span
-                  className="text-xs font-normal"
-                  style={{ color: "rgba(165, 176, 176, 1)" }}
-                >
-                  @{data.x_handle}
-                </span>
+    <>
+      {/* Backdrop */}
+      <div
+        className={`absolute inset-0 z-40 transition-opacity duration-500 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        style={{ background: "rgba(0,0,0,0.5)" }}
+        onClick={handleClose}
+      />
+
+      {/* Sheet - 从右边滑入 */}
+      <div
+        className={`absolute inset-0 z-50 transition-transform duration-500 ease-out ${isOpen ? "translate-x-0" : "translate-x-full"}`}
+        style={{
+          background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)",
+        }}
+      >
+        {/* Ambient glow - 和主页面一样 */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-20 left-1/3 w-[300px] h-[300px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.08) 0%, transparent 60%)", filter: "blur(60px)" }} />
+          <div className="absolute bottom-1/3 -right-20 w-[200px] h-[200px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)", filter: "blur(40px)" }} />
+        </div>
+
+        {/* Content */}
+        <div className="relative z-10 h-full overflow-y-auto">
+          {/* Header */}
+          <div className="mt-4 mb-3 flex items-center justify-between px-4">
+            <button
+              onClick={handleClose}
+              className="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+              }}
+            >
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <span className="text-base font-semibold text-white">{data.x_handle}</span>
+            <div className="w-10" />
+          </div>
+
+          {/* Profile Card */}
+          <div className="px-4">
+            <div
+              className="rounded-2xl p-4 mb-4 relative overflow-hidden"
+              style={{
+                background: "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.01) 100%)",
+                border: "1px solid rgba(45,212,191,0.2)",
+                boxShadow: "0 0 30px rgba(45,212,191,0.1), inset 0 0 40px rgba(45,212,191,0.03)",
+              }}
+            >
+              {/* Green glow effect */}
+              <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15) 0%, transparent 60%)" }} />
+
+              <div className="relative">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl text-white"
+                      style={{ background: data.avatarColor || "linear-gradient(135deg, #06b6d4, #3b82f6)" }}
+                    >
+                      {data.x_handle?.[0]?.toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-white font-semibold">{data.x_handle}</div>
+                      <div className="text-gray-500 text-xs">@{data.x_handle}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`text-lg font-bold ${isPositive ? "text-teal-400" : "text-rose-400"}`} style={{ textShadow: isPositive ? "0 0 10px rgba(45,212,191,0.3)" : "0 0 10px rgba(251,113,133,0.3)" }}>
+                      {isPositive ? "+" : ""}{new BigNumber(profit).decimalPlaces(2).toNumber()}%
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <div className="text-center py-3 rounded-xl" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div className={`text-sm font-bold ${isPositive ? "text-teal-400" : "text-rose-400"}`}>
+                      {isPositive ? "+" : ""}{new BigNumber(profit).decimalPlaces(2).toNumber()}%
+                    </div>
+                    <div className="text-[10px] text-gray-500 uppercase mt-1">Result</div>
+                  </div>
+                  <div className="text-center py-3 rounded-xl" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div className="text-sm font-bold text-white">🔥{data.streak || 0}</div>
+                    <div className="text-[10px] text-gray-500 uppercase mt-1">Streak</div>
+                  </div>
+                  <div className="text-center py-3 rounded-xl" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div
+                      className="text-sm font-bold"
+                      style={{
+                        background: "linear-gradient(135deg, #ffd700 0%, #ffec8b 25%, #ffd700 50%, #daa520 75%, #ffd700 100%)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                      }}
+                    >
+                      {data.profit_grade || "-"}
+                    </div>
+                    <div className="text-[10px] text-gray-500 uppercase mt-1">Grade</div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                    style={{ background: "rgba(244,63,94,0.12)", border: "1px solid rgba(244,63,94,0.25)" }}
+                  >
+                    <span className="text-rose-400">Counter All</span>
+                  </button>
+                  <button
+                    className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                    style={{ background: "rgba(45,212,191,0.12)", border: "1px solid rgba(45,212,191,0.25)" }}
+                  >
+                    <span className="text-teal-400">Copy All</span>
+                  </button>
+                </div>
               </div>
             </div>
-            {userSignalsData?.tweetsCount && (
-              <div className="flex items-center">
-                <span className="animate-bounce">
-                  <Image src={wifiIcon} alt="wifi" width={20} height={20} />
-                </span>
-                <span className="ml-2 text-[22px] font-normal">
-                  {userSignalsData?.tweetsCount || "-"}
-                </span>
-              </div>
-            )}
           </div>
-          <div className="mt-3">
-            {userSignalsData?.signals.map((signal) => (
+
+          {/* Signals Header */}
+          <div className="px-4 mb-3 flex items-center gap-2">
+            <svg className="w-4 h-4 text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+              <path d="M12 20v-8" />
+              <circle cx="12" cy="9" r="3" fill="currentColor" stroke="none" />
+              <path d="M8.5 8.5a5 5 0 0 1 7 0" />
+              <path d="M6 6a8 8 0 0 1 12 0" />
+              <path d="M3.5 3.5a11 11 0 0 1 17 0" />
+            </svg>
+            <span className="text-white text-sm font-semibold">Signals</span>
+            <span className="text-gray-500 text-xs">({userSignalsData?.tweetsCount || 0})</span>
+          </div>
+
+          {/* Signals List */}
+          <div className="px-4 space-y-4 pb-24">
+            {userSignalsData?.signals.map((signal, index) => (
               <SignalItem
                 key={signal.signal_id}
                 data={signal}
+                index={index}
                 currentClickItemId={currentClickItemId}
-                onClick={() => {
-                  setCurrentClickItemId(signal.signal_id);
-                }}
+                onClick={() => setCurrentClickItemId(
+                  currentClickItemId === signal.signal_id ? null : signal.signal_id
+                )}
               />
             ))}
           </div>
-        </SheetContent>
-      </Sheet>
-    )
+        </div>
+      </div>
+    </>
   );
 }

@@ -1,14 +1,6 @@
 "use client";
 
-import colors from "@/const/colors";
-import { TabEnum } from "../page";
-
-const activeTabStyle = {
-  background: "rgba(80, 210, 193, 1)",
-  color: colors.primary,
-  borderRadius: "16px",
-  fontWeight: "500",
-};
+import { TabEnum } from "../types";
 
 export default function Tab({
   handleSwitchTab,
@@ -17,39 +9,43 @@ export default function Tab({
   handleSwitchTab: (tab: TabEnum) => void;
   activeTab: TabEnum;
 }) {
-  const handleClickTab = (tab: TabEnum) => {
-    handleSwitchTab(tab);
-  };
-
   return (
     <div
-      className="flex border rounded-[16px] h-[52px] overflow-hidden items-center"
+      className="rounded-2xl p-1 flex relative"
       style={{
-        borderColor: "rgba(80, 210, 193, 1)",
+        background: "rgba(255,255,255,0.03)",
+        border: "1px solid rgba(255,255,255,0.06)",
       }}
     >
-      <span
-        className="flex-1 flex h-[52px] justify-center items-center font-light text-base"
-        style={
-          activeTab === TabEnum.follow
-            ? activeTabStyle
-            : { color: "rgba(255, 255, 255, 0.4)" }
-        }
-        onClick={() => handleClickTab(TabEnum.follow)}
+      {/* Sliding background indicator */}
+      <div
+        className="absolute top-1 bottom-1 rounded-xl transition-all duration-300 ease-out"
+        style={{
+          width: "calc(50% - 4px)",
+          left: activeTab === TabEnum.follow ? "4px" : "calc(50% + 0px)",
+          background: "rgba(45,212,191,1)",
+          boxShadow: "0 0 20px rgba(45,212,191,0.4)",
+        }}
+      />
+
+      <button
+        className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 relative z-10 active:scale-95 cursor-pointer"
+        style={{
+          color: activeTab === TabEnum.follow ? "#0a0f14" : "rgba(255,255,255,0.4)",
+        }}
+        onClick={() => handleSwitchTab(TabEnum.follow)}
       >
         Default Follow
-      </span>
-      <span
-        className="flex-1 flex h-[52px] justify-center items-center font-light text-base"
-        style={
-          activeTab === TabEnum.trader
-            ? activeTabStyle
-            : { color: "rgba(255, 255, 255, 0.4)" }
-        }
-        onClick={() => handleClickTab(TabEnum.trader)}
+      </button>
+      <button
+        className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 relative z-10 active:scale-95 cursor-pointer"
+        style={{
+          color: activeTab === TabEnum.trader ? "#0a0f14" : "rgba(255,255,255,0.4)",
+        }}
+        onClick={() => handleSwitchTab(TabEnum.trader)}
       >
         Specific Traders
-      </span>
+      </button>
     </div>
   );
 }

@@ -1,206 +1,180 @@
 "use client";
 
-import Image from "next/image";
-import clockIcon from "@/assets/icons/clock.png";
-import XIcon from "@/assets/icons/X.png";
-import Avatar from "./avatar";
 import { LeaderboardItem } from "@/service";
+import { useRouter } from "next/navigation";
 import BigNumber from "bignumber.js";
-import { useState } from "react";
 
-// 随机生成一个颜色
 export const randomColor = () => {
-  return `rgba(${Math.floor(Math.random() * 256)}, ${Math.floor(
-    Math.random() * 256
-  )}, ${Math.floor(Math.random() * 256)}, 1)`;
-};
-
-// 随机生成一个字母
-export const randomLetter = () => {
-  return String.fromCharCode(Math.floor(Math.random() * 26) + 65);
-};
-
-// 随机生成人名
-export const randomName = () => {
-  return `${randomLetter()}${randomLetter()}${randomLetter()}`;
-};
-
-// 随机生成整数
-export const randomNumber = () => {
-  return Math.floor(Math.random() * 100);
+  const colors = [
+    "linear-gradient(135deg, #06b6d4, #3b82f6)",
+    "linear-gradient(135deg, #10b981, #14b8a6)",
+    "linear-gradient(135deg, #a855f7, #ec4899)",
+    "linear-gradient(135deg, #f59e0b, #f97316)",
+    "linear-gradient(135deg, #f43f5e, #ef4444)",
+    "linear-gradient(135deg, #6366f1, #8b5cf6)",
+  ];
+  return colors[Math.floor(Math.random() * colors.length)];
 };
 
 export default function KolItem({
   data,
   onClick,
+  index = 0,
 }: {
   data: LeaderboardItem;
   onClick: () => void;
+  index?: number;
 }) {
-  const [itemHoverStyle, setItemHoverStyle] = useState({});
+  const router = useRouter();
+  const rank = data.rank || index + 1;
+  const profit = data.results_pct || 0;
+  const isPositive = profit >= 0;
+
+  const getRankStyle = () => {
+    if (rank === 1) return { bg: "linear-gradient(135deg, #ffd700 0%, #ffa500 100%)", shadow: "0 0 12px rgba(255,215,0,0.6)", animation: "pulseGold 2s ease-in-out infinite", border: "2px solid #ffd700" };
+    if (rank === 2) return { bg: "linear-gradient(135deg, #e8e8e8 0%, #a8a8a8 100%)", shadow: "0 0 10px rgba(192,192,192,0.5)", animation: "pulseSilver 2s ease-in-out infinite", border: "2px solid #c0c0c0" };
+    if (rank === 3) return { bg: "linear-gradient(135deg, #cd7f32 0%, #a0522d 100%)", shadow: "0 0 10px rgba(205,127,50,0.5)", animation: "pulseBronze 2s ease-in-out infinite", border: "2px solid #cd7f32" };
+    return { bg: "rgba(255,255,255,0.05)", shadow: "none", animation: "none", border: "1px solid rgba(255,255,255,0.1)" };
+  };
+
+  const rankStyle = getRankStyle();
+
+  const handleProfileClick = () => {
+    router.push(`/profile?handle=${data.x_handle}`);
+  };
+
+  const handleSignalsClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClick();
+  };
 
   return (
     <div
-      className="p-4 mb-3 rounded-[20px]"
+      onClick={handleProfileClick}
+      className="relative rounded-2xl p-3 mb-2 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:-translate-y-1"
       style={{
-        background:
-          "linear-gradient(0deg, #172A30, #172A30), radial-gradient(35.55% 130.12% at 4.53% 7.41%, rgba(43, 234, 223, 0.5) 0%, rgba(23, 42, 48, 0) 100%)",
-
-        ...itemHoverStyle,
+        background: "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.01) 100%)",
+        border: "1px solid rgba(45,212,191,0.2)",
+        boxShadow: "0 0 30px rgba(45,212,191,0.1), inset 0 0 40px rgba(45,212,191,0.03)",
+        animation: `fadeInUp 0.5s ease-out ${index * 0.1}s both`,
       }}
-      onClick={onClick}
-      onMouseEnter={() =>
-        setItemHoverStyle({
-          border: "1px solid rgba(43, 234, 223, 1)",
-        })
-      }
-      onMouseLeave={() =>
-        setItemHoverStyle({
-          border: "none",
-        })
-      }
     >
-      {/* account info */}
-      <div className="flex justify-between">
-        <div className="flex items-center">
-          {/* avatar */}
-          <Avatar
-            name={data.x_handle[0].toUpperCase()}
-            backgroundColor={data.avatarColor!}
-            size={28}
-          />
-          {/* user name & publish time */}
-          <div className="flex flex-col ml-2">
-            <div className="font-medium text-base">{data.x_handle}</div>
-            <div className="flex items-center">
-              <span
-                className="text-xs font-normal"
-                style={{ color: "rgba(165, 176, 176, 1)" }}
-              >
-                @{data.x_handle}
-              </span>
-              <span>
-                <Image
-                  src={clockIcon}
-                  alt="clock"
-                  width={14}
-                  height={14}
-                  className="ml-2"
-                />
-              </span>
-              <span
-                className="font-light text-xs ml-1"
-                style={{ color: "rgba(165, 176, 176, 1)" }}
-              >
-                {data.how_long_ago}
-              </span>
+      {/* Green glow effect */}
+      <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15) 0%, transparent 60%)" }} />
+
+      <div className="relative">
+        {/* Top Row */}
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center gap-2.5">
+            {/* Rank Badge */}
+            <div
+              className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold"
+              style={{ background: rankStyle.bg, boxShadow: rankStyle.shadow, color: rank <= 3 ? "#000" : "#6b7280", border: rank <= 3 ? "none" : rankStyle.border }}
+            >
+              {rank}
+            </div>
+
+            {/* Avatar */}
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm text-white"
+              style={{ background: data.avatarColor || "linear-gradient(135deg, #06b6d4, #3b82f6)", border: rank <= 3 ? rankStyle.border : "none", animation: rank <= 3 ? rankStyle.animation : "none" }}
+            >
+              {data.x_handle?.[0]?.toUpperCase() || "?"}
+            </div>
+
+            {/* Name & Badges */}
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-white text-sm font-medium">{data.x_handle}</span>
+                {data.streak && (data.streak as number) > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 font-bold" style={{ background: "rgba(251,146,60,0.18)", border: "1px solid rgba(251,146,60,0.3)", color: "#fb923c" }}>
+                    🔥{data.streak}
+                  </span>
+                )}
+                {data.profit_grade && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(45,212,191,0.18)", border: "1px solid rgba(45,212,191,0.3)", color: "#2dd4bf" }}>
+                    {data.profit_grade}
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] text-gray-500">@{data.x_handle}</div>
+            </div>
+          </div>
+
+          {/* Profit */}
+          <div className="text-right">
+            <div className={`text-sm font-bold ${isPositive ? "text-teal-400" : "text-rose-400"}`} style={{ textShadow: isPositive ? "0 0 10px rgba(45,212,191,0.3)" : "0 0 10px rgba(251,113,133,0.3)" }}>
+              {isPositive ? "+" : ""}${Math.abs(profit * 1000).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
         </div>
-        {/* X rank */}
-        <div
-          className="flex px-3 py-1 rounded-[10px] h-[30px] items-center"
-          style={{ backgroundColor: "rgba(77, 112, 123, 1)" }}
-        >
-          <span
-            style={{
-              backgroundImage: "linear-gradient(45deg, #FFFFFF, #2BEADF)",
-              backgroundClip: "text",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              color: "transparent",
-            }}
-          >
-            {data.total_tweets}
-          </span>
-          <span className="ml-2">
-            <Image src={XIcon} alt="X" width={10} height={10} />
-          </span>
-        </div>
-      </div>
 
-      {/* account data */}
-      <div className="flex justify-between mt-4">
-        <div className="flex flex-col w-[30px]">
-          <span
-            className="text-xs font-normal"
-            style={{ color: "rgba(165, 176, 176, 1)" }}
-          >
-            Rank
-          </span>
-          <span className="font-medium text-base">
-            {(data?.rank as number) || "-"}
-          </span>
-        </div>
-
-        <div className="flex flex-col w-[70px]">
-          <span
-            className="text-xs font-normal"
-            style={{ color: "rgba(165, 176, 176, 1)" }}
-          >
-            Points
-          </span>
-          <span className="font-medium text-base overflow-hidden text-ellipsis whitespace-nowrap">
-            {data?.points
-              ? new BigNumber(data?.points as number)
-                  .decimalPlaces(2, BigNumber.ROUND_DOWN)
-                  .toNumber()
-              : "-"}
-          </span>
-        </div>
-
-        <div className="flex flex-col w-[80px]">
-          <span
-            className="text-xs font-normal"
-            style={{ color: "rgba(165, 176, 176, 1)" }}
-          >
-            Result
-          </span>
-          <span
-            className="font-medium text-base"
-            style={{
-              backgroundImage: "linear-gradient(45deg, #FFFFFF, #26D39F)",
-              backgroundClip: "text",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              color: "transparent",
-            }}
-          >
-            {data?.results_pct
-              ? `${new BigNumber(data?.results_pct as number)
-                  .decimalPlaces(2, BigNumber.ROUND_DOWN)
-                  .toNumber()}%`
-              : "-"}
-          </span>
-        </div>
-
-        <div className="flex flex-col">
-          <span
-            className="text-xs font-normal"
-            style={{ color: "rgba(165, 176, 176, 1)" }}
-          >
-            Streak
-          </span>
-          <div>
-            <span className="font-medium text-base">
-              {(data?.streak as number) || "-"}
-            </span>
-            {(data?.streak as number) > 0 ? (
-              <span className="ml-1">🔥</span>
-            ) : null}
+        {/* Stats Row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div>
+              <div className="text-[9px] text-gray-500 uppercase tracking-wide">Last Tweet</div>
+              <div className="text-[11px] text-gray-300 font-medium">{data.how_long_ago || "-"}</div>
+            </div>
+            <div>
+              <div className="text-[9px] text-gray-500 uppercase tracking-wide">Points</div>
+              <div className="text-[11px] text-white font-semibold">{data.points ? new BigNumber(data.points).decimalPlaces(0).toNumber() : "-"}</div>
+            </div>
+            <div>
+              <div className="text-[9px] text-gray-500 uppercase tracking-wide">Avg Return</div>
+              <div className="text-[11px] text-teal-400 font-medium">{data.avg_return ? `+${new BigNumber(data.avg_return as number).decimalPlaces(1).toNumber()}%` : "-"}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <div className="text-[9px] text-gray-500 uppercase tracking-wide">Result</div>
+              <div className={`text-[11px] font-semibold ${isPositive ? "text-teal-400" : "text-rose-400"}`}>
+                {isPositive ? "+" : ""}{new BigNumber(profit).decimalPlaces(1).toNumber()}%
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[9px] text-gray-500 uppercase tracking-wide">Copiers</div>
+              <div className="text-[11px] text-white font-medium">{data.copiers || "-"}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[9px] text-gray-500 uppercase tracking-wide">Win Rate</div>
+              <div className="text-[11px] text-white font-medium">{data.win_rate ? `${new BigNumber(data.win_rate).decimalPlaces(1).toNumber()}%` : "-"}</div>
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-col">
-          <span
-            className="text-xs font-normal"
-            style={{ color: "rgba(165, 176, 176, 1)" }}
-          >
-            Grade
+        {/* Footer: signals count + Profile / Signals links */}
+        <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between">
+          <span className="text-[10px] text-gray-500 flex items-center gap-1">
+            <span className="text-teal-400">↑</span>
+            {data.total_signals || data.total_tweets || 0} signals
           </span>
-          <span className="font-medium text-base">
-            {(data?.profit_grade as string) || "-"}
-          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => { e.stopPropagation(); handleProfileClick(); }}
+              className="text-[10px] px-2.5 py-1 rounded-lg font-medium transition-all hover:bg-white/10 flex items-center gap-1 cursor-pointer"
+              style={{ color: "rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              Profile
+            </button>
+            <button
+              onClick={handleSignalsClick}
+              className="text-[10px] px-2.5 py-1 rounded-lg font-medium transition-all hover:bg-teal-400/20 flex items-center gap-1 cursor-pointer"
+              style={{ color: "rgba(45,212,191,0.9)", background: "rgba(45,212,191,0.08)", border: "1px solid rgba(45,212,191,0.2)" }}
+            >
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+              Signals
+              <svg className="w-2.5 h-2.5 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>

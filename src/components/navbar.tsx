@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useContext } from "react";
+import { useContext } from "react";
 import { usePrivy } from "@privy-io/react-auth";
-import colors from "@/const/colors";
 import Image from "next/image";
 import homeIcon from "@/assets/icons/home.png";
 import homeActiveIcon from "@/assets/icons/home-active.png";
@@ -20,36 +19,25 @@ import { MAX_WIDTH } from "@/app/layout";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import { toast } from "sonner";
 
+const navItems = [
+  { href: "/dashboard", label: "Home", icon: homeIcon, activeIcon: homeActiveIcon },
+  { href: "/copyTrading", label: "Copy", icon: copyTradingIcon, activeIcon: copyTradingActiveIcon },
+  { href: "/profile", label: "Profile", icon: portfolioIcon, activeIcon: portfolioActiveIcon },
+  { href: "/notification", label: "Alerts", icon: notificationIcon, activeIcon: notificationActiveIcon },
+  { href: "/settings", label: "Settings", icon: settingsIcon, activeIcon: settingsActiveIcon },
+];
+
 const Navbar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { authenticated } = usePrivy();
-  const { tradingEnabled, builderFeeApproved } = useContext(HyperLiquidContext);
 
-  useEffect(() => {
-    console.log(pathname);
-  }, [pathname]);
-
-  const handleLinkClick = (
-    e: React.MouseEvent<HTMLAnchorElement>,
-    href: string
-  ) => {
-    // /copyTrading 不需要校验，直接跳转
-    if (href === "/copyTrading") {
-      return;
-    }
-
-    // 其他路由需要校验
-    if (authenticated) {
-      return;
-    }
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (href === "/copyTrading") return;
+    if (authenticated) return;
     e.preventDefault();
     toast.warning("Please login to visit more page");
-    // 方式1: 直接在 URL 中添加查询参数
     router.push(`/onboarding?from=${encodeURIComponent(href)}`);
-    // 方式2: 使用 URLSearchParams（适合多个参数）
-    // const params = new URLSearchParams({ from: href });
-    // router.push(`/onboarding?${params.toString()}`);
   };
 
   return (
@@ -57,84 +45,64 @@ const Navbar = () => {
       className="w-full"
       style={{
         position: "fixed",
-        bottom: "0",
-        height: "62px",
-        padding: "0 42px",
-        zIndex: 9,
-        backgroundColor: colors.primary,
+        bottom: 0,
+        left: "50%",
+        transform: "translateX(-50%)",
+        height: "70px",
+        zIndex: 9999,
         maxWidth: MAX_WIDTH,
+        background: "linear-gradient(180deg, rgba(10,15,20,0.95) 0%, rgba(10,15,20,0.98) 100%)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        borderTop: "1px solid rgba(255,255,255,0.08)",
+        boxShadow: "0 -4px 30px rgba(0,0,0,0.3)",
       }}
     >
-      <ul className="h-full flex justify-between items-center">
-        <li>
-          <Link
-            href="/dashboard"
-            onClick={(e) => handleLinkClick(e, "/dashboard")}
-          >
-            <Image
-              src={pathname === "/dashboard" ? homeActiveIcon : homeIcon}
-              alt="dashboard"
-              width={22}
-              height={22}
-            />
-          </Link>
-        </li>
-        <li>
-          <Link href="/copyTrading">
-            <Image
-              src={
-                pathname === "/copyTrading"
-                  ? copyTradingActiveIcon
-                  : copyTradingIcon
-              }
-              alt="copy-trading"
-              width={22}
-              height={22}
-            />
-          </Link>
-        </li>
-        <li>
-          <Link href="/profile" onClick={(e) => handleLinkClick(e, "/profile")}>
-            <Image
-              src={
-                pathname === "/profile" ? portfolioActiveIcon : portfolioIcon
-              }
-              alt="profile"
-              width={22}
-              height={22}
-            />
-          </Link>
-        </li>
-        <li>
-          <Link
-            href="/notification"
-            onClick={(e) => handleLinkClick(e, "/notification")}
-          >
-            <Image
-              src={
-                pathname === "/notification"
-                  ? notificationActiveIcon
-                  : notificationIcon
-              }
-              alt="notification"
-              width={22}
-              height={22}
-            />
-          </Link>
-        </li>
-        <li>
-          <Link
-            href="/settings"
-            onClick={(e) => handleLinkClick(e, "/settings")}
-          >
-            <Image
-              src={pathname === "/settings" ? settingsActiveIcon : settingsIcon}
-              alt="settings"
-              width={22}
-              height={22}
-            />
-          </Link>
-        </li>
+      <ul className="h-full flex justify-around items-center px-2">
+        {navItems.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                onClick={(e) => handleLinkClick(e, item.href)}
+                className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 cursor-pointer"
+                style={{
+                  background: isActive ? "rgba(45,212,191,0.1)" : "transparent",
+                }}
+              >
+                <div
+                  className="relative transition-transform duration-200"
+                  style={{ transform: isActive ? "scale(1.1)" : "scale(1)" }}
+                >
+                  <Image
+                    src={isActive ? item.activeIcon : item.icon}
+                    alt={item.label}
+                    width={22}
+                    height={22}
+                  />
+                  {isActive && (
+                    <div
+                      className="absolute -inset-1 rounded-full -z-10"
+                      style={{
+                        background: "radial-gradient(circle, rgba(45,212,191,0.3) 0%, transparent 70%)",
+                        filter: "blur(4px)",
+                      }}
+                    />
+                  )}
+                </div>
+                <span
+                  className="text-[10px] font-medium transition-colors duration-200"
+                  style={{
+                    color: isActive ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.4)",
+                  }}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );

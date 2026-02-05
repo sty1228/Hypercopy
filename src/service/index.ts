@@ -1,20 +1,26 @@
 import { get, put } from "@/lib/axios";
 
 export interface LeaderboardItem {
+  x_handle: string;
   bull_or_bear: string;
-  copy_button: boolean;
-  counter_button: boolean;
+  win_rate: number;
+  total_tweets: number;
+  signal_to_noise: number;
+  results_pct: number;
+  ticker: string;
   direction: string;
   how_long_ago: string;
-  results_pct: number;
-  signal_to_noise: number;
-  ticker: string;
-  total_tweets: number;
   tweet_performance: number;
-  win_rate: number;
-  x_handle: string;
+  copy_button: boolean;
+  counter_button: boolean;
+  profit_grade: string;
+  points: number;
+  streak: number;
+  rank: number;
   avatarColor?: string;
-  [key: string]: unknown;
+  total_signals?: number;
+  avg_return?: number;
+  copiers?: number;
 }
 
 export const leaderboard = async () => {
@@ -47,9 +53,7 @@ export interface UserSignalResponse {
   signals: UserSignalItem[];
 }
 
-export const userSignals = async (
-  x_handle: string
-): Promise<UserSignalResponse> => {
+export const userSignals = async (x_handle: string): Promise<UserSignalResponse> => {
   return await get(`/api/user/${x_handle}/signals`);
 };
 
@@ -101,9 +105,7 @@ export interface TradersCopyingItem {
   pnlValue: number;
 }
 
-export const getProfileTradersCopyingList = async (): Promise<
-  TradersCopyingItem[]
-> => {
+export const getProfileTradersCopyingList = async (): Promise<TradersCopyingItem[]> => {
   return await get(
     "https://mock.apidog.com/m1/1147892-1140449-default/api/copyingList?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
   );
@@ -127,12 +129,11 @@ export interface DefaultFollowSettings {
   orderType: "market" | "limit";
 }
 
-export const getDefaultFollowSettings =
-  async (): Promise<DefaultFollowSettings> => {
-    return await get(
-      "https://mock.apidog.com/m1/1147892-1140449-default/api/defaultFollowSetting?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
-    );
-  };
+export const getDefaultFollowSettings = async (): Promise<DefaultFollowSettings> => {
+  return await get(
+    "https://mock.apidog.com/m1/1147892-1140449-default/api/defaultFollowSetting?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
+  );
+};
 
 export const updateDefaultFollowSettings = async (
   settings: { address: string } & DefaultFollowSettings
