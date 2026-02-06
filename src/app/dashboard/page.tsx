@@ -296,7 +296,7 @@ const Home = () => {
           <div className="relative flex border-b border-white/10">
             <div className="absolute bottom-0 h-0.5 bg-teal-400 transition-all duration-300 ease-out" style={{ width: "50%", left: activeTab === "followed" ? "0%" : "50%", boxShadow: "0 0 10px rgba(45,212,191,0.5)" }} />
             {[{ key: "followed", label: "Followed" }, { key: "position", label: "Positions" }].map((tab) => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key as "followed" | "position")} className="flex-1 py-3 text-xs font-semibold transition-all duration-300 cursor-pointer" style={{ color: activeTab === tab.key ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.4)" }}>{tab.label}</button>
+              <button key={tab.key} onClick={() => setActiveTab(tab.key as "followed" | "position")} className="flex-1 py-2.5 text-[11px] font-semibold transition-all duration-300 cursor-pointer" style={{ color: activeTab === tab.key ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.4)" }}>{tab.label}</button>
             ))}
           </div>
           <div className="relative overflow-hidden">
@@ -312,12 +312,12 @@ const Home = () => {
                 {followedTraders.map((trader, index) => (
                   <div key={trader.id} className="grid grid-cols-[1fr_70px_80px_40px_30px] gap-2 px-4 py-3 items-center hover:bg-white/5 transition-all duration-200 row-animate" style={{ animationDelay: `${index * 0.05}s` }}>
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ backgroundColor: trader.avatarBg }}>{trader.avatar}</div>
-                      <span className="text-sm text-gray-300">{trader.name}</span>
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: trader.avatarBg }}>{trader.avatar}</div>
+                      <span className="text-xs text-gray-300">{trader.name}</span>
                     </div>
-                    <span className="text-sm text-teal-400 text-right font-medium">+{trader.portfolioPercent}%</span>
-                    <span className="text-sm text-white text-right font-medium">${trader.profit.toLocaleString("en-US", { minimumFractionDigits: 1 })}</span>
-                    <span className="text-sm text-gray-400 text-right">{trader.ta}</span>
+                    <span className="text-xs text-teal-400 text-right font-medium">+{trader.portfolioPercent}%</span>
+                    <span className="text-xs text-white text-right font-medium">${trader.profit.toLocaleString("en-US", { minimumFractionDigits: 1 })}</span>
+                    <span className="text-xs text-gray-400 text-right">{trader.ta}</span>
                     <button className="flex items-center justify-center text-gray-500 hover:text-teal-400 transition-colors cursor-pointer"><Settings size={14} /></button>
                   </div>
                 ))}
@@ -334,23 +334,23 @@ const Home = () => {
                 {currentPositions.map((pos, index) => (
                   <div key={pos.id} className="grid grid-cols-[1fr_80px_90px_70px] gap-2 px-4 py-3 items-center hover:bg-white/5 transition-all duration-200 row-animate" style={{ animationDelay: `${index * 0.05}s` }}>
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
-                        <img src={pos.iconUrl} alt={pos.token} className="w-8 h-8 object-cover" onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentElement!.innerHTML = `<span class="text-xs font-bold text-white">${pos.token[0]}</span>`; }} />
+                      <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
+                        <img src={pos.iconUrl} alt={pos.token} className="w-6 h-6 object-cover" onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentElement!.innerHTML = `<span class="text-xs font-bold text-white">${pos.token[0]}</span>`; }} />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm text-white font-medium">{pos.token}</span>
-                        <span className="text-[10px] text-gray-500">{pos.pair}</span>
+                        <span className="text-xs text-white font-medium">{pos.token}</span>
+                        <span className="text-[9px] text-gray-500">{pos.pair}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm text-white font-medium">${pos.sizeUsd.toLocaleString()}</div>
-                      <div className="text-[10px] text-gray-500">{pos.size} {pos.token}</div>
+                      <div className="text-xs text-white font-medium">${pos.sizeUsd.toLocaleString()}</div>
+                      <div className="text-[9px] text-gray-500">{pos.size} {pos.token}</div>
                     </div>
                     <div className="text-right">
-                      <div className={`text-sm font-medium ${pos.pnl >= 0 ? "text-teal-400" : "text-rose-400"}`}>{pos.pnl >= 0 ? "+" : ""}${Math.abs(pos.pnl).toLocaleString()}</div>
-                      <div className={`text-[10px] ${pos.pnl >= 0 ? "text-teal-400/70" : "text-rose-400/70"}`}>{pos.pnlPercent >= 0 ? "+" : ""}{pos.pnlPercent}%</div>
+                      <div className={`text-xs font-medium ${pos.pnl >= 0 ? "text-teal-400" : "text-rose-400"}`}>{pos.pnl >= 0 ? "+" : ""}${Math.abs(pos.pnl).toLocaleString()}</div>
+                      <div className={`text-[9px] ${pos.pnl >= 0 ? "text-teal-400/70" : "text-rose-400/70"}`}>{pos.pnlPercent >= 0 ? "+" : ""}{pos.pnlPercent}%</div>
                     </div>
-                    <span className="text-sm text-gray-400 text-right">${pos.entry.toLocaleString()}</span>
+                    <span className="text-xs text-gray-400 text-right">${pos.entry.toLocaleString()}</span>
                   </div>
                 ))}
               </div>

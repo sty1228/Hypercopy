@@ -83,7 +83,7 @@ const AnimatedNumber = ({ value, prefix = "", suffix = "", decimals = 0, duratio
 };
 
 /* ── Radar Chart ─────────────────────────────────── */
-const RadarChart = ({ data, size = 170 }: { data: Record<string, number>; size?: number }) => {
+const RadarChart = ({ data, size = 160 }: { data: Record<string, number>; size?: number }) => {
   const [animated, setAnimated] = useState(false);
   const ref = useRef<SVGSVGElement>(null);
   const center = size / 2, radius = size * 0.32, levels = 5;
@@ -132,11 +132,9 @@ const RadarChart = ({ data, size = 170 }: { data: Record<string, number>; size?:
 
   return (
     <div className="relative">
-      {/* Rotating glow behind radar */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ opacity: animated ? 1 : 0, transition: "opacity 0.8s ease 0.3s" }}>
         <div style={{ width: size * 0.7, height: size * 0.7, borderRadius: "50%", background: "conic-gradient(from 0deg, rgba(45,212,191,0.12), transparent, rgba(45,212,191,0.08), transparent, rgba(45,212,191,0.12))", animation: animated ? "radarOrbitGlow 6s linear infinite" : "none", filter: "blur(15px)" }} />
       </div>
-      {/* Pulse rings */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         {[0, 1, 2].map((i) => (
           <div key={i} className="absolute rounded-full" style={{ width: size * 0.5, height: size * 0.5, border: "1px solid rgba(45,212,191,0.15)", opacity: animated ? 1 : 0, animation: animated ? `radarPulseRing 3s ease-out ${i * 1}s infinite` : "none" }} />
@@ -157,41 +155,31 @@ const RadarChart = ({ data, size = 170 }: { data: Record<string, number>; size?:
             <stop offset="100%" stopColor="transparent" />
           </radialGradient>
         </defs>
-        {/* Center glow */}
         <circle cx={center} cy={center} r={radius * 0.3} fill="url(#centerGlow)" style={{ opacity: animated ? 1 : 0, transition: "opacity 1s ease 0.5s" }} />
-        {/* Grid levels */}
         {[...Array(levels)].map((_, li) => {
           const lr = radius * ((li + 1) / levels);
           const points = dims.map((_, i) => { const a = step * i - Math.PI / 2; return `${center + lr * Math.cos(a)},${center + lr * Math.sin(a)}`; }).join(" ");
           return <polygon key={li} points={points} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1" style={{ opacity: animated ? 1 : 0, transition: `opacity 0.4s ease ${0.1 + li * 0.08}s` }} />;
         })}
-        {/* Axis lines */}
         {dims.map((_, i) => { const a = step * i - Math.PI / 2; return <line key={i} x1={center} y1={center} x2={center + radius * Math.cos(a)} y2={center + radius * Math.sin(a)} stroke="rgba(255,255,255,0.05)" strokeWidth="1" style={{ opacity: animated ? 1 : 0, transition: `opacity 0.3s ease ${i * 0.05}s` }} />; })}
-        {/* Data shape - animated expansion */}
         <path d={makePathD(currentPts)} fill="url(#rg)" stroke="rgba(45,212,191,0.9)" strokeWidth="1.5" filter="url(#radarGlow)" style={{ opacity: animated ? 1 : 0, transition: "opacity 0.4s ease 0.2s" }} />
-        {/* Outer glow shape */}
         <path d={makePathD(currentPts)} fill="none" stroke="rgba(45,212,191,0.2)" strokeWidth="6" style={{ opacity: animated ? 1 : 0, transition: "opacity 0.6s ease 0.4s", filter: "blur(4px)" }} />
-        {/* Data points with pulse */}
         {currentPts.map((p, i) => (
           <g key={i}>
             <circle cx={p.x} cy={p.y} r="6" fill="rgba(45,212,191,0.15)" style={{ opacity: animated ? 1 : 0, transition: `opacity 0.4s ease ${0.6 + i * 0.08}s`, animation: animated ? `radarDotPulse 2s ease-in-out ${i * 0.25}s infinite` : "none" }} />
             <circle cx={p.x} cy={p.y} r="3" fill="#2dd4bf" style={{ opacity: animated ? 1 : 0, transition: `opacity 0.3s ease ${0.6 + i * 0.08}s`, filter: "drop-shadow(0 0 6px rgba(45,212,191,0.9))" }} />
           </g>
         ))}
-        {/* Labels */}
         {dims.map((d, i) => {
-          const a = step * i - Math.PI / 2, lr = radius + 24, x = center + lr * Math.cos(a), y = center + lr * Math.sin(a);
+          const a = step * i - Math.PI / 2, lr = radius + 22, x = center + lr * Math.cos(a), y = center + lr * Math.sin(a);
           let anchor: "start" | "middle" | "end" = "middle";
           if (Math.cos(a) > 0.3) anchor = "start"; else if (Math.cos(a) < -0.3) anchor = "end";
-          return <text key={i} x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontSize="8" fill="rgba(255,255,255,0.45)" style={{ opacity: animated ? 1 : 0, transition: `opacity 0.4s ease ${0.3 + i * 0.06}s` }}>{d.label}</text>;
+          return <text key={i} x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontSize="7.5" fill="rgba(255,255,255,0.45)" style={{ opacity: animated ? 1 : 0, transition: `opacity 0.4s ease ${0.3 + i * 0.06}s` }}>{d.label}</text>;
         })}
-        {/* Value labels on points */}
         {animated && pts.map((p, i) => {
-          const a = step * i - Math.PI / 2;
-          const offset = 14;
-          const lx = p.x + offset * Math.cos(a);
-          const ly = p.y + offset * Math.sin(a);
-          return <text key={`v${i}`} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize="7" fill="rgba(45,212,191,0.7)" fontWeight="bold" style={{ opacity: animated ? 1 : 0, transition: `opacity 0.4s ease ${1 + i * 0.08}s` }}>{data[dims[i].key]}</text>;
+          const a = step * i - Math.PI / 2, offset = 13;
+          const lx = p.x + offset * Math.cos(a), ly = p.y + offset * Math.sin(a);
+          return <text key={`v${i}`} x={lx} y={ly} textAnchor="middle" dominantBaseline="middle" fontSize="6.5" fill="rgba(45,212,191,0.7)" fontWeight="bold" style={{ opacity: animated ? 1 : 0, transition: `opacity 0.4s ease ${1 + i * 0.08}s` }}>{data[dims[i].key]}</text>;
         })}
       </svg>
     </div>
@@ -209,15 +197,15 @@ const PerformanceChart = ({ data }: { data: { label: string; value: number }[] }
     return () => obs.disconnect();
   }, []);
   return (
-    <div ref={ref} className="relative" style={{ height: 62 }}>
-      <div className="absolute left-0 right-0" style={{ top: 24, height: 1, background: "rgba(255,255,255,0.08)" }} />
+    <div ref={ref} className="relative" style={{ height: 56 }}>
+      <div className="absolute left-0 right-0" style={{ top: 22, height: 1, background: "rgba(255,255,255,0.08)" }} />
       <div className="flex items-center gap-1 h-full">
         {data.map((item, i) => {
           const pct = (Math.abs(item.value) / max) * 50;
           const isPos = item.value >= 0;
           return (
-            <div key={i} className="flex-1 flex flex-col items-center" style={{ height: 62 }}>
-              <div className="relative flex-1 w-full" style={{ height: 48 }}>
+            <div key={i} className="flex-1 flex flex-col items-center" style={{ height: 56 }}>
+              <div className="relative flex-1 w-full" style={{ height: 44 }}>
                 <div className={`absolute left-0.5 right-0.5 ${isPos ? "rounded-t" : "rounded-b"}`} style={{
                   height: animated ? `${pct}%` : "0%",
                   transition: `height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) ${i * 0.08}s`,
@@ -318,81 +306,29 @@ export default function KOLProfilePage() {
           90% { opacity: 1; }
           100% { transform: translateY(-110vh); opacity: 0; }
         }
-        @keyframes radarOrbitGlow {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        @keyframes radarPulseRing {
-          0% { transform: scale(0.6); opacity: 0.6; }
-          100% { transform: scale(1.8); opacity: 0; }
-        }
-        @keyframes radarDotPulse {
-          0%, 100% { r: 6; opacity: 0.15; }
-          50% { r: 10; opacity: 0.3; }
-        }
-        @keyframes profileSlideUp {
-          from { opacity: 0; transform: translateY(24px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes profileFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes profileScaleIn {
-          from { opacity: 0; transform: scale(0.92); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        @keyframes gradeRingSpin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        @keyframes gradeRingPulse {
-          0%, 100% { opacity: 0.5; filter: blur(1px); }
-          50% { opacity: 1; filter: blur(2px); }
-        }
-        @keyframes gradeBounce {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.08); }
-        }
-        @keyframes tagFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-3px); }
-        }
-        @keyframes tagGlow {
-          0%, 100% { border-color: rgba(255,255,255,0.1); }
-          50% { border-color: rgba(45,212,191,0.3); }
-        }
-        @keyframes shimmerSlide {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(200%); }
-        }
+        @keyframes radarOrbitGlow { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes radarPulseRing { 0% { transform: scale(0.6); opacity: 0.6; } 100% { transform: scale(1.8); opacity: 0; } }
+        @keyframes radarDotPulse { 0%, 100% { r: 6; opacity: 0.15; } 50% { r: 10; opacity: 0.3; } }
+        @keyframes profileSlideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes profileFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes profileScaleIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+        @keyframes gradeRingSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes gradeRingPulse { 0%, 100% { opacity: 0.5; filter: blur(1px); } 50% { opacity: 1; filter: blur(2px); } }
+        @keyframes gradeBounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+        @keyframes tagFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+        @keyframes tagGlow { 0%, 100% { border-color: rgba(255,255,255,0.1); } 50% { border-color: rgba(45,212,191,0.3); } }
+        @keyframes shimmerSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }
         @keyframes cardGlowPulse {
           0%, 100% { box-shadow: 0 0 15px rgba(45,212,191,0.05), inset 0 0 30px rgba(45,212,191,0.02); }
           50% { box-shadow: 0 0 30px rgba(45,212,191,0.15), inset 0 0 40px rgba(45,212,191,0.05); }
         }
-        @keyframes dotPulse {
-          0%, 100% { transform: scale(1); opacity: 0.5; }
-          50% { transform: scale(1.5); opacity: 1; }
-        }
-        @keyframes signalSlideIn {
-          from { opacity: 0; transform: translateX(-15px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
+        @keyframes signalSlideIn { from { opacity: 0; transform: translateX(-15px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes avatarPulse {
-          0%, 100% { box-shadow: 0 0 20px rgba(59,130,246,0.3); }
-          50% { box-shadow: 0 0 35px rgba(59,130,246,0.5), 0 0 60px rgba(59,130,246,0.2); }
+          0%, 100% { box-shadow: 0 0 15px rgba(59,130,246,0.3); }
+          50% { box-shadow: 0 0 25px rgba(59,130,246,0.5), 0 0 45px rgba(59,130,246,0.2); }
         }
-        @keyframes statCardHover {
-          0%, 100% { border-color: rgba(255,255,255,0.08); }
-          50% { border-color: rgba(45,212,191,0.2); }
-        }
-        @keyframes progressFill {
-          from { width: 0%; }
-        }
-        @keyframes dotPulse {
-          0%, 100% { transform: scale(1); opacity: 0.5; }
-          50% { transform: scale(1.5); opacity: 1; }
-        }
+        @keyframes statCardHover { 0%, 100% { border-color: rgba(255,255,255,0.08); } 50% { border-color: rgba(45,212,191,0.2); } }
+        @keyframes progressFill { from { width: 0%; } }
       `}</style>
 
       <Particles />
@@ -424,91 +360,91 @@ export default function KOLProfilePage() {
       </div>
 
       {/* Search */}
-      <div className="relative z-10 px-4 mb-3" style={{ animation: mounted ? "profileFadeIn 0.5s ease 0.1s both" : "none" }}>
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-          <Search size={15} className="text-gray-500 shrink-0" />
-          <input type="text" placeholder="Search trader..." className="bg-transparent text-xs text-white placeholder-gray-500 outline-none w-full" />
+      <div className="relative z-10 px-4 mb-2.5" style={{ animation: mounted ? "profileFadeIn 0.5s ease 0.1s both" : "none" }}>
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <Search size={14} className="text-gray-500 shrink-0" />
+          <input type="text" placeholder="Search trader..." className="bg-transparent text-[11px] text-white placeholder-gray-500 outline-none w-full" />
         </div>
       </div>
 
       {/* ── Profile Card ──────────────────────────── */}
-      <div className="relative z-10 px-4 pt-2 pb-2" style={{ animation: mounted ? "profileSlideUp 0.6s ease 0.15s both" : "none" }}>
-        <div className="rounded-2xl p-4 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.08) 0%, rgba(45,212,191,0.02) 100%)", border: "1px solid rgba(45,212,191,0.2)", animation: "cardGlowPulse 4s ease-in-out infinite" }}>
+      <div className="relative z-10 px-4 pt-1 pb-2" style={{ animation: mounted ? "profileSlideUp 0.6s ease 0.15s both" : "none" }}>
+        <div className="rounded-2xl p-3 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.08) 0%, rgba(45,212,191,0.02) 100%)", border: "1px solid rgba(45,212,191,0.2)", animation: "cardGlowPulse 4s ease-in-out infinite" }}>
           {/* Shimmer sweep */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl">
             <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 0%, rgba(45,212,191,0.06) 50%, transparent 100%)", animation: "shimmerSlide 5s ease-in-out infinite" }} />
           </div>
           {/* Corner accents */}
-          <div className="absolute top-2 left-2 w-[14px] h-[14px] border-t border-l rounded-tl-sm pointer-events-none z-20" style={{ borderColor: "rgba(45,212,191,0.3)" }} />
-          <div className="absolute top-2 right-2 w-[14px] h-[14px] border-t border-r rounded-tr-sm pointer-events-none z-20" style={{ borderColor: "rgba(45,212,191,0.3)" }} />
-          <div className="absolute bottom-2 left-2 w-[14px] h-[14px] border-b border-l rounded-bl-sm pointer-events-none z-20" style={{ borderColor: "rgba(45,212,191,0.3)" }} />
-          <div className="absolute bottom-2 right-2 w-[14px] h-[14px] border-b border-r rounded-br-sm pointer-events-none z-20" style={{ borderColor: "rgba(45,212,191,0.3)" }} />
+          <div className="absolute top-1.5 left-1.5 w-3 h-3 border-t border-l rounded-tl-sm pointer-events-none z-20" style={{ borderColor: "rgba(45,212,191,0.3)" }} />
+          <div className="absolute top-1.5 right-1.5 w-3 h-3 border-t border-r rounded-tr-sm pointer-events-none z-20" style={{ borderColor: "rgba(45,212,191,0.3)" }} />
+          <div className="absolute bottom-1.5 left-1.5 w-3 h-3 border-b border-l rounded-bl-sm pointer-events-none z-20" style={{ borderColor: "rgba(45,212,191,0.3)" }} />
+          <div className="absolute bottom-1.5 right-1.5 w-3 h-3 border-b border-r rounded-br-sm pointer-events-none z-20" style={{ borderColor: "rgba(45,212,191,0.3)" }} />
           {/* Top glow */}
           <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15) 0%, transparent 60%)" }} />
 
           <div className="relative z-10">
             <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-3">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold transition-transform duration-300 hover:scale-110" style={{ backgroundColor: kolData.avatarBg, animation: "avatarPulse 3s ease-in-out infinite" }}>
+              <div className="flex items-center gap-2.5">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold transition-transform duration-300 hover:scale-110" style={{ backgroundColor: kolData.avatarBg, animation: "avatarPulse 3s ease-in-out infinite" }}>
                   {kolData.avatar}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-base font-bold text-white">{kolData.name}</h1>
-                    <div className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)", color: "#000" }}>#{kolData.rank}</div>
+                  <div className="flex items-center gap-1.5">
+                    <h1 className="text-sm font-bold text-white">{kolData.name}</h1>
+                    <div className="px-1 py-px rounded text-[9px] font-bold" style={{ background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)", color: "#000" }}>#{kolData.rank}</div>
                   </div>
                   <div className="flex items-center gap-1 mt-0.5">
-                    <svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" className="text-gray-400"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
-                    <span className="text-[11px] text-teal-400">{kolData.handle}</span>
+                    <svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor" className="text-gray-400"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" /></svg>
+                    <span className="text-[10px] text-teal-400">{kolData.handle}</span>
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] cursor-pointer hover:underline" onClick={() => setShowFollowingSheet(true)}><span className="text-teal-400 font-semibold">{kolData.following}</span><span className="text-gray-500"> Following</span></span>
-                    <span className="text-[10px]"><span className="text-teal-400 font-semibold">{kolData.followers}</span><span className="text-gray-500"> Followers</span></span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[9px] cursor-pointer hover:underline" onClick={() => setShowFollowingSheet(true)}><span className="text-teal-400 font-semibold">{kolData.following}</span><span className="text-gray-500"> Following</span></span>
+                    <span className="text-[9px]"><span className="text-teal-400 font-semibold">{kolData.followers}</span><span className="text-gray-500"> Followers</span></span>
                   </div>
                 </div>
               </div>
 
               {/* Animated Grade Badge */}
               <div className="flex flex-col items-center">
-                <div className="relative" style={{ width: 52, height: 52 }}>
+                <div className="relative" style={{ width: 42, height: 42 }}>
                   <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(from 0deg, ${kolGrade.color}, ${kolGrade.color}22, ${kolGrade.color}, ${kolGrade.color}22, ${kolGrade.color})`, animation: "gradeRingSpin 8s linear infinite, gradeRingPulse 3s ease-in-out infinite" }} />
-                  <div className="absolute rounded-full flex items-center justify-center" style={{ inset: 2.5, background: "linear-gradient(145deg, #141c24 0%, #0a0f14 100%)" }}>
-                    <span className="text-xl font-black tracking-tight" style={{ color: kolGrade.color, textShadow: `0 0 15px ${kolGrade.glow}, 0 0 30px ${kolGrade.glow}`, animation: "gradeBounce 3s ease-in-out infinite" }}>{kolGrade.grade}</span>
+                  <div className="absolute rounded-full flex items-center justify-center" style={{ inset: 2, background: "linear-gradient(145deg, #141c24 0%, #0a0f14 100%)" }}>
+                    <span className="text-base font-black tracking-tight" style={{ color: kolGrade.color, textShadow: `0 0 12px ${kolGrade.glow}, 0 0 24px ${kolGrade.glow}`, animation: "gradeBounce 3s ease-in-out infinite" }}>{kolGrade.grade}</span>
                   </div>
                 </div>
-                <span className="text-[8px] text-gray-500 mt-1 tracking-widest">GRADE</span>
+                <span className="text-[7px] text-gray-500 mt-0.5 tracking-widest">GRADE</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 mb-3" style={{ animation: mounted ? "profileFadeIn 0.5s ease 0.4s both" : "none" }}>
-              <div className="flex -space-x-2">
-                {kolData.followedBy.map((u, i) => (<div key={i} className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border-2 border-[#0a0f14]" style={{ backgroundColor: u.bg }}>{u.avatar}</div>))}
+            <div className="flex items-center gap-1.5 mb-2" style={{ animation: mounted ? "profileFadeIn 0.5s ease 0.4s both" : "none" }}>
+              <div className="flex -space-x-1.5">
+                {kolData.followedBy.map((u, i) => (<div key={i} className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold border border-[#0a0f14]" style={{ backgroundColor: u.bg }}>{u.avatar}</div>))}
               </div>
-              <span className="text-[10px] text-gray-400">Followed by <span className="text-white">{kolData.followedBy[0].name}</span> and <span className="text-teal-400">{kolData.followedBy.length - 1} others</span></span>
+              <span className="text-[9px] text-gray-400">Followed by <span className="text-white">{kolData.followedBy[0].name}</span> and <span className="text-teal-400">{kolData.followedBy.length - 1} others</span></span>
             </div>
 
             {/* Animated Tags */}
-            <div className="flex flex-wrap gap-1.5 mb-3">
+            <div className="flex flex-wrap gap-1 mb-2">
               {kolData.traderTags.map((tag, i) => (
-                <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg cursor-pointer transition-all hover:scale-105" style={{ background: "rgba(45,212,191,0.06)", border: "1px solid rgba(45,212,191,0.15)", animation: `tagFloat ${3 + i * 0.7}s ease-in-out infinite, tagGlow ${4 + i}s ease-in-out infinite`, animationDelay: `${i * 0.4}s` }}>
-                  <span className="text-sm">{tag.emoji}</span>
-                  <span className="text-[10px] font-medium text-teal-400/80">{tag.label}</span>
+                <div key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-md cursor-pointer transition-all hover:scale-105" style={{ background: "rgba(45,212,191,0.06)", border: "1px solid rgba(45,212,191,0.15)", animation: `tagFloat ${3 + i * 0.7}s ease-in-out infinite, tagGlow ${4 + i}s ease-in-out infinite`, animationDelay: `${i * 0.4}s` }}>
+                  <span className="text-xs">{tag.emoji}</span>
+                  <span className="text-[9px] font-medium text-teal-400/80">{tag.label}</span>
                 </div>
               ))}
             </div>
 
-            <p className="text-xs text-gray-400 mb-3">{kolData.bio}</p>
+            <p className="text-[11px] text-gray-400 mb-2.5">{kolData.bio}</p>
 
-            <div className="flex gap-2">
-              <button onClick={() => setIsFollowing(!isFollowing)} className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all duration-300 cursor-pointer active:scale-95" style={isFollowing ? { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" } : { background: "rgba(45,212,191,0.15)", color: "rgba(45,212,191,1)", border: "1px solid rgba(45,212,191,0.3)" }}>
+            <div className="flex gap-1.5">
+              <button onClick={() => setIsFollowing(!isFollowing)} className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-300 cursor-pointer active:scale-95" style={isFollowing ? { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" } : { background: "rgba(45,212,191,0.15)", color: "rgba(45,212,191,1)", border: "1px solid rgba(45,212,191,0.3)" }}>
                 {isFollowing ? "Following" : "Follow"}
               </button>
-              <button onClick={() => setIsCopying(!isCopying)} className="flex-1 py-2 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer active:scale-95 relative overflow-hidden" style={isCopying ? { background: "rgba(251,146,60,0.2)", color: "#fb923c", border: "1px solid rgba(251,146,60,0.3)" } : { background: "rgba(45,212,191,1)", color: "#0a0f14", boxShadow: "0 0 25px rgba(45,212,191,0.4)" }}>
+              <button onClick={() => setIsCopying(!isCopying)} className="flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-300 cursor-pointer active:scale-95 relative overflow-hidden" style={isCopying ? { background: "rgba(251,146,60,0.2)", color: "#fb923c", border: "1px solid rgba(251,146,60,0.3)" } : { background: "rgba(45,212,191,1)", color: "#0a0f14", boxShadow: "0 0 20px rgba(45,212,191,0.4)" }}>
                 {!isCopying && <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)", animation: "shimmerSlide 2.5s ease-in-out infinite" }} />}
                 <span className="relative z-10">{isCopying ? "Copying" : "Copy Trade"}</span>
               </button>
-              <button className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:bg-white/10 active:scale-90 cursor-pointer" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                <Share2 size={16} className="text-gray-400" />
+              <button className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-white/10 active:scale-90 cursor-pointer" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                <Share2 size={13} className="text-gray-400" />
               </button>
             </div>
           </div>
@@ -517,10 +453,10 @@ export default function KOLProfilePage() {
 
       {/* ── Tabs ──────────────────────────────────── */}
       <div className="relative z-10 px-4 mb-2" style={{ animation: mounted ? "profileSlideUp 0.5s ease 0.3s both" : "none" }}>
-        <div className="flex p-1 rounded-xl relative" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="absolute top-1 bottom-1 rounded-lg transition-all duration-300" style={{ width: "calc(50% - 4px)", left: activeTab === "overview" ? "4px" : "calc(50%)", background: "rgba(45,212,191,0.15)", border: "1px solid rgba(45,212,191,0.3)" }} />
+        <div className="flex p-0.5 rounded-lg relative" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="absolute top-0.5 bottom-0.5 rounded-md transition-all duration-300" style={{ width: "calc(50% - 2px)", left: activeTab === "overview" ? "2px" : "calc(50%)", background: "rgba(45,212,191,0.15)", border: "1px solid rgba(45,212,191,0.3)" }} />
           {[{ key: "overview", label: "Analysis" }, { key: "signals", label: "Signals" }].map((tab) => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)} className="flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-300 relative z-10 cursor-pointer" style={{ color: activeTab === tab.key ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.4)" }}>{tab.label}</button>
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)} className="flex-1 py-1.5 rounded-md text-[11px] font-medium transition-all duration-300 relative z-10 cursor-pointer" style={{ color: activeTab === tab.key ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.4)" }}>{tab.label}</button>
           ))}
         </div>
       </div>
@@ -528,22 +464,22 @@ export default function KOLProfilePage() {
       {/* ── Content ───────────────────────────────── */}
       <div className="relative z-10 px-4 pb-24">
         {activeTab === "overview" && (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {/* Radar */}
             <div className="rounded-xl p-2 relative overflow-hidden" style={{ ...cardStyle, animation: "profileScaleIn 0.5s ease 0.35s both" }}>
               <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at center, rgba(45,212,191,0.04) 0%, transparent 70%)" }} />
               <div className="flex items-center justify-between mb-0 relative z-10">
-                <span className="text-[11px] font-semibold text-white">Performance Radar</span>
-                <span className="text-[9px] text-gray-500">8 dimensions</span>
+                <span className="text-[10px] font-semibold text-white">Performance Radar</span>
+                <span className="text-[8px] text-gray-500">8 dimensions</span>
               </div>
-              <RadarChart data={radarData} size={170} />
+              <RadarChart data={radarData} size={160} />
             </div>
 
             {/* Weekly Returns */}
-            <div className="rounded-xl p-3 relative overflow-hidden" style={{ ...cardStyle, animation: "profileScaleIn 0.5s ease 0.45s both" }}>
-              <div className="flex items-center justify-between mb-2 relative z-10">
-                <span className="text-[11px] font-semibold text-white">Weekly Returns</span>
-                <span className="text-[11px] text-teal-400 font-semibold"><AnimatedNumber value={stats.cumulative} prefix="+" suffix="%" decimals={1} /></span>
+            <div className="rounded-xl p-2.5 relative overflow-hidden" style={{ ...cardStyle, animation: "profileScaleIn 0.5s ease 0.45s both" }}>
+              <div className="flex items-center justify-between mb-1.5 relative z-10">
+                <span className="text-[10px] font-semibold text-white">Weekly Returns</span>
+                <span className="text-[10px] text-teal-400 font-semibold"><AnimatedNumber value={stats.cumulative} prefix="+" suffix="%" decimals={1} /></span>
               </div>
               <PerformanceChart data={performanceData} />
             </div>
@@ -556,35 +492,35 @@ export default function KOLProfilePage() {
                 { icon: Flame, ic: "text-orange-400", ib: "bg-orange-400/10", label: "Current Streak", val: stats.streak.current, pre: "", suf: " wins 🔥", color: "text-white", sub: "" },
                 { icon: BarChart3, ic: "text-purple-400", ib: "bg-purple-400/10", label: "% Cumulative", val: stats.cumulative, pre: "+", suf: "%", color: "text-white", sub: "All time" },
               ].map((item, i) => (
-                <div key={i} className="rounded-xl px-2.5 py-1.5 relative overflow-hidden transition-all duration-300 hover:scale-[1.03]" style={{ ...cardStyle, animation: `profileScaleIn 0.4s ease ${0.55 + i * 0.08}s both, statCardHover ${3 + i}s ease-in-out infinite` }}>
+                <div key={i} className="rounded-xl px-2 py-1.5 relative overflow-hidden transition-all duration-300 hover:scale-[1.03]" style={{ ...cardStyle, animation: `profileScaleIn 0.4s ease ${0.55 + i * 0.08}s both, statCardHover ${3 + i}s ease-in-out infinite` }}>
                   <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(circle at top right, ${item.ic.includes("teal") ? "rgba(45,212,191,0.06)" : item.ic.includes("rose") ? "rgba(244,63,94,0.06)" : item.ic.includes("orange") ? "rgba(251,146,60,0.06)" : "rgba(139,92,246,0.06)"} 0%, transparent 70%)` }} />
-                  <div className="flex items-center gap-1.5 mb-0.5 relative z-10">
-                    <div className={`w-4 h-4 rounded flex items-center justify-center ${item.ib}`}><item.icon size={10} className={item.ic} /></div>
-                    <span className="text-[9px] text-gray-500">{item.label}</span>
+                  <div className="flex items-center gap-1 mb-0.5 relative z-10">
+                    <div className={`w-3.5 h-3.5 rounded flex items-center justify-center ${item.ib}`}><item.icon size={9} className={item.ic} /></div>
+                    <span className="text-[8px] text-gray-500">{item.label}</span>
                   </div>
-                  <p className={`text-[13px] font-bold leading-tight relative z-10 ${item.color}`}><AnimatedNumber value={item.val} prefix={item.pre} suffix={item.suf} decimals={item.val % 1 !== 0 ? 1 : 0} /></p>
-                  {item.sub && <p className="text-[8px] text-gray-500 relative z-10">{item.sub}</p>}
+                  <p className={`text-[12px] font-bold leading-tight relative z-10 ${item.color}`}><AnimatedNumber value={item.val} prefix={item.pre} suffix={item.suf} decimals={item.val % 1 !== 0 ? 1 : 0} /></p>
+                  {item.sub && <p className="text-[7px] text-gray-500 relative z-10">{item.sub}</p>}
                 </div>
               ))}
             </div>
 
             {/* Signal vs Noise + Stats */}
-            <div className="rounded-xl p-3 relative overflow-hidden" style={{ ...cardStyle, animation: "profileSlideUp 0.5s ease 0.75s both" }}>
-              <div className="flex items-center gap-3 mb-2.5">
-                <span className="text-[9px] text-gray-400 shrink-0">Signal vs Noise</span>
+            <div className="rounded-xl p-2.5 relative overflow-hidden" style={{ ...cardStyle, animation: "profileSlideUp 0.5s ease 0.75s both" }}>
+              <div className="flex items-center gap-2.5 mb-2">
+                <span className="text-[8px] text-gray-400 shrink-0">Signal vs Noise</span>
                 <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
                   <div className="h-full rounded-full" style={{ width: `${signalPct}%`, background: "linear-gradient(90deg, rgba(45,212,191,1) 0%, rgba(45,212,191,0.7) 100%)", boxShadow: "0 0 10px rgba(45,212,191,0.5)", animation: "progressFill 1.5s ease 1s both" }} />
                 </div>
-                <span className="text-[9px] text-teal-400 font-semibold shrink-0"><AnimatedNumber value={signalPct} suffix="%" /></span>
+                <span className="text-[8px] text-teal-400 font-semibold shrink-0"><AnimatedNumber value={signalPct} suffix="%" /></span>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center gap-2 cursor-pointer transition-all hover:scale-[1.03]" onClick={() => setShowCopyingSheet(true)}>
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-400/10"><Users size={13} className="text-blue-400" /></div>
-                  <div><p className="text-[13px] font-bold text-white"><AnimatedNumber value={stats.tradersCopying} /></p><p className="text-[8px] text-gray-500">Traders Copying</p></div>
+                  <div className="w-6 h-6 rounded-md flex items-center justify-center bg-blue-400/10"><Users size={11} className="text-blue-400" /></div>
+                  <div><p className="text-[12px] font-bold text-white"><AnimatedNumber value={stats.tradersCopying} /></p><p className="text-[7px] text-gray-500">Traders Copying</p></div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-yellow-400/10"><Award size={13} className="text-yellow-400" /></div>
-                  <div><p className="text-[13px] font-bold text-white"><AnimatedNumber value={stats.pointsCollected} /></p><p className="text-[8px] text-gray-500">Points Collected</p></div>
+                  <div className="w-6 h-6 rounded-md flex items-center justify-center bg-yellow-400/10"><Award size={11} className="text-yellow-400" /></div>
+                  <div><p className="text-[12px] font-bold text-white"><AnimatedNumber value={stats.pointsCollected} /></p><p className="text-[7px] text-gray-500">Points Collected</p></div>
                 </div>
               </div>
             </div>
@@ -592,39 +528,39 @@ export default function KOLProfilePage() {
         )}
 
         {activeTab === "signals" && (
-          <div className="rounded-2xl overflow-hidden" style={cardStyle}>
-            <div className="px-4 py-3 border-b border-white/10">
+          <div className="rounded-xl overflow-hidden" style={cardStyle}>
+            <div className="px-3 py-2.5 border-b border-white/10">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-white">Signal History</span>
-                <span className="text-[10px] text-gray-500"><span className="text-teal-400">{signalHistory.filter((s) => s.result === "win").length}W</span>{" / "}<span className="text-rose-400">{signalHistory.filter((s) => s.result === "loss").length}L</span></span>
+                <span className="text-[11px] font-semibold text-white">Signal History</span>
+                <span className="text-[9px] text-gray-500"><span className="text-teal-400">{signalHistory.filter((s) => s.result === "win").length}W</span>{" / "}<span className="text-rose-400">{signalHistory.filter((s) => s.result === "loss").length}L</span></span>
               </div>
             </div>
             <div className="divide-y divide-white/5">
               {signalHistory.map((signal, idx) => (
-                <div key={signal.id} className="px-4 py-3 hover:bg-white/5 transition-all relative overflow-hidden" style={{ animation: `signalSlideIn 0.4s ease ${idx * 0.12}s both` }}>
+                <div key={signal.id} className="px-3 py-2.5 hover:bg-white/5 transition-all relative overflow-hidden" style={{ animation: `signalSlideIn 0.4s ease ${idx * 0.12}s both` }}>
                   {signal.result === "win" && <div className="absolute left-0 top-0 bottom-0 w-[2px]" style={{ background: "linear-gradient(180deg, rgba(45,212,191,0.6), rgba(45,212,191,0.1))" }} />}
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${signal.type === "long" ? "bg-teal-400/10" : "bg-rose-400/10"}`}>
-                        {signal.type === "long" ? <ArrowUpRight size={14} className="text-teal-400" /> : <ArrowDownRight size={14} className="text-rose-400" />}
+                      <div className={`w-7 h-7 rounded-md flex items-center justify-center ${signal.type === "long" ? "bg-teal-400/10" : "bg-rose-400/10"}`}>
+                        {signal.type === "long" ? <ArrowUpRight size={13} className="text-teal-400" /> : <ArrowDownRight size={13} className="text-rose-400" />}
                       </div>
                       <div>
                         <div className="flex items-center gap-1">
-                          <span className="text-sm font-semibold text-white">{signal.token}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize ${signal.type === "long" ? "bg-teal-400/10 text-teal-400" : "bg-rose-400/10 text-rose-400"}`}>{signal.type}</span>
+                          <span className="text-[12px] font-semibold text-white">{signal.token}</span>
+                          <span className={`text-[9px] px-1 py-px rounded capitalize ${signal.type === "long" ? "bg-teal-400/10 text-teal-400" : "bg-rose-400/10 text-rose-400"}`}>{signal.type}</span>
                         </div>
-                        <span className="text-[10px] text-gray-500">Entry: {signal.price}</span>
+                        <span className="text-[9px] text-gray-500">Entry: {signal.price}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className={`text-sm font-bold ${signal.result === "win" ? "text-teal-400" : "text-rose-400"}`}>{signal.pnl}</p>
-                      <span className="text-[10px] text-gray-500">{signal.time}</span>
+                      <p className={`text-[12px] font-bold ${signal.result === "win" ? "text-teal-400" : "text-rose-400"}`}>{signal.pnl}</p>
+                      <span className="text-[9px] text-gray-500">{signal.time}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 ml-10">
-                    <div className="flex items-center gap-1"><Target size={10} className="text-green-400" /><span className="text-[10px] text-gray-400">TP: {signal.tp}</span></div>
-                    <div className="flex items-center gap-1"><AlertCircle size={10} className="text-rose-400" /><span className="text-[10px] text-gray-400">SL: {signal.sl}</span></div>
-                    {signal.result === "win" && <CheckCircle size={12} className="text-teal-400 ml-auto" />}
+                  <div className="flex items-center gap-3 ml-9">
+                    <div className="flex items-center gap-1"><Target size={9} className="text-green-400" /><span className="text-[9px] text-gray-400">TP: {signal.tp}</span></div>
+                    <div className="flex items-center gap-1"><AlertCircle size={9} className="text-rose-400" /><span className="text-[9px] text-gray-400">SL: {signal.sl}</span></div>
+                    {signal.result === "win" && <CheckCircle size={10} className="text-teal-400 ml-auto" />}
                   </div>
                 </div>
               ))}

@@ -63,53 +63,46 @@ export default function KolItem({
       <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15) 0%, transparent 60%)" }} />
 
       <div className="relative">
-        {/* Top Row */}
-        <div className="flex items-center justify-between mb-2.5">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            {/* Rank Badge */}
-            <div
-              className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-              style={{ background: rankStyle.bg, boxShadow: rankStyle.shadow, color: rank <= 3 ? "#000" : "#6b7280", border: rank <= 3 ? "none" : rankStyle.border }}
-            >
-              {rank}
-            </div>
-
-            {/* Avatar */}
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm text-white shrink-0"
-              style={{ background: data.avatarColor || "linear-gradient(135deg, #06b6d4, #3b82f6)", border: rank <= 3 ? rankStyle.border : "none", animation: rank <= 3 ? rankStyle.animation : "none" }}
-            >
-              {data.x_handle?.[0]?.toUpperCase() || "?"}
-            </div>
-
-            {/* Name & Badges */}
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-white text-sm font-medium truncate max-w-[120px]">{data.x_handle}</span>
-                {data.streak && (data.streak as number) > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 font-bold shrink-0" style={{ background: "rgba(251,146,60,0.18)", border: "1px solid rgba(251,146,60,0.3)", color: "#fb923c" }}>
-                    🔥{data.streak}
-                  </span>
-                )}
-                {data.profit_grade && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-bold shrink-0" style={{ background: "rgba(45,212,191,0.18)", border: "1px solid rgba(45,212,191,0.3)", color: "#2dd4bf" }}>
-                    {data.profit_grade}
-                  </span>
-                )}
-              </div>
-              <div className="text-[11px] text-gray-500 truncate">@{data.x_handle}</div>
-            </div>
+        {/* Row 1: Rank + Avatar + Name/Handle */}
+        <div className="flex items-center gap-2.5 mb-1.5">
+          <div
+            className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
+            style={{ background: rankStyle.bg, boxShadow: rankStyle.shadow, color: rank <= 3 ? "#000" : "#6b7280", border: rank <= 3 ? "none" : rankStyle.border }}
+          >
+            {rank}
           </div>
-
-          {/* Profit */}
-          <div className="text-right shrink-0 ml-2">
-            <div className={`text-sm font-bold ${isPositive ? "text-teal-400" : "text-rose-400"}`} style={{ textShadow: isPositive ? "0 0 10px rgba(45,212,191,0.3)" : "0 0 10px rgba(251,113,133,0.3)" }}>
-              {isPositive ? "+" : ""}${Math.abs(profit * 1000).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm text-white shrink-0"
+            style={{ background: data.avatarColor || "linear-gradient(135deg, #06b6d4, #3b82f6)", border: rank <= 3 ? rankStyle.border : "none", animation: rank <= 3 ? rankStyle.animation : "none" }}
+          >
+            {data.x_handle?.[0]?.toUpperCase() || "?"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-white text-sm font-medium truncate">{data.x_handle}</div>
+            <div className="text-[11px] text-gray-500 truncate">@{data.x_handle}</div>
           </div>
         </div>
 
-        {/* Stats Grid - 6 columns in 2 rows of 3 */}
+        {/* Row 2: Badges + Profit */}
+        <div className="flex items-center justify-between mb-2.5 ml-[74px]">
+          <div className="flex items-center gap-1.5">
+            {data.streak && (data.streak as number) > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 font-bold" style={{ background: "rgba(251,146,60,0.18)", border: "1px solid rgba(251,146,60,0.3)", color: "#fb923c" }}>
+                🔥{data.streak}
+              </span>
+            )}
+            {data.profit_grade && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(45,212,191,0.18)", border: "1px solid rgba(45,212,191,0.3)", color: "#2dd4bf" }}>
+                {data.profit_grade}
+              </span>
+            )}
+          </div>
+          <div className={`text-sm font-bold ${isPositive ? "text-teal-400" : "text-rose-400"}`} style={{ textShadow: isPositive ? "0 0 10px rgba(45,212,191,0.3)" : "0 0 10px rgba(251,113,133,0.3)" }}>
+            {isPositive ? "+" : ""}${Math.abs(profit * 1000).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+        </div>
+
+        {/* Stats Grid - 3 cols × 2 rows */}
         <div className="grid grid-cols-3 gap-x-4 gap-y-1.5">
           <div>
             <div className="text-[9px] text-gray-500 uppercase tracking-wide">Last Tweet</div>
@@ -139,7 +132,7 @@ export default function KolItem({
           </div>
         </div>
 
-        {/* Footer: signals count + Profile / Signals links */}
+        {/* Footer */}
         <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between">
           <span className="text-[10px] text-gray-500 flex items-center gap-1">
             <span className="text-teal-400">↑</span>
