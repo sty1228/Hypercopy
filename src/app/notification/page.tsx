@@ -183,31 +183,31 @@ export default function NotificationPage() {
       </div>
 
       {/* Header */}
-      <div className="relative z-10 mt-4 mb-3 flex items-center justify-between px-4">
+      <div className="relative z-10 mt-3 mb-2 flex items-center justify-between px-4">
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
+          className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
           style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
         >
-          <Image src={profileIcon} alt="profile" width={16} height={16} />
+          <Image src={profileIcon} alt="profile" width={14} height={14} />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
           >
-            <Image src={copyCountIcon} alt="copy-count" width={16} height={16} />
-            <span className="text-[13px] font-semibold text-teal-400">4</span>
+            <Image src={copyCountIcon} alt="copy-count" width={13} height={13} />
+            <span className="text-[11px] font-semibold text-teal-400">4</span>
           </div>
           <div
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg"
             style={{
               background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)",
               border: "1px solid rgba(45,212,191,0.25)",
               boxShadow: "0 0 15px rgba(45,212,191,0.2)",
             }}
           >
-            <Image src={copyRankIcon} alt="copy-rank" width={16} height={16} />
-            <span className="text-[13px] font-semibold text-teal-400">#64</span>
+            <Image src={copyRankIcon} alt="copy-rank" width={13} height={13} />
+            <span className="text-[11px] font-semibold text-teal-400">#64</span>
           </div>
           <UserMenu />
         </div>

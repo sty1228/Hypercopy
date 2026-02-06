@@ -65,10 +65,10 @@ export default function KolItem({
       <div className="relative">
         {/* Top Row */}
         <div className="flex items-center justify-between mb-2.5">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             {/* Rank Badge */}
             <div
-              className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold"
+              className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
               style={{ background: rankStyle.bg, boxShadow: rankStyle.shadow, color: rank <= 3 ? "#000" : "#6b7280", border: rank <= 3 ? "none" : rankStyle.border }}
             >
               {rank}
@@ -76,70 +76,66 @@ export default function KolItem({
 
             {/* Avatar */}
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm text-white"
+              className="w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm text-white shrink-0"
               style={{ background: data.avatarColor || "linear-gradient(135deg, #06b6d4, #3b82f6)", border: rank <= 3 ? rankStyle.border : "none", animation: rank <= 3 ? rankStyle.animation : "none" }}
             >
               {data.x_handle?.[0]?.toUpperCase() || "?"}
             </div>
 
             {/* Name & Badges */}
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-white text-sm font-medium">{data.x_handle}</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-white text-sm font-medium truncate max-w-[120px]">{data.x_handle}</span>
                 {data.streak && (data.streak as number) > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 font-bold" style={{ background: "rgba(251,146,60,0.18)", border: "1px solid rgba(251,146,60,0.3)", color: "#fb923c" }}>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 font-bold shrink-0" style={{ background: "rgba(251,146,60,0.18)", border: "1px solid rgba(251,146,60,0.3)", color: "#fb923c" }}>
                     🔥{data.streak}
                   </span>
                 )}
                 {data.profit_grade && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(45,212,191,0.18)", border: "1px solid rgba(45,212,191,0.3)", color: "#2dd4bf" }}>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-bold shrink-0" style={{ background: "rgba(45,212,191,0.18)", border: "1px solid rgba(45,212,191,0.3)", color: "#2dd4bf" }}>
                     {data.profit_grade}
                   </span>
                 )}
               </div>
-              <div className="text-[11px] text-gray-500">@{data.x_handle}</div>
+              <div className="text-[11px] text-gray-500 truncate">@{data.x_handle}</div>
             </div>
           </div>
 
           {/* Profit */}
-          <div className="text-right">
+          <div className="text-right shrink-0 ml-2">
             <div className={`text-sm font-bold ${isPositive ? "text-teal-400" : "text-rose-400"}`} style={{ textShadow: isPositive ? "0 0 10px rgba(45,212,191,0.3)" : "0 0 10px rgba(251,113,133,0.3)" }}>
               {isPositive ? "+" : ""}${Math.abs(profit * 1000).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
           </div>
         </div>
 
-        {/* Stats Row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div>
-              <div className="text-[9px] text-gray-500 uppercase tracking-wide">Last Tweet</div>
-              <div className="text-[11px] text-gray-300 font-medium">{data.how_long_ago || "-"}</div>
-            </div>
-            <div>
-              <div className="text-[9px] text-gray-500 uppercase tracking-wide">Points</div>
-              <div className="text-[11px] text-white font-semibold">{data.points ? new BigNumber(data.points).decimalPlaces(0).toNumber() : "-"}</div>
-            </div>
-            <div>
-              <div className="text-[9px] text-gray-500 uppercase tracking-wide">Avg Return</div>
-              <div className="text-[11px] text-teal-400 font-medium">{data.avg_return ? `+${new BigNumber(data.avg_return as number).decimalPlaces(1).toNumber()}%` : "-"}</div>
+        {/* Stats Grid - 6 columns in 2 rows of 3 */}
+        <div className="grid grid-cols-3 gap-x-4 gap-y-1.5">
+          <div>
+            <div className="text-[9px] text-gray-500 uppercase tracking-wide">Last Tweet</div>
+            <div className="text-[11px] text-gray-300 font-medium">{data.how_long_ago || "-"}</div>
+          </div>
+          <div>
+            <div className="text-[9px] text-gray-500 uppercase tracking-wide">Points</div>
+            <div className="text-[11px] text-white font-semibold">{data.points ? new BigNumber(data.points).decimalPlaces(0).toNumber() : "-"}</div>
+          </div>
+          <div>
+            <div className="text-[9px] text-gray-500 uppercase tracking-wide">Avg Return</div>
+            <div className="text-[11px] text-teal-400 font-medium">{data.avg_return ? `+${new BigNumber(data.avg_return as number).decimalPlaces(1).toNumber()}%` : "-"}</div>
+          </div>
+          <div>
+            <div className="text-[9px] text-gray-500 uppercase tracking-wide">Result</div>
+            <div className={`text-[11px] font-semibold ${isPositive ? "text-teal-400" : "text-rose-400"}`}>
+              {isPositive ? "+" : ""}{new BigNumber(profit).decimalPlaces(1).toNumber()}%
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <div className="text-[9px] text-gray-500 uppercase tracking-wide">Result</div>
-              <div className={`text-[11px] font-semibold ${isPositive ? "text-teal-400" : "text-rose-400"}`}>
-                {isPositive ? "+" : ""}{new BigNumber(profit).decimalPlaces(1).toNumber()}%
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-[9px] text-gray-500 uppercase tracking-wide">Copiers</div>
-              <div className="text-[11px] text-white font-medium">{data.copiers || "-"}</div>
-            </div>
-            <div className="text-right">
-              <div className="text-[9px] text-gray-500 uppercase tracking-wide">Win Rate</div>
-              <div className="text-[11px] text-white font-medium">{data.win_rate ? `${new BigNumber(data.win_rate).decimalPlaces(1).toNumber()}%` : "-"}</div>
-            </div>
+          <div>
+            <div className="text-[9px] text-gray-500 uppercase tracking-wide">Copiers</div>
+            <div className="text-[11px] text-white font-medium">{data.copiers || "-"}</div>
+          </div>
+          <div>
+            <div className="text-[9px] text-gray-500 uppercase tracking-wide">Win Rate</div>
+            <div className="text-[11px] text-white font-medium">{data.win_rate ? `${new BigNumber(data.win_rate).decimalPlaces(1).toNumber()}%` : "-"}</div>
           </div>
         </div>
 
