@@ -34,7 +34,7 @@ const Navbar = () => {
         bottom: 0,
         left: "50%",
         transform: "translateX(-50%)",
-        height: "70px",
+        height: "56px",
         zIndex: 9999,
         maxWidth: MAX_WIDTH,
         background: "linear-gradient(180deg, rgba(10,15,20,0.95) 0%, rgba(10,15,20,0.98) 100%)",
@@ -51,20 +51,20 @@ const Navbar = () => {
             <li key={item.href}>
               <Link
                 href={item.href}
-                className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 cursor-pointer"
+                className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg transition-all duration-200 cursor-pointer"
                 style={{
                   background: isActive ? "rgba(45,212,191,0.1)" : "transparent",
                 }}
               >
                 <div
                   className="relative transition-transform duration-200"
-                  style={{ transform: isActive ? "scale(1.1)" : "scale(1)" }}
+                  style={{ transform: isActive ? "scale(1.05)" : "scale(1)" }}
                 >
                   <Image
                     src={isActive ? item.activeIcon : item.icon}
                     alt={item.label}
-                    width={22}
-                    height={22}
+                    width={18}
+                    height={18}
                   />
                   {isActive && (
                     <div
@@ -77,7 +77,7 @@ const Navbar = () => {
                   )}
                 </div>
                 <span
-                  className="text-[10px] font-medium transition-colors duration-200"
+                  className="text-[9px] font-medium transition-colors duration-200"
                   style={{
                     color: isActive ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.4)",
                   }}
