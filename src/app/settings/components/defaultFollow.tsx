@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useContext, useEffect, useState, useRef, useCallback } from "react";
@@ -64,8 +65,8 @@ function Tooltip({
 }) {
   const [show, setShow] = useState(false);
   const popupClass = wide
-    ? "absolute bottom-full mb-2 px-3 py-2 rounded-lg text-[10px] leading-relaxed text-white z-50 pointer-events-none w-56 whitespace-normal left-0"
-    : "absolute bottom-full mb-2 px-3 py-2 rounded-lg text-[10px] leading-relaxed text-white z-50 pointer-events-none whitespace-nowrap left-1/2 -translate-x-1/2";
+    ? "absolute bottom-full mb-2 px-2.5 py-1.5 rounded-lg text-[9px] leading-relaxed text-white z-50 pointer-events-none w-52 whitespace-normal left-0"
+    : "absolute bottom-full mb-2 px-2.5 py-1.5 rounded-lg text-[9px] leading-relaxed text-white z-50 pointer-events-none whitespace-nowrap left-1/2 -translate-x-1/2";
   const arrowClass = wide
     ? "absolute top-full w-0 h-0 left-4"
     : "absolute top-full w-0 h-0 left-1/2 -translate-x-1/2";
@@ -133,17 +134,17 @@ function LeverageSlider({ value, onChange }: { value: number; onChange: (v: numb
 
   return (
     <div className="w-full">
-      <div ref={trackRef} className="relative h-8 flex items-center cursor-pointer"
+      <div ref={trackRef} className="relative h-7 flex items-center cursor-pointer"
         onPointerDown={onPointerDown} onPointerMove={onPointerMove}>
-        <div className="absolute left-0 right-0 h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
-        <div className="absolute left-0 h-1.5 rounded-full transition-colors" style={{ width: `${pct}%`, background: trackColor }} />
-        <div className="absolute w-5 h-5 rounded-full border-2 border-white transition-colors"
-          style={{ left: `calc(${pct}% - 10px)`, background: thumbColor, boxShadow: `0 0 10px ${thumbColor}` }} />
+        <div className="absolute left-0 right-0 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
+        <div className="absolute left-0 h-1 rounded-full transition-colors" style={{ width: `${pct}%`, background: trackColor }} />
+        <div className="absolute w-4 h-4 rounded-full border-2 border-white transition-colors"
+          style={{ left: `calc(${pct}% - 8px)`, background: thumbColor, boxShadow: `0 0 8px ${thumbColor}` }} />
       </div>
-      <div className="flex justify-between mt-0.5 px-0.5">
+      <div className="flex justify-between mt-0 px-0.5">
         {[1, 5, 10, 15, 20].map((v) => (
           <button key={v} onClick={() => onChange(v)}
-            className="text-[10px] transition-all cursor-pointer"
+            className="text-[9px] transition-all cursor-pointer"
             style={{ color: v === value ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.3)" }}>
             {v}x
           </button>
@@ -157,12 +158,12 @@ function LeverageSlider({ value, onChange }: { value: number; onChange: (v: numb
 const Toggle = ({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) => (
   <button
     onClick={onToggle}
-    className="w-10 h-5 rounded-full transition-all duration-300 relative active:scale-95 cursor-pointer"
+    className="w-9 h-[18px] rounded-full transition-all duration-300 relative active:scale-95 cursor-pointer"
     style={{ background: enabled ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.1)" }}
   >
     <div
-      className="w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all duration-300"
-      style={{ left: enabled ? "20px" : "2px" }}
+      className="w-3.5 h-3.5 rounded-full bg-white absolute top-[2px] transition-all duration-300"
+      style={{ left: enabled ? "18px" : "2px" }}
     />
   </button>
 );
@@ -187,7 +188,7 @@ const TypeButton = ({
   return (
     <button
       onClick={onClick}
-      className="w-8 h-8 rounded-lg font-medium text-xs transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
+      className="w-7 h-7 rounded-md font-medium text-[10px] transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
       style={
         active
           ? { backgroundColor: c.activeBg, color: c.activeText, border: color === "orange" ? "1px solid rgba(251,146,60,0.4)" : "none" }
@@ -212,15 +213,15 @@ const SectionCard = ({
   color?: "teal" | "orange" | "purple";
 }) => (
   <div
-    className="rounded-xl p-3 mb-3"
+    className="rounded-xl p-2.5 mb-2.5"
     style={{
       background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)",
       border: "1px solid rgba(255,255,255,0.08)",
     }}
   >
-    <div className="flex items-center gap-2 mb-3">
+    <div className="flex items-center gap-1.5 mb-2.5">
       <div
-        className="w-6 h-6 rounded-md flex items-center justify-center"
+        className="w-5 h-5 rounded-md flex items-center justify-center"
         style={{
           background:
             color === "teal"
@@ -231,11 +232,11 @@ const SectionCard = ({
         }}
       >
         <Icon
-          size={12}
+          size={10}
           className={color === "teal" ? "text-teal-400" : color === "orange" ? "text-orange-400" : "text-purple-400"}
         />
       </div>
-      <span className="text-xs font-semibold text-white">{title}</span>
+      <span className="text-[11px] font-semibold text-white">{title}</span>
     </div>
     {children}
   </div>
@@ -262,18 +263,18 @@ const InputRow = ({
   color?: "teal" | "orange";
 }) => (
   <div
-    className="rounded-lg h-10 flex items-center px-3 gap-2 mb-1.5 last:mb-0"
+    className="rounded-md h-9 flex items-center px-2.5 gap-1.5 mb-1.5 last:mb-0"
     style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.05)" }}
   >
-    <span className="text-xs text-gray-500 flex-shrink-0 w-20">{label}</span>
+    <span className="text-[10px] text-gray-500 flex-shrink-0 w-[72px]">{label}</span>
     <input
       type="text"
       value={suffix ? `${value}${suffix}` : value}
       onChange={(e) => onChange(e.target.value.replace(suffix || "", ""))}
-      className="flex-1 bg-transparent text-right text-white text-sm font-medium outline-none"
+      className="flex-1 bg-transparent text-right text-white text-[12px] font-medium outline-none"
     />
     {showTypeButtons && typeValue && onTypeChange && (
-      <div className="flex gap-1 ml-2">
+      <div className="flex gap-1 ml-1.5">
         <TypeButton active={typeValue === "USD"} onClick={() => onTypeChange("USD")} color={color}>
           $
         </TypeButton>
@@ -379,8 +380,8 @@ export default function DefaultFollow() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-teal-400" size={32} />
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="animate-spin text-teal-400" size={28} />
       </div>
     );
   }
@@ -390,46 +391,46 @@ export default function DefaultFollow() {
       {/* Unsaved Changes Banner */}
       {hasChanges && (
         <div
-          className="rounded-lg px-3 py-2 flex items-center gap-2 mb-3"
+          className="rounded-md px-2.5 py-1.5 flex items-center gap-1.5 mb-2.5"
           style={{ background: "rgba(251,146,60,0.1)", border: "1px solid rgba(251,146,60,0.2)" }}
         >
-          <AlertCircle size={12} className="text-orange-400" />
-          <span className="text-xs text-orange-300">You have unsaved changes</span>
+          <AlertCircle size={10} className="text-orange-400" />
+          <span className="text-[10px] text-orange-300">You have unsaved changes</span>
         </div>
       )}
 
       {/* Balance Card */}
       <div
-        className="rounded-xl px-4 py-3 mb-3 flex items-center justify-between"
+        className="rounded-xl px-3 py-2.5 mb-2.5 flex items-center justify-between"
         style={{
           background: "linear-gradient(135deg, rgba(45,212,191,0.08) 0%, rgba(45,212,191,0.02) 100%)",
           border: "1px solid rgba(45,212,191,0.2)",
         }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            className="w-7 h-7 rounded-md flex items-center justify-center"
             style={{ background: "rgba(45,212,191,0.15)" }}
           >
-            <Wallet size={14} className="text-teal-400" />
+            <Wallet size={12} className="text-teal-400" />
           </div>
           <div>
-            <p className="text-[10px] text-gray-400">Current Balance</p>
-            <p className="text-base font-bold text-white">
+            <p className="text-[9px] text-gray-400">Current Balance</p>
+            <p className="text-sm font-bold text-white">
               ${settings.perpsBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
         </div>
-        <div className="flex gap-6">
+        <div className="flex gap-5">
           <div>
-            <p className="text-[10px] text-gray-500">Available</p>
-            <p className="text-sm font-medium text-gray-300">
+            <p className="text-[9px] text-gray-500">Available</p>
+            <p className="text-[12px] font-medium text-gray-300">
               ${settings.availableBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] text-gray-500">Used</p>
-            <p className="text-sm font-medium text-teal-400">
+            <p className="text-[9px] text-gray-500">Used</p>
+            <p className="text-[12px] font-medium text-teal-400">
               ${settings.usedBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
@@ -447,13 +448,13 @@ export default function DefaultFollow() {
         />
 
         {/* Leverage — slider + cross/isolated */}
-        <div className="mt-2">
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-xs text-gray-500">Leverage</span>
+        <div className="mt-1.5">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <span className="text-[10px] text-gray-500">Leverage</span>
             <Tooltip text={LEVERAGE_TOOLTIP} wide>
-              <Info size={14} className="text-gray-500 cursor-help" />
+              <Info size={12} className="text-gray-500 cursor-help" />
             </Tooltip>
-            <span className="text-xs font-semibold ml-auto" style={{ color: "rgba(45,212,191,1)" }}>
+            <span className="text-[10px] font-semibold ml-auto" style={{ color: "rgba(45,212,191,1)" }}>
               {settings.leverage}x
             </span>
           </div>
@@ -463,11 +464,11 @@ export default function DefaultFollow() {
           />
           {settings.leverage >= 10 && (
             <div
-              className="flex items-center gap-2 p-2 rounded-lg mt-1 mb-1"
+              className="flex items-center gap-1.5 p-1.5 rounded-md mt-1 mb-1"
               style={{ background: "rgba(251,146,60,0.1)", border: "1px solid rgba(251,146,60,0.2)" }}
             >
-              <AlertCircle size={12} className="text-orange-400 flex-shrink-0" />
-              <span className="text-[10px] text-orange-300">High leverage increases liquidation risk</span>
+              <AlertCircle size={10} className="text-orange-400 flex-shrink-0" />
+              <span className="text-[9px] text-orange-300">High leverage increases liquidation risk</span>
             </div>
           )}
           <div className="flex items-center justify-end gap-1 mt-1">
@@ -475,7 +476,7 @@ export default function DefaultFollow() {
               <button
                 key={type}
                 onClick={() => updateSetting("leverageType", type)}
-                className="px-3 py-1 rounded-lg text-xs font-medium transition-all duration-200 capitalize hover:scale-105 active:scale-95 cursor-pointer"
+                className="px-2.5 py-1 rounded-md text-[10px] font-medium transition-all duration-200 capitalize hover:scale-105 active:scale-95 cursor-pointer"
                 style={
                   settings.leverageType === type
                     ? { background: "rgba(45,212,191,0.15)", color: "rgba(45,212,191,1)", border: "1px solid rgba(45,212,191,0.4)" }
@@ -507,20 +508,20 @@ export default function DefaultFollow() {
           onTypeChange={(v) => updateSetting("takeProfitType", v)}
           color="orange"
         />
-        <div className="flex items-center justify-between mt-2">
-          <span className="text-xs text-gray-400">Max Positions</span>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mt-1.5">
+          <span className="text-[10px] text-gray-400">Max Positions</span>
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => updateSetting("maxPositions", Math.max(1, settings.maxPositions - 1))}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 text-sm transition-all duration-200 hover:bg-white/10 active:scale-95 cursor-pointer"
+              className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 text-[11px] transition-all duration-200 hover:bg-white/10 active:scale-95 cursor-pointer"
               style={{ background: "rgba(255,255,255,0.05)" }}
             >
               -
             </button>
-            <span className="text-sm font-medium text-white w-6 text-center">{settings.maxPositions}</span>
+            <span className="text-[12px] font-medium text-white w-5 text-center">{settings.maxPositions}</span>
             <button
               onClick={() => updateSetting("maxPositions", settings.maxPositions + 1)}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 text-sm transition-all duration-200 hover:bg-white/10 active:scale-95 cursor-pointer"
+              className="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 text-[11px] transition-all duration-200 hover:bg-white/10 active:scale-95 cursor-pointer"
               style={{ background: "rgba(255,255,255,0.05)" }}
             >
               +
@@ -532,7 +533,7 @@ export default function DefaultFollow() {
       {/* Execution Section */}
       <SectionCard icon={Zap} title="Execution" color="purple">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500">Order Type</span>
+          <span className="text-[10px] text-gray-500">Order Type</span>
           <div className="flex gap-1">
             {[
               { value: OrderStyleEnum.market, label: "market" },
@@ -541,7 +542,7 @@ export default function DefaultFollow() {
               <button
                 key={type.value}
                 onClick={() => updateSetting("orderStyle", type.value)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 capitalize hover:scale-105 active:scale-95 cursor-pointer"
+                className="px-2.5 py-1 rounded-md text-[10px] font-medium transition-all duration-200 capitalize hover:scale-105 active:scale-95 cursor-pointer"
                 style={
                   settings.orderStyle === type.value
                     ? { background: "rgba(168,85,247,0.15)", color: "rgba(168,85,247,1)", border: "1px solid rgba(168,85,247,0.4)" }
@@ -553,19 +554,19 @@ export default function DefaultFollow() {
             ))}
           </div>
         </div>
-        <div className="flex items-center justify-between mt-2">
-          <div className="flex items-center gap-2">
-            <Bell size={12} className="text-gray-500" />
-            <span className="text-xs text-gray-400">Notifications</span>
+        <div className="flex items-center justify-between mt-1.5">
+          <div className="flex items-center gap-1.5">
+            <Bell size={10} className="text-gray-500" />
+            <span className="text-[10px] text-gray-400">Notifications</span>
           </div>
           <Toggle enabled={settings.notifications} onToggle={() => updateSetting("notifications", !settings.notifications)} />
         </div>
       </SectionCard>
 
       {/* Summary */}
-      <div className="mb-4">
+      <div className="mb-3">
         <div className="flex items-center justify-between">
-          <p className="text-xs" style={{ color: "rgba(255,255,255,0.25)" }}>
+          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.25)" }}>
             {settings.tradeSizeType === "USD" ? `$${settings.tradeSize}` : `${settings.tradeSize}%`} per trade · {settings.leverage}x {settings.leverageType}
             {!summaryExpanded && (
               <button
@@ -580,7 +581,7 @@ export default function DefaultFollow() {
           {summaryExpanded && (
             <button
               onClick={() => setSummaryExpanded(false)}
-              className="text-xs hover:opacity-80 transition-opacity cursor-pointer"
+              className="text-[10px] hover:opacity-80 transition-opacity cursor-pointer"
               style={{ color: "rgba(255,255,255,0.45)" }}
             >
               close
@@ -591,42 +592,42 @@ export default function DefaultFollow() {
         {/* Expanded view */}
         <div
           className={`overflow-hidden transition-all duration-300 ease-out ${
-            summaryExpanded ? "max-h-[500px] opacity-100 mt-3 pt-3" : "max-h-0 opacity-0"
+            summaryExpanded ? "max-h-[500px] opacity-100 mt-2.5 pt-2.5" : "max-h-0 opacity-0"
           }`}
           style={summaryExpanded ? { borderTop: "1px solid rgba(255,255,255,0.06)" } : {}}
         >
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs">
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[10px]">
               <span className="text-gray-500">Trade Size</span>
               <span className="text-gray-300">
                 {settings.tradeSizeType === "USD" ? `$${settings.tradeSize}` : `${settings.tradeSize}%`} of your balance per copied trade
               </span>
             </div>
-            <div className="flex justify-between text-xs">
+            <div className="flex justify-between text-[10px]">
               <span className="text-gray-500">Leverage</span>
               <span className="text-gray-300">
                 {settings.leverage}x {settings.leverageType} — position size multiplied by {settings.leverage}
               </span>
             </div>
-            <div className="flex justify-between text-xs">
+            <div className="flex justify-between text-[10px]">
               <span className="text-gray-500">Stop Loss</span>
               <span style={{ color: "rgba(251,146,60,0.8)" }}>
                 Auto-closes if loss reaches {settings.cutLossType === "USD" ? `$${settings.cutLoss}` : `${settings.cutLoss}%`}
               </span>
             </div>
-            <div className="flex justify-between text-xs">
+            <div className="flex justify-between text-[10px]">
               <span className="text-gray-500">Take Profit</span>
               <span style={{ color: "rgba(74,222,128,0.8)" }}>
                 Auto-closes if profit reaches {settings.takeProfitType === "USD" ? `$${settings.takeProfit}` : `${settings.takeProfit}%`}
               </span>
             </div>
-            <div className="flex justify-between text-xs">
+            <div className="flex justify-between text-[10px]">
               <span className="text-gray-500">Order Type</span>
               <span className="text-gray-300">
                 {settings.orderStyle === OrderStyleEnum.market ? "Market — executes immediately" : "Limit — executes at specified price"}
               </span>
             </div>
-            <div className="flex justify-between text-xs">
+            <div className="flex justify-between text-[10px]">
               <span className="text-gray-500">Max Positions</span>
               <span className="text-gray-300">Up to {settings.maxPositions} trades open at once</span>
             </div>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -77,8 +78,8 @@ function Tooltip({
 }) {
   const [show, setShow] = useState(false);
   const popupClass = wide
-    ? "absolute bottom-full mb-2 px-3 py-2 rounded-lg text-[10px] leading-relaxed text-white z-50 pointer-events-none w-56 whitespace-normal left-0"
-    : "absolute bottom-full mb-2 px-3 py-2 rounded-lg text-[10px] leading-relaxed text-white z-50 pointer-events-none whitespace-nowrap left-1/2 -translate-x-1/2";
+    ? "absolute bottom-full mb-2 px-2.5 py-1.5 rounded-lg text-[9px] leading-relaxed text-white z-50 pointer-events-none w-52 whitespace-normal left-0"
+    : "absolute bottom-full mb-2 px-2.5 py-1.5 rounded-lg text-[9px] leading-relaxed text-white z-50 pointer-events-none whitespace-nowrap left-1/2 -translate-x-1/2";
   const arrowClass = wide
     ? "absolute top-full w-0 h-0 left-4"
     : "absolute top-full w-0 h-0 left-1/2 -translate-x-1/2";
@@ -126,7 +127,7 @@ function XVerificationIcon({ type }: { type: XVerification }) {
   const { fill, tip } = cfg[type];
   return (
     <Tooltip text={tip}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="flex-shrink-0">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="flex-shrink-0">
         <path
           d="M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.93-.81-3.94s-2.55-1.27-3.94-.81C14.64 2.63 13.43 1.75 12 1.75S9.36 2.63 8.69 3.91c-1.39-.46-2.93-.2-3.94.81s-1.27 2.55-.81 3.94C2.63 9.33 1.75 10.57 1.75 12s.88 2.67 2.19 3.34c-.46 1.39-.2 2.93.81 3.94s2.55 1.27 3.94.81c.67 1.28 1.88 2.16 3.31 2.16s2.64-.88 3.31-2.16c1.39.46 2.93.2 3.94-.81s1.27-2.55.81-3.94c1.31-.67 2.19-1.91 2.19-3.34z"
           fill={fill}
@@ -142,12 +143,12 @@ function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void 
   return (
     <button
       onClick={(e) => { e.stopPropagation(); onToggle(); }}
-      className="w-11 h-6 rounded-full transition-all relative"
+      className="w-9 h-[18px] rounded-full transition-all relative"
       style={{ background: enabled ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.1)" }}
     >
       <div
-        className="w-5 h-5 rounded-full bg-white absolute top-0.5 transition-all"
-        style={{ left: enabled ? "22px" : "2px" }}
+        className="w-3.5 h-3.5 rounded-full bg-white absolute top-[2px] transition-all"
+        style={{ left: enabled ? "18px" : "2px" }}
       />
     </button>
   );
@@ -184,17 +185,17 @@ function LeverageSlider({ value, onChange }: { value: number; onChange: (v: numb
 
   return (
     <div className="w-full">
-      <div ref={trackRef} className="relative h-8 flex items-center cursor-pointer"
+      <div ref={trackRef} className="relative h-7 flex items-center cursor-pointer"
         onPointerDown={onPointerDown} onPointerMove={onPointerMove} onClick={(e) => e.stopPropagation()}>
-        <div className="absolute left-0 right-0 h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
-        <div className="absolute left-0 h-1.5 rounded-full transition-colors" style={{ width: `${pct}%`, background: trackColor }} />
-        <div className="absolute w-5 h-5 rounded-full border-2 border-white transition-colors"
-          style={{ left: `calc(${pct}% - 10px)`, background: thumbColor, boxShadow: `0 0 10px ${thumbColor}` }} />
+        <div className="absolute left-0 right-0 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
+        <div className="absolute left-0 h-1 rounded-full transition-colors" style={{ width: `${pct}%`, background: trackColor }} />
+        <div className="absolute w-4 h-4 rounded-full border-2 border-white transition-colors"
+          style={{ left: `calc(${pct}% - 8px)`, background: thumbColor, boxShadow: `0 0 8px ${thumbColor}` }} />
       </div>
-      <div className="flex justify-between mt-0.5 px-0.5">
+      <div className="flex justify-between mt-0 px-0.5">
         {[1, 5, 10, 15, 20].map((v) => (
           <button key={v} onClick={(e) => { e.stopPropagation(); onChange(v); }}
-            className="text-[10px] transition-all cursor-pointer"
+            className="text-[9px] transition-all cursor-pointer"
             style={{ color: v === value ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.3)" }}>
             {v}x
           </button>
@@ -210,10 +211,10 @@ function CopyDirectionSelector({ value, onChange }: { value: "all" | "longs" | "
     { key: "all", label: "All" }, { key: "longs", label: "Longs Only" }, { key: "shorts", label: "Shorts Only" },
   ];
   return (
-    <div className="flex gap-1.5">
+    <div className="flex gap-1">
       {opts.map((o) => (
         <button key={o.key} onClick={(e) => { e.stopPropagation(); onChange(o.key); }}
-          className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all hover:scale-105 active:scale-95 cursor-pointer"
+          className="px-2 py-1 rounded-md text-[10px] font-medium transition-all hover:scale-105 active:scale-95 cursor-pointer"
           style={value === o.key
             ? { background: "rgba(45,212,191,0.15)", color: "rgba(45,212,191,1)", border: "1px solid rgba(45,212,191,0.4)" }
             : { background: "transparent", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.1)" }
@@ -228,7 +229,7 @@ function CopyDirectionSelector({ value, onChange }: { value: "all" | "longs" | "
 // ─── Type Toggle Button ───
 function TypeBtn({ active, label, onClick }: { active: boolean; label: string; onClick: (e: React.MouseEvent) => void }) {
   return (
-    <button onClick={onClick} className="w-7 h-7 rounded text-xs font-medium transition-all"
+    <button onClick={onClick} className="w-6 h-6 rounded text-[10px] font-medium transition-all"
       style={active
         ? { backgroundColor: "rgba(45,212,191,1)", color: "#0a0f14" }
         : { border: "1px solid rgba(45,212,191,0.4)", color: "rgba(45,212,191,0.8)" }
@@ -241,7 +242,7 @@ function TypeBtn({ active, label, onClick }: { active: boolean; label: string; o
 // ─── History Filter Tab ───
 function HistoryFilterTab({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer"
+    <button onClick={onClick} className="px-2.5 py-1 rounded-md text-[10px] font-medium transition-all cursor-pointer"
       style={active
         ? { background: "rgba(45,212,191,0.15)", color: "rgba(45,212,191,1)", border: "1px solid rgba(45,212,191,0.3)" }
         : { background: "transparent", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.08)" }
@@ -322,7 +323,6 @@ function CopiedTradesPanel({ open, onClose }: { open: boolean; onClose: () => vo
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Lock body scroll when open
   useEffect(() => {
     if (open) document.body.style.overflow = "hidden";
     else document.body.style.overflow = "";
@@ -333,7 +333,6 @@ function CopiedTradesPanel({ open, onClose }: { open: boolean; onClose: () => vo
 
   return createPortal(
     <>
-      {/* Backdrop */}
       {open && (
         <div
           className="fixed inset-0 z-[9998]"
@@ -342,7 +341,6 @@ function CopiedTradesPanel({ open, onClose }: { open: boolean; onClose: () => vo
         />
       )}
 
-      {/* Panel */}
       <div
         className="fixed bottom-0 left-1/2 z-[9999] transition-transform duration-300 ease-out w-full"
         style={{
@@ -352,7 +350,7 @@ function CopiedTradesPanel({ open, onClose }: { open: boolean; onClose: () => vo
         }}
       >
         <div
-          className="rounded-t-3xl overflow-hidden flex flex-col"
+          className="rounded-t-2xl overflow-hidden flex flex-col"
           style={{
             background: "linear-gradient(180deg, rgba(16,20,26,1) 0%, rgba(10,14,20,1) 100%)",
             border: "1px solid rgba(255,255,255,0.08)",
@@ -361,72 +359,72 @@ function CopiedTradesPanel({ open, onClose }: { open: boolean; onClose: () => vo
           }}
         >
           {/* Handle bar */}
-          <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-            <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
+          <div className="flex justify-center pt-2.5 pb-1 flex-shrink-0">
+            <div className="w-8 h-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} />
           </div>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-5 pt-1 pb-3 flex-shrink-0">
+          <div className="flex items-center justify-between px-4 pt-1 pb-2.5 flex-shrink-0">
             <div>
-              <div className="flex items-center gap-2">
-                <Clock size={16} className="text-teal-400" />
-                <p className="text-base font-semibold text-white">Copied Trades</p>
+              <div className="flex items-center gap-1.5">
+                <Clock size={14} className="text-teal-400" />
+                <p className="text-sm font-semibold text-white">Copied Trades</p>
               </div>
-              <p className="text-xs text-gray-500 mt-0.5 ml-6">
+              <p className="text-[10px] text-gray-500 mt-0.5 ml-5">
                 Entries & exits from followed traders
               </p>
             </div>
             <button onClick={onClose}
-              className="w-8 h-8 rounded-full flex items-center justify-center"
+              className="w-7 h-7 rounded-full flex items-center justify-center"
               style={{ background: "rgba(255,255,255,0.06)" }}>
-              <X size={16} className="text-gray-400" />
+              <X size={14} className="text-gray-400" />
             </button>
           </div>
 
           {/* Summary row */}
-          <div className="flex gap-2 px-5 mb-3 flex-shrink-0">
-            <div className="flex-1 rounded-xl p-2.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Total PnL</p>
-              <p className="text-sm font-semibold" style={{ color: totalPnl >= 0 ? "rgba(74,222,128,1)" : "rgba(239,68,68,1)" }}>
+          <div className="flex gap-1.5 px-4 mb-2.5 flex-shrink-0">
+            <div className="flex-1 rounded-lg p-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <p className="text-[8px] text-gray-500 uppercase tracking-wider mb-0.5">Total PnL</p>
+              <p className="text-[12px] font-semibold" style={{ color: totalPnl >= 0 ? "rgba(74,222,128,1)" : "rgba(239,68,68,1)" }}>
                 {fmtTradePnl(totalPnl)}
               </p>
             </div>
-            <div className="flex-1 rounded-xl p-2.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Open</p>
-              <p className="text-sm font-semibold text-teal-400">{openTrades.length}</p>
+            <div className="flex-1 rounded-lg p-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <p className="text-[8px] text-gray-500 uppercase tracking-wider mb-0.5">Open</p>
+              <p className="text-[12px] font-semibold text-teal-400">{openTrades.length}</p>
             </div>
-            <div className="flex-1 rounded-xl p-2.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">Closed</p>
-              <p className="text-sm font-semibold text-white">{closedTrades.length}</p>
+            <div className="flex-1 rounded-lg p-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <p className="text-[8px] text-gray-500 uppercase tracking-wider mb-0.5">Closed</p>
+              <p className="text-[12px] font-semibold text-white">{closedTrades.length}</p>
             </div>
           </div>
 
           {/* Filters */}
-          <div className="flex gap-2 px-5 mb-3 flex-shrink-0">
+          <div className="flex gap-1.5 px-4 mb-2.5 flex-shrink-0">
             <HistoryFilterTab active={filter === "all"} label={`All (${MOCK_TRADE_HISTORY.length})`} onClick={() => setFilter("all")} />
             <HistoryFilterTab active={filter === "open"} label={`Open (${openTrades.length})`} onClick={() => setFilter("open")} />
             <HistoryFilterTab active={filter === "closed"} label={`Closed (${closedTrades.length})`} onClick={() => setFilter("closed")} />
           </div>
 
           {/* Trade list — scrollable */}
-          <div className="flex-1 overflow-y-auto px-5 pb-8 min-h-0">
-            <div className="space-y-2">
+          <div className="flex-1 overflow-y-auto px-4 pb-6 min-h-0">
+            <div className="space-y-1.5">
               {filtered.map((trade) => (
-                <div key={trade.id} className="rounded-xl p-3"
+                <div key={trade.id} className="rounded-lg p-2.5"
                   style={{
                     background: "linear-gradient(135deg, rgba(45,212,191,0.03) 0%, rgba(45,212,191,0.01) 100%)",
                     border: "1px solid rgba(255,255,255,0.06)",
                   }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white flex-shrink-0"
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold text-white flex-shrink-0"
                         style={{ backgroundColor: trade.traderColor }}>
                         {trade.traderName[0]}
                       </div>
-                      <span className="text-xs text-gray-400">{trade.traderName}</span>
+                      <span className="text-[10px] text-gray-400">{trade.traderName}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[9px] px-1.5 py-0.5 rounded font-medium"
                         style={trade.status === "open"
                           ? { background: "rgba(45,212,191,0.1)", color: "rgba(45,212,191,0.8)" }
                           : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.35)" }
@@ -434,43 +432,43 @@ function CopiedTradesPanel({ open, onClose }: { open: boolean; onClose: () => vo
                         {trade.status === "open" ? "Open" : "Closed"}
                       </span>
                       <Tooltip text={fmtDate(trade.timestamp)}>
-                        <span className="text-[10px] text-gray-600">{fmtTime(trade.timestamp)}</span>
+                        <span className="text-[9px] text-gray-600">{fmtTime(trade.timestamp)}</span>
                       </Tooltip>
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {trade.direction === "long"
-                        ? <ArrowUpRight size={14} style={{ color: "rgba(74,222,128,0.8)" }} />
-                        : <ArrowDownRight size={14} style={{ color: "rgba(239,68,68,0.8)" }} />}
-                      <span className="text-sm font-medium text-white">{trade.asset}</span>
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded uppercase"
+                        ? <ArrowUpRight size={12} style={{ color: "rgba(74,222,128,0.8)" }} />
+                        : <ArrowDownRight size={12} style={{ color: "rgba(239,68,68,0.8)" }} />}
+                      <span className="text-[12px] font-medium text-white">{trade.asset}</span>
+                      <span className="text-[9px] font-medium px-1 py-0.5 rounded uppercase"
                         style={trade.direction === "long"
                           ? { background: "rgba(74,222,128,0.1)", color: "rgba(74,222,128,0.8)" }
                           : { background: "rgba(239,68,68,0.1)", color: "rgba(239,68,68,0.8)" }
                         }>
                         {trade.direction}
                       </span>
-                      <span className="text-[10px] text-gray-500">{trade.leverage}x</span>
+                      <span className="text-[9px] text-gray-500">{trade.leverage}x</span>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold"
+                      <p className="text-[12px] font-semibold"
                         style={{ color: trade.pnl >= 0 ? "rgba(74,222,128,1)" : "rgba(239,68,68,1)" }}>
                         {fmtTradePnl(trade.pnl)}
                       </p>
-                      <p className="text-[10px]"
+                      <p className="text-[9px]"
                         style={{ color: trade.pnl >= 0 ? "rgba(74,222,128,0.6)" : "rgba(239,68,68,0.6)" }}>
                         {trade.pnlPct >= 0 ? "+" : ""}{trade.pnlPct.toFixed(2)}%
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between mt-2 pt-2"
+                  <div className="flex items-center justify-between mt-1.5 pt-1.5"
                     style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                    <div className="flex items-center gap-3">
-                      <span className="text-[10px] text-gray-500">Size <span className="text-gray-400">${trade.size}</span></span>
-                      <span className="text-[10px] text-gray-500">Entry <span className="text-gray-400">${trade.entryPrice.toLocaleString()}</span></span>
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[9px] text-gray-500">Size <span className="text-gray-400">${trade.size}</span></span>
+                      <span className="text-[9px] text-gray-500">Entry <span className="text-gray-400">${trade.entryPrice.toLocaleString()}</span></span>
                     </div>
-                    <span className="text-[10px] text-gray-500">
+                    <span className="text-[9px] text-gray-500">
                       {trade.status === "closed" ? "Exit" : "Current"}{" "}
                       <span className="text-gray-400">${(trade.exitPrice ?? trade.currentPrice).toLocaleString()}</span>
                     </span>
@@ -480,10 +478,10 @@ function CopiedTradesPanel({ open, onClose }: { open: boolean; onClose: () => vo
             </div>
 
             {filtered.length === 0 && (
-              <div className="rounded-xl py-8 flex flex-col items-center justify-center"
+              <div className="rounded-lg py-6 flex flex-col items-center justify-center"
                 style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                <Clock size={20} className="text-gray-600 mb-2" />
-                <p className="text-xs text-gray-500">No {filter} trades yet</p>
+                <Clock size={18} className="text-gray-600 mb-1.5" />
+                <p className="text-[10px] text-gray-500">No {filter} trades yet</p>
               </div>
             )}
           </div>
@@ -525,36 +523,36 @@ export default function SpecificTraders() {
   return (
     <div>
       {/* Search */}
-      <div className="rounded-2xl h-12 flex items-center px-4 gap-3 mb-4"
+      <div className="rounded-xl h-10 flex items-center px-3 gap-2.5 mb-3"
         style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-        <Search size={16} className="text-gray-500" />
+        <Search size={14} className="text-gray-500" />
         <input type="text" placeholder="Search traders to follow..." value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
-          className="flex-1 bg-transparent text-sm text-white outline-none placeholder-gray-500" />
+          className="flex-1 bg-transparent text-[12px] text-white outline-none placeholder-gray-500" />
       </div>
 
       {/* Followed Traders */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs text-gray-500">Followed Traders ({traders.length})</p>
-          <div className="flex items-center flex-shrink-0 pr-3">
-            <div className="w-5" />
-            <div className="ml-1 flex items-center justify-center" style={{ minWidth: "62px" }}>
-              <span className="text-[10px] text-gray-600 uppercase tracking-wider">PnL</span>
+      <div className="mb-3">
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-[10px] text-gray-500">Followed Traders ({traders.length})</p>
+          <div className="flex items-center flex-shrink-0 pr-2.5">
+            <div className="w-4" />
+            <div className="ml-1 flex items-center justify-center" style={{ minWidth: "56px" }}>
+              <span className="text-[9px] text-gray-600 uppercase tracking-wider">PnL</span>
             </div>
-            <div className="ml-1.5 flex items-center justify-center" style={{ minWidth: "62px" }}>
-              <span className="text-[10px] text-gray-600 uppercase tracking-wider">Size</span>
+            <div className="ml-1 flex items-center justify-center" style={{ minWidth: "56px" }}>
+              <span className="text-[9px] text-gray-600 uppercase tracking-wider">Size</span>
             </div>
-            <div className="ml-1.5 w-4" />
+            <div className="ml-1 w-3.5" />
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {traders.map((trader) => {
             const isExpanded = expandedTrader === trader.id;
             return (
               <div key={trader.id}>
-                <div className="rounded-2xl p-3 cursor-pointer transition-all"
+                <div className="rounded-xl p-2.5 cursor-pointer transition-all"
                   style={{
                     background: isExpanded
                       ? "linear-gradient(135deg, rgba(45,212,191,0.08) 0%, rgba(45,212,191,0.02) 100%)"
@@ -562,69 +560,69 @@ export default function SpecificTraders() {
                     border: isExpanded ? "1px solid rgba(45,212,191,0.3)" : "1px solid rgba(255,255,255,0.08)",
                   }}
                   onClick={() => setExpandedTrader(isExpanded ? null : trader.id)}>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
                         style={{ backgroundColor: trader.color }}>
                         {trader.name[0]}
                       </div>
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-medium text-white truncate">{trader.name}</p>
+                        <div className="flex items-center gap-1">
+                          <p className="text-[12px] font-medium text-white truncate">{trader.name}</p>
                           <XVerificationIcon type={trader.xVerification} />
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500">{trader.handle}</span>
-                          <span className="text-xs text-teal-400">{trader.winRate}% win</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-gray-500">{trader.handle}</span>
+                          <span className="text-[10px] text-teal-400">{trader.winRate}% win</span>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center flex-shrink-0">
-                      <div className="w-5 flex items-center justify-center">
+                      <div className="w-4 flex items-center justify-center">
                         {trader.useCustom && trader.settings.leverage >= 10 && (
                           <Tooltip text="High leverage — increased liquidation risk">
-                            <AlertTriangle size={14} className="text-orange-400" />
+                            <AlertTriangle size={12} className="text-orange-400" />
                           </Tooltip>
                         )}
                       </div>
-                      <div className="h-7 rounded-lg flex items-center justify-center text-xs font-semibold ml-1"
-                        style={{ minWidth: "62px", ...getPnlBadgeStyle(trader.pnl) }}>
+                      <div className="h-6 rounded-md flex items-center justify-center text-[10px] font-semibold ml-1"
+                        style={{ minWidth: "56px", ...getPnlBadgeStyle(trader.pnl) }}>
                         {fmtPnl(trader.pnl)}
                       </div>
-                      <div className="h-7 rounded-lg flex items-center justify-center text-xs font-semibold ml-1.5"
-                        style={{ minWidth: "62px", ...getSizeBadgeStyle(trader) }}>
+                      <div className="h-6 rounded-md flex items-center justify-center text-[10px] font-semibold ml-1"
+                        style={{ minWidth: "56px", ...getSizeBadgeStyle(trader) }}>
                         {trader.useCustom ? `$${trader.settings.tradeSize}` : "Default"}
                       </div>
-                      <div className="ml-1.5">
-                        {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                      <div className="ml-1">
+                        {isExpanded ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {isExpanded && (
-                  <div className="mt-1 rounded-2xl p-4" style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                    <div className="flex items-center justify-between mb-4 pb-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div className="mt-1 rounded-xl p-3" style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div className="flex items-center justify-between mb-3 pb-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                       <div>
-                        <p className="text-sm text-white">Custom Settings</p>
-                        <p className="text-xs text-gray-500">Override default follow settings</p>
+                        <p className="text-[12px] text-white">Custom Settings</p>
+                        <p className="text-[10px] text-gray-500">Override default follow settings</p>
                       </div>
                       <Toggle enabled={trader.useCustom} onToggle={() => toggleTraderCustom(trader.id)} />
                     </div>
                     {trader.useCustom ? (
-                      <div className="space-y-3">
+                      <div className="space-y-2.5">
                         {trader.settings.leverage >= 10 && (
-                          <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: "rgba(251,146,60,0.1)", border: "1px solid rgba(251,146,60,0.2)" }}>
-                            <AlertTriangle size={14} className="text-orange-400 flex-shrink-0" />
-                            <span className="text-xs text-orange-300">High leverage increases liquidation risk</span>
+                          <div className="flex items-center gap-1.5 p-1.5 rounded-md" style={{ background: "rgba(251,146,60,0.1)", border: "1px solid rgba(251,146,60,0.2)" }}>
+                            <AlertTriangle size={12} className="text-orange-400 flex-shrink-0" />
+                            <span className="text-[10px] text-orange-300">High leverage increases liquidation risk</span>
                           </div>
                         )}
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Trade Size</span>
-                          <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-gray-500">Trade Size</span>
+                          <div className="flex items-center gap-1.5">
                             <input type="text" value={trader.settings.tradeSize}
                               onChange={(e) => updateTraderSetting(trader.id, "tradeSize", Number(e.target.value) || 0)}
-                              className="w-16 bg-transparent text-right text-sm text-white outline-none" onClick={(e) => e.stopPropagation()} />
+                              className="w-14 bg-transparent text-right text-[12px] text-white outline-none" onClick={(e) => e.stopPropagation()} />
                             <div className="flex gap-1">
                               <TypeBtn active={trader.settings.tradeSizeType === "USD"} label="$"
                                 onClick={(e) => { e.stopPropagation(); updateTraderSetting(trader.id, "tradeSizeType", "USD"); }} />
@@ -634,26 +632,26 @@ export default function SpecificTraders() {
                           </div>
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5 mb-2">
-                            <span className="text-xs text-gray-500">Leverage</span>
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <span className="text-[10px] text-gray-500">Leverage</span>
                             <Tooltip text={LEVERAGE_TOOLTIP} wide>
-                              <Info size={14} className="text-gray-500 cursor-help" />
+                              <Info size={12} className="text-gray-500 cursor-help" />
                             </Tooltip>
-                            <span className="text-xs font-semibold ml-auto" style={{ color: "rgba(45,212,191,1)" }}>{trader.settings.leverage}x</span>
+                            <span className="text-[10px] font-semibold ml-auto" style={{ color: "rgba(45,212,191,1)" }}>{trader.settings.leverage}x</span>
                           </div>
                           <LeverageSlider value={trader.settings.leverage} onChange={(v) => updateTraderSetting(trader.id, "leverage", v)} />
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Copy Direction</span>
+                          <span className="text-[10px] text-gray-500">Copy Direction</span>
                           <CopyDirectionSelector value={trader.settings.copyDirection}
                             onChange={(v) => updateTraderSetting(trader.id, "copyDirection", v)} />
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Stop Loss</span>
-                          <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-gray-500">Stop Loss</span>
+                          <div className="flex items-center gap-1.5">
                             <input type="text" value={trader.settings.cutLoss}
                               onChange={(e) => updateTraderSetting(trader.id, "cutLoss", Number(e.target.value) || 0)}
-                              className="w-16 bg-transparent text-right text-sm text-white outline-none" onClick={(e) => e.stopPropagation()} />
+                              className="w-14 bg-transparent text-right text-[12px] text-white outline-none" onClick={(e) => e.stopPropagation()} />
                             <div className="flex gap-1">
                               <TypeBtn active={trader.settings.cutLossType === "USD"} label="$"
                                 onClick={(e) => { e.stopPropagation(); updateTraderSetting(trader.id, "cutLossType", "USD"); }} />
@@ -663,11 +661,11 @@ export default function SpecificTraders() {
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">Take Profit</span>
-                          <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-gray-500">Take Profit</span>
+                          <div className="flex items-center gap-1.5">
                             <input type="text" value={trader.settings.takeProfit}
                               onChange={(e) => updateTraderSetting(trader.id, "takeProfit", Number(e.target.value) || 0)}
-                              className="w-16 bg-transparent text-right text-sm text-white outline-none" onClick={(e) => e.stopPropagation()} />
+                              className="w-14 bg-transparent text-right text-[12px] text-white outline-none" onClick={(e) => e.stopPropagation()} />
                             <div className="flex gap-1">
                               <TypeBtn active={trader.settings.takeProfitType === "USD"} label="$"
                                 onClick={(e) => { e.stopPropagation(); updateTraderSetting(trader.id, "takeProfitType", "USD"); }} />
@@ -676,30 +674,30 @@ export default function SpecificTraders() {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between pt-3 mt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                          <div className="flex items-center gap-2">
-                            <Bell size={14} className="text-gray-500" />
-                            <span className="text-xs text-gray-500">Notifications</span>
+                        <div className="flex items-center justify-between pt-2.5 mt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                          <div className="flex items-center gap-1.5">
+                            <Bell size={12} className="text-gray-500" />
+                            <span className="text-[10px] text-gray-500">Notifications</span>
                           </div>
                           <Toggle enabled={trader.settings.notifications}
                             onToggle={() => updateTraderSetting(trader.id, "notifications", !trader.settings.notifications)} />
                         </div>
-                        <div className="pt-3 mt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div className="pt-2.5 mt-1.5" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                           <button onClick={(e) => { e.stopPropagation(); unfollowTrader(trader.id); }}
-                            className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 transition-colors">
-                            <X size={14} /><span>Unfollow {trader.name.split(" ")[0]}</span>
+                            className="flex items-center gap-1.5 text-[10px] text-red-400 hover:text-red-300 transition-colors">
+                            <X size={12} /><span>Unfollow {trader.name.split(" ")[0]}</span>
                           </button>
                         </div>
                       </div>
                     ) : (
                       <div>
-                        <div className="flex items-center gap-2 text-xs text-gray-400 mb-3">
-                          <Check size={14} className="text-teal-400" /><span>Using default follow settings</span>
+                        <div className="flex items-center gap-1.5 text-[10px] text-gray-400 mb-2.5">
+                          <Check size={12} className="text-teal-400" /><span>Using default follow settings</span>
                         </div>
-                        <div className="pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div className="pt-2.5" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                           <button onClick={(e) => { e.stopPropagation(); unfollowTrader(trader.id); }}
-                            className="flex items-center gap-2 text-xs text-red-400 hover:text-red-300 transition-colors">
-                            <X size={14} /><span>Unfollow {trader.name.split(" ")[0]}</span>
+                            className="flex items-center gap-1.5 text-[10px] text-red-400 hover:text-red-300 transition-colors">
+                            <X size={12} /><span>Unfollow {trader.name.split(" ")[0]}</span>
                           </button>
                         </div>
                       </div>
@@ -713,8 +711,8 @@ export default function SpecificTraders() {
       </div>
 
       {/* Save */}
-      <div className="space-y-3 mt-6">
-        <button className="w-full h-14 rounded-2xl font-semibold text-sm transition-all"
+      <div className="space-y-2.5 mt-5">
+        <button className="w-full h-12 rounded-xl font-semibold text-[12px] transition-all"
           style={{
             background: hasChanges ? "rgba(45,212,191,1)" : "rgba(45,212,191,0.5)",
             color: "#0a0f14",
@@ -725,27 +723,25 @@ export default function SpecificTraders() {
         </button>
       </div>
 
-      {/* ═══════════════════════════════════════════ */}
-      {/* Copied Trades — entry button (replaces inline list) */}
-      {/* ═══════════════════════════════════════════ */}
+      {/* Copied Trades — entry button */}
       <button
         onClick={() => setShowHistory(true)}
-        className="w-full mt-5 rounded-2xl p-4 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
+        className="w-full mt-4 rounded-xl p-3 flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer"
         style={{
           background: "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.02) 100%)",
           border: "1px solid rgba(255,255,255,0.08)",
         }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center"
+            className="w-7 h-7 rounded-lg flex items-center justify-center"
             style={{ background: "rgba(45,212,191,0.1)" }}
           >
-            <Clock size={16} className="text-teal-400" />
+            <Clock size={14} className="text-teal-400" />
           </div>
           <div className="text-left">
-            <p className="text-sm font-medium text-white">Copied Trades History</p>
-            <p className="text-xs text-gray-500">
+            <p className="text-[12px] font-medium text-white">Copied Trades History</p>
+            <p className="text-[10px] text-gray-500">
               {openTradesCount} open · {MOCK_TRADE_HISTORY.length} total ·{" "}
               <span style={{ color: totalPnl >= 0 ? "rgba(74,222,128,0.8)" : "rgba(239,68,68,0.8)" }}>
                 {fmtTradePnl(totalPnl)}
@@ -753,7 +749,7 @@ export default function SpecificTraders() {
             </p>
           </div>
         </div>
-        <ChevronRight size={18} className="text-gray-500" />
+        <ChevronRight size={16} className="text-gray-500" />
       </button>
 
       {/* Slide-up history panel */}

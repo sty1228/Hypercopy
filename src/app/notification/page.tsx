@@ -183,44 +183,44 @@ export default function NotificationPage() {
       </div>
 
       {/* Header */}
-      <div className="relative z-10 mt-3 mb-2 flex items-center justify-between px-4">
+      <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
         <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
+          className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
           style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
         >
-          <Image src={profileIcon} alt="profile" width={14} height={14} />
+          <Image src={profileIcon} alt="profile" width={12} height={12} />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <div
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg"
+            className="flex items-center gap-1 px-2 py-1 rounded-md"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
           >
-            <Image src={copyCountIcon} alt="copy-count" width={13} height={13} />
-            <span className="text-[11px] font-semibold text-teal-400">4</span>
+            <Image src={copyCountIcon} alt="copy-count" width={11} height={11} />
+            <span className="text-[10px] font-semibold text-teal-400">4</span>
           </div>
           <div
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg"
+            className="flex items-center gap-1 px-2 py-1 rounded-md"
             style={{
               background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)",
               border: "1px solid rgba(45,212,191,0.25)",
               boxShadow: "0 0 15px rgba(45,212,191,0.2)",
             }}
           >
-            <Image src={copyRankIcon} alt="copy-rank" width={13} height={13} />
-            <span className="text-[11px] font-semibold text-teal-400">#64</span>
+            <Image src={copyRankIcon} alt="copy-rank" width={11} height={11} />
+            <span className="text-[10px] font-semibold text-teal-400">#64</span>
           </div>
           <UserMenu />
         </div>
       </div>
 
       {/* Title & Actions */}
-      <div className="relative z-10 px-4 mb-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-white">Alerts</h1>
+      <div className="relative z-10 px-3 mb-3">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <h1 className="text-base font-bold text-white">Alerts</h1>
             {unreadCount > 0 && (
               <span
-                className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold"
                 style={{ background: "rgba(45,212,191,0.2)", color: "rgba(45,212,191,1)" }}
               >
                 {unreadCount} new
@@ -230,9 +230,9 @@ export default function NotificationPage() {
           {unreadCount > 0 && (
             <button
               onClick={markAllRead}
-              className="text-xs text-gray-400 hover:text-teal-400 transition-colors cursor-pointer flex items-center gap-1"
+              className="text-[9px] text-gray-400 hover:text-teal-400 transition-colors cursor-pointer flex items-center gap-1"
             >
-              <Check size={12} />
+              <Check size={10} />
               Mark all read
             </button>
           )}
@@ -240,14 +240,14 @@ export default function NotificationPage() {
 
         {/* Filter Tabs */}
         <div
-          className="flex p-1 rounded-xl mb-4"
+          className="flex p-0.5 rounded-lg mb-3"
           style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
         >
           {filters.map((filter) => (
             <button
               key={filter.key}
               onClick={() => setActiveFilter(filter.key)}
-              className="flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-300 cursor-pointer"
+              className="flex-1 py-1.5 rounded-md text-[10px] font-medium transition-all duration-300 cursor-pointer"
               style={{
                 background: activeFilter === filter.key ? "rgba(45,212,191,0.15)" : "transparent",
                 color: activeFilter === filter.key ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.4)",
@@ -260,23 +260,23 @@ export default function NotificationPage() {
       </div>
 
       {/* Notifications List */}
-      <div className="relative z-10 px-4 pb-24">
+      <div className="relative z-10 px-3 pb-24">
         {filteredNotifications.length === 0 ? (
           <div
-            className="rounded-2xl p-8 flex flex-col items-center justify-center"
+            className="rounded-xl p-6 flex flex-col items-center justify-center"
             style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}
           >
             <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+              className="w-12 h-12 rounded-full flex items-center justify-center mb-3"
               style={{ background: "rgba(255,255,255,0.05)" }}
             >
-              <BellOff size={28} className="text-gray-500" />
+              <BellOff size={22} className="text-gray-500" />
             </div>
-            <p className="text-gray-400 text-sm mb-1">No notifications</p>
-            <p className="text-gray-600 text-xs">You&apos;re all caught up!</p>
+            <p className="text-gray-400 text-[11px] mb-0.5">No notifications</p>
+            <p className="text-gray-600 text-[9px]">You&apos;re all caught up!</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {filteredNotifications.map((notification) => {
               const iconConfig = getNotificationIcon(notification.type);
               const IconComponent = iconConfig.icon;
@@ -284,7 +284,7 @@ export default function NotificationPage() {
               return (
                 <div
                   key={notification.id}
-                  className="rounded-xl p-3 transition-all duration-200 hover:bg-white/5 group cursor-pointer"
+                  className="rounded-lg p-2.5 transition-all duration-200 hover:bg-white/5 group cursor-pointer"
                   style={{
                     background: notification.read
                       ? "linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)"
@@ -293,34 +293,34 @@ export default function NotificationPage() {
                   }}
                   onClick={() => markAsRead(notification.id)}
                 >
-                  <div className="flex items-start gap-3">
+                  <div className="flex items-start gap-2.5">
                     <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                       style={{ background: iconConfig.bg }}
                     >
-                      <IconComponent size={18} className={iconConfig.color} />
+                      <IconComponent size={14} className={iconConfig.color} />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-sm font-semibold ${notification.read ? "text-gray-300" : "text-white"}`}>
+                      <div className="flex items-center justify-between mb-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[11px] font-semibold ${notification.read ? "text-gray-300" : "text-white"}`}>
                             {notification.title}
                           </span>
                           {!notification.read && (
-                            <div className="w-2 h-2 rounded-full bg-teal-400" style={{ boxShadow: "0 0 6px rgba(45,212,191,0.6)" }} />
+                            <div className="w-1.5 h-1.5 rounded-full bg-teal-400" style={{ boxShadow: "0 0 6px rgba(45,212,191,0.6)" }} />
                           )}
                         </div>
-                        <span className="text-[10px] text-gray-500">{notification.time}</span>
+                        <span className="text-[8px] text-gray-500">{notification.time}</span>
                       </div>
 
-                      <p className="text-xs text-gray-400 mb-2">{notification.description}</p>
+                      <p className="text-[10px] text-gray-400 mb-1.5">{notification.description}</p>
 
                       {notification.data && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           {notification.data.token && (
                             <span
-                              className="px-2 py-0.5 rounded text-[10px] font-medium"
+                              className="px-1.5 py-0.5 rounded text-[8px] font-medium"
                               style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)" }}
                             >
                               {notification.data.token}
@@ -328,7 +328,7 @@ export default function NotificationPage() {
                           )}
                           {notification.data.pnl !== undefined && (
                             <span
-                              className={`text-xs font-semibold ${notification.data.pnl >= 0 ? "text-teal-400" : "text-rose-400"}`}
+                              className={`text-[10px] font-semibold ${notification.data.pnl >= 0 ? "text-teal-400" : "text-rose-400"}`}
                             >
                               {notification.data.pnl >= 0 ? "+" : ""}${Math.abs(notification.data.pnl).toFixed(1)}
                               {notification.data.pnlPercent !== undefined && (
@@ -337,10 +337,10 @@ export default function NotificationPage() {
                             </span>
                           )}
                           {notification.data.amount !== undefined && notification.type === "trade_open" && (
-                            <span className="text-xs text-gray-400">${notification.data.amount.toLocaleString()}</span>
+                            <span className="text-[10px] text-gray-400">${notification.data.amount.toLocaleString()}</span>
                           )}
                           {notification.data.amount !== undefined && notification.type === "referral" && (
-                            <span className="text-xs text-pink-400">+${notification.data.amount} bonus</span>
+                            <span className="text-[10px] text-pink-400">+${notification.data.amount} bonus</span>
                           )}
                         </div>
                       )}
@@ -351,9 +351,9 @@ export default function NotificationPage() {
                         e.stopPropagation();
                         deleteNotification(notification.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-white/10 cursor-pointer"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-white/10 cursor-pointer"
                     >
-                      <Trash2 size={14} className="text-gray-500 hover:text-rose-400 transition-colors" />
+                      <Trash2 size={12} className="text-gray-500 hover:text-rose-400 transition-colors" />
                     </button>
                   </div>
                 </div>

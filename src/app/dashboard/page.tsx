@@ -165,70 +165,70 @@ const Home = () => {
       {/* Login Banner */}
       {!authenticated && (
         <div
-          className="relative z-10 mx-4 mt-3 mb-1 rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer transition-all duration-300 hover:scale-[1.01]"
+          className="relative z-10 mx-3 mt-2 mb-1 rounded-lg px-3 py-2 flex items-center justify-between cursor-pointer transition-all duration-300 hover:scale-[1.01]"
           style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.1) 0%, rgba(45,212,191,0.03) 100%)", border: "1px solid rgba(45,212,191,0.2)" }}
           onClick={() => login()}
         >
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(45,212,191,0.15)" }}>
-              <svg className="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(45,212,191,0.15)" }}>
+              <svg className="w-3.5 h-3.5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
             </div>
             <div>
-              <p className="text-xs font-semibold text-white">Connect to start trading</p>
-              <p className="text-[10px] text-gray-500">Link your wallet to copy top traders</p>
+              <p className="text-[10px] font-semibold text-white">Connect to start trading</p>
+              <p className="text-[9px] text-gray-500">Link your wallet to copy top traders</p>
             </div>
           </div>
-          <span className="text-xs font-semibold text-teal-400">Connect →</span>
+          <span className="text-[10px] font-semibold text-teal-400">Connect →</span>
         </div>
       )}
 
       {/* Header */}
-      <div className="relative z-10 mt-3 mb-2 flex items-center justify-between px-4">
+      <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
         <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
+          className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
           style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
           onClick={handleLogout}
         >
-          <Image src={profileIcon} alt="profile" width={14} height={14} />
+          <Image src={profileIcon} alt="profile" width={12} height={12} />
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <Image src={copyCountIcon} alt="copy-count" width={13} height={13} />
-            <span className="text-[11px] font-semibold text-teal-400">4</span>
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 px-2 py-1 rounded-md" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <Image src={copyCountIcon} alt="copy-count" width={11} height={11} />
+            <span className="text-[10px] font-semibold text-teal-400">4</span>
           </div>
-          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)", border: "1px solid rgba(45,212,191,0.25)", boxShadow: "0 0 15px rgba(45,212,191,0.2)" }}>
-            <Image src={copyRankIcon} alt="copy-rank" width={13} height={13} />
-            <span className="text-[11px] font-semibold text-teal-400">#64</span>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-md" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)", border: "1px solid rgba(45,212,191,0.25)", boxShadow: "0 0 15px rgba(45,212,191,0.2)" }}>
+            <Image src={copyRankIcon} alt="copy-rank" width={11} height={11} />
+            <span className="text-[10px] font-semibold text-teal-400">#64</span>
           </div>
           <UserMenu />
         </div>
       </div>
 
       {/* Main Balance Card */}
-      <div className="relative z-10 px-4">
-        <div className="rounded-2xl p-5 mb-4 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(45,212,191,0.2)", boxShadow: "0 0 30px rgba(45,212,191,0.1), inset 0 0 40px rgba(45,212,191,0.03)" }}>
-          <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15) 0%, transparent 60%)" }} />
+      <div className="relative z-10 px-3">
+        <div className="rounded-xl p-4 mb-3 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(45,212,191,0.2)", boxShadow: "0 0 30px rgba(45,212,191,0.1), inset 0 0 40px rgba(45,212,191,0.03)" }}>
+          <div className="absolute inset-0 rounded-xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15) 0%, transparent 60%)" }} />
           <div className="relative z-10">
-            <div className="flex justify-between items-start mb-1">
+            <div className="flex justify-between items-start mb-0.5">
               <div>
-                <p className="text-[13px] text-gray-400 mb-1">Current Balance</p>
-                <p className="text-2xl font-bold text-white tracking-tight tabular-nums" style={{ textShadow: "0 0 20px rgba(45,212,191,0.3)" }}>
+                <p className="text-[11px] text-gray-400 mb-0.5">Current Balance</p>
+                <p className="text-xl font-bold text-white tracking-tight tabular-nums" style={{ textShadow: "0 0 20px rgba(45,212,191,0.3)" }}>
                   ${balance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-0.5">
                 {["D", "W", "M", "YTD", "ALL"].map((t) => (
                   <TimeRangeTab key={t} label={t as TimeRange} isActive={timeRange === t} onClick={() => setTimeRange(t as TimeRange)} />
                 ))}
               </div>
             </div>
-            <div className="flex justify-between mb-5">
-              <span className="text-[10px] text-gray-500">$8,876.32 Available</span>
-              <span className="text-[10px] text-teal-400">$7,657.9 Used</span>
+            <div className="flex justify-between mb-3">
+              <span className="text-[9px] text-gray-500">$8,876.32 Available</span>
+              <span className="text-[9px] text-teal-400">$7,657.9 Used</span>
             </div>
-            <div className="relative h-20 mb-2">
+            <div className="relative h-16 mb-1.5">
               {pointPositions.length > 0 && (
                 <>
                   <svg width="100%" height="100%" viewBox="0 0 100 80" preserveAspectRatio="none" className="absolute inset-0" style={{ overflow: "visible" }}>
@@ -250,32 +250,32 @@ const Home = () => {
                     <div
                       key={i}
                       className={`absolute rounded-full bg-teal-400 chart-dot ${chartAnimated ? "animated" : ""}`}
-                      style={{ width: 6, height: 6, left: `${p.x}%`, top: `${(p.y / 80) * 100}%`, boxShadow: "0 0 8px rgba(45,212,191,0.8)", animationDelay: `${0.3 + (i / pointPositions.length) * 1.2}s` }}
+                      style={{ width: 5, height: 5, left: `${p.x}%`, top: `${(p.y / 80) * 100}%`, boxShadow: "0 0 6px rgba(45,212,191,0.8)", animationDelay: `${0.3 + (i / pointPositions.length) * 1.2}s` }}
                     />
                   ))}
                 </>
               )}
             </div>
-            <div className="flex justify-between mb-4">
+            <div className="flex justify-between mb-3">
               {timelineLabels.map((label, i) => (
-                <span key={i} className="text-[8px] text-gray-500 font-medium" style={{ opacity: chartAnimated ? 1 : 0, transition: `opacity 0.3s ease ${0.5 + i * 0.05}s` }}>{label}</span>
+                <span key={i} className="text-[7px] text-gray-500 font-medium" style={{ opacity: chartAnimated ? 1 : 0, transition: `opacity 0.3s ease ${0.5 + i * 0.05}s` }}>{label}</span>
               ))}
             </div>
-            <div className="h-px bg-white/10 mb-4 rounded-full" />
+            <div className="h-px bg-white/10 mb-3 rounded-full" />
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-[11px] text-gray-400 mb-1">Today&apos;s Gain/Loss</p>
-                <div className="flex items-center gap-2">
-                  <span className="text-base font-bold tabular-nums text-white">${todayGain.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                  <span className="text-[11px] font-semibold text-teal-400" style={{ textShadow: "0 0 10px rgba(45,212,191,0.5)" }}>+4.12%</span>
+                <p className="text-[10px] text-gray-400 mb-0.5">Today&apos;s Gain/Loss</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-bold tabular-nums text-white">${todayGain.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="text-[10px] font-semibold text-teal-400" style={{ textShadow: "0 0 10px rgba(45,212,191,0.5)" }}>+4.12%</span>
                 </div>
               </div>
               <Button
                 onClick={() => setShowDeposit(true)}
-                className="bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-xs font-bold rounded-xl px-5 py-3 h-auto transition-all cursor-pointer gap-1.5"
+                className="bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-[11px] font-bold rounded-lg px-4 py-2.5 h-auto transition-all cursor-pointer gap-1"
                 style={{ boxShadow: "0 0 25px rgba(45,212,191,0.4)" }}
               >
-                <Download size={14} />
+                <Download size={12} />
                 Deposit
               </Button>
             </div>
@@ -284,8 +284,8 @@ const Home = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="relative z-10 flex px-4 mt-4 gap-3">
-        <div className="flex flex-1 gap-3">
+      <div className="relative z-10 flex px-3 mt-2.5 gap-2">
+        <div className="flex flex-1 gap-2">
           {[
             { icon: Copy, label: "Copying", value: "243", color: "teal", action: () => setShowCopying(true) },
             { icon: Users, label: "Copiers", value: "367", color: "purple", action: () => setShowCopiers(true) },
@@ -293,90 +293,90 @@ const Home = () => {
             <div
               key={i}
               onClick={() => stat.action()}
-              className="flex-1 rounded-2xl p-4 cursor-pointer transition-all duration-300 hover:scale-[1.02]"
+              className="flex-1 rounded-xl p-3 cursor-pointer transition-all duration-300 hover:scale-[1.02]"
               style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}
             >
               <div className="flex flex-col items-center">
-                <div className={`w-11 h-11 rounded-full flex items-center justify-center mb-3 ${stat.color === "teal" ? "bg-teal-400/10" : "bg-purple-400/10"}`}>
-                  <stat.icon size={20} className={stat.color === "teal" ? "text-teal-400" : "text-purple-400"} />
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center mb-2 ${stat.color === "teal" ? "bg-teal-400/10" : "bg-purple-400/10"}`}>
+                  <stat.icon size={16} className={stat.color === "teal" ? "text-teal-400" : "text-purple-400"} />
                 </div>
-                <span className="text-[11px] text-gray-400 mb-2">{stat.label}</span>
-                <span className="text-base font-bold text-white">{stat.value}</span>
+                <span className="text-[9px] text-gray-400 mb-1">{stat.label}</span>
+                <span className="text-sm font-bold text-white">{stat.value}</span>
               </div>
             </div>
           ))}
         </div>
-        <div className="flex flex-1 flex-col gap-3">
+        <div className="flex flex-1 flex-col gap-2">
           <div
             onClick={() => setShowActiveTrades(true)}
-            className="flex-1 rounded-2xl px-4 py-3 cursor-pointer transition-all duration-300 hover:scale-[1.02] flex items-center justify-between"
+            className="flex-1 rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-300 hover:scale-[1.02] flex items-center justify-between"
             style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center bg-orange-400/10">
-                <ArrowUpDown size={18} className="text-orange-400" />
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center bg-orange-400/10">
+                <ArrowUpDown size={14} className="text-orange-400" />
               </div>
-              <span className="text-[11px] text-gray-400">Active Trades</span>
+              <span className="text-[9px] text-gray-400">Active Trades</span>
             </div>
-            <span className="text-base font-bold text-white">34</span>
+            <span className="text-sm font-bold text-white">34</span>
           </div>
           <div
             onClick={() => router.push("/tradeHistory")}
-            className="flex-1 rounded-2xl px-4 py-3 cursor-pointer transition-all duration-300 hover:scale-[1.02] flex items-center justify-between"
+            className="flex-1 rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-300 hover:scale-[1.02] flex items-center justify-between"
             style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full flex items-center justify-center bg-teal-400/10">
-                <CheckCircle2 size={18} className="text-teal-400" />
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center bg-teal-400/10">
+                <CheckCircle2 size={14} className="text-teal-400" />
               </div>
-              <span className="text-[11px] text-gray-400">Trades Ended</span>
+              <span className="text-[9px] text-gray-400">Trades Ended</span>
             </div>
-            <span className="text-base font-bold text-white">376</span>
+            <span className="text-sm font-bold text-white">376</span>
           </div>
         </div>
       </div>
 
       {/* Followed / Current Position Section */}
-      <div className="relative z-10 px-4 mt-4 mb-24">
-        <div className="rounded-2xl overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
+      <div className="relative z-10 px-3 mt-3 mb-24">
+        <div className="rounded-xl overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <div className="relative flex border-b border-white/10">
             <div className="absolute bottom-0 h-0.5 bg-teal-400 transition-all duration-300 ease-out" style={{ width: "50%", left: activeTab === "followed" ? "0%" : "50%", boxShadow: "0 0 10px rgba(45,212,191,0.5)" }} />
             {[{ key: "followed", label: "Followed" }, { key: "position", label: "Positions" }].map((tab) => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key as "followed" | "position")} className="flex-1 py-2.5 text-[11px] font-semibold transition-all duration-300 cursor-pointer" style={{ color: activeTab === tab.key ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.4)" }}>{tab.label}</button>
+              <button key={tab.key} onClick={() => setActiveTab(tab.key as "followed" | "position")} className="flex-1 py-2 text-[10px] font-semibold transition-all duration-300 cursor-pointer" style={{ color: activeTab === tab.key ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.4)" }}>{tab.label}</button>
             ))}
           </div>
           <div className="relative overflow-hidden">
             {/* Followed Tab */}
             <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "followed" ? 1 : 0, transform: activeTab === "followed" ? "translateX(0)" : "translateX(-20px)", position: activeTab === "followed" ? "relative" : "absolute", pointerEvents: activeTab === "followed" ? "auto" : "none", width: "100%" }}>
-              <div className="grid grid-cols-[1fr_70px_80px_40px_30px] gap-2 px-4 py-3 border-b border-white/10">
-                <span className="text-[10px] text-gray-500 uppercase tracking-wide">Trader</span>
-                <span className="text-[10px] text-gray-500 text-right uppercase tracking-wide">Gain</span>
-                <span className="text-[10px] text-gray-500 text-right uppercase tracking-wide">Profit</span>
-                <span className="text-[10px] text-gray-500 text-right uppercase tracking-wide">TA</span>
+              <div className="grid grid-cols-[1fr_60px_70px_32px_24px] gap-1.5 px-3 py-2 border-b border-white/10">
+                <span className="text-[8px] text-gray-500 uppercase tracking-wide">Trader</span>
+                <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">Gain</span>
+                <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">Profit</span>
+                <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">TA</span>
                 <span></span>
               </div>
               <div className="divide-y divide-white/5">
                 {followedTraders.map((trader, index) => (
-                  <div key={trader.id} className="grid grid-cols-[1fr_70px_80px_40px_30px] gap-2 px-4 py-3 items-center hover:bg-white/5 transition-all duration-200 row-animate" style={{ animationDelay: `${index * 0.05}s` }}>
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: trader.avatarBg }}>{trader.avatar}</div>
-                      <span className="text-xs text-gray-300">{trader.name}</span>
+                  <div key={trader.id} className="grid grid-cols-[1fr_60px_70px_32px_24px] gap-1.5 px-3 py-2.5 items-center hover:bg-white/5 transition-all duration-200 row-animate" style={{ animationDelay: `${index * 0.05}s` }}>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ backgroundColor: trader.avatarBg }}>{trader.avatar}</div>
+                      <span className="text-[10px] text-gray-300">{trader.name}</span>
                     </div>
-                    <span className="text-xs text-teal-400 text-right font-medium">+{trader.portfolioPercent}%</span>
-                    <span className="text-xs text-white text-right font-medium">${trader.profit.toLocaleString("en-US", { minimumFractionDigits: 1 })}</span>
-                    <span className="text-xs text-gray-400 text-right">{trader.ta}</span>
-                    <button onClick={(e) => { e.stopPropagation(); router.push("/settings?tab=trader"); }} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-teal-400 hover:bg-white/10 rounded-md transition-all cursor-pointer"><Settings size={14} /></button>
+                    <span className="text-[10px] text-teal-400 text-right font-medium">+{trader.portfolioPercent}%</span>
+                    <span className="text-[10px] text-white text-right font-medium">${trader.profit.toLocaleString("en-US", { minimumFractionDigits: 1 })}</span>
+                    <span className="text-[10px] text-gray-400 text-right">{trader.ta}</span>
+                    <button onClick={(e) => { e.stopPropagation(); router.push("/settings?tab=trader"); }} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-teal-400 hover:bg-white/10 rounded-md transition-all cursor-pointer"><Settings size={11} /></button>
                   </div>
                 ))}
               </div>
             </div>
             {/* Positions Tab */}
             <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "position" ? 1 : 0, transform: activeTab === "position" ? "translateX(0)" : "translateX(20px)", position: activeTab === "position" ? "relative" : "absolute", pointerEvents: activeTab === "position" ? "auto" : "none", width: "100%", top: 0 }}>
-              <div className="grid grid-cols-[1fr_80px_90px_70px_20px] gap-2 px-4 py-3 border-b border-white/10">
-                <span className="text-[10px] text-gray-500 uppercase tracking-wide">Token</span>
-                <span className="text-[10px] text-gray-500 text-right uppercase tracking-wide">Size</span>
-                <span className="text-[10px] text-gray-500 text-right uppercase tracking-wide">PnL</span>
-                <span className="text-[10px] text-gray-500 text-right uppercase tracking-wide">Entry</span>
+              <div className="grid grid-cols-[1fr_70px_80px_60px_16px] gap-1.5 px-3 py-2 border-b border-white/10">
+                <span className="text-[8px] text-gray-500 uppercase tracking-wide">Token</span>
+                <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">Size</span>
+                <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">PnL</span>
+                <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">Entry</span>
                 <span></span>
               </div>
               <div className="divide-y divide-white/5">
@@ -384,28 +384,28 @@ const Home = () => {
                   <div
                     key={pos.id}
                     onClick={() => handleSelectPosition(pos)}
-                    className="grid grid-cols-[1fr_80px_90px_70px_20px] gap-2 px-4 py-3 items-center hover:bg-white/5 transition-all duration-200 cursor-pointer active:bg-white/10 row-animate"
+                    className="grid grid-cols-[1fr_70px_80px_60px_16px] gap-1.5 px-3 py-2.5 items-center hover:bg-white/5 transition-all duration-200 cursor-pointer active:bg-white/10 row-animate"
                     style={{ animationDelay: `${index * 0.05}s` }}
                   >
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
-                        <img src={pos.iconUrl} alt={pos.token} className="w-6 h-6 object-cover" onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentElement!.innerHTML = `<span class="text-xs font-bold text-white">${pos.token[0]}</span>`; }} />
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
+                        <img src={pos.iconUrl} alt={pos.token} className="w-5 h-5 object-cover" onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentElement!.innerHTML = `<span class="text-[9px] font-bold text-white">${pos.token[0]}</span>`; }} />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-xs text-white font-medium">{pos.token}</span>
-                        <span className="text-[9px] text-gray-500">{pos.pair}</span>
+                        <span className="text-[10px] text-white font-medium">{pos.token}</span>
+                        <span className="text-[8px] text-gray-500">{pos.pair}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-xs text-white font-medium">${pos.sizeUsd.toLocaleString()}</div>
-                      <div className="text-[9px] text-gray-500">{pos.size} {pos.token}</div>
+                      <div className="text-[10px] text-white font-medium">${pos.sizeUsd.toLocaleString()}</div>
+                      <div className="text-[8px] text-gray-500">{pos.size} {pos.token}</div>
                     </div>
                     <div className="text-right">
-                      <div className={`text-xs font-medium ${pos.pnl >= 0 ? "text-teal-400" : "text-rose-400"}`}>{pos.pnl >= 0 ? "+" : ""}${Math.abs(pos.pnl).toLocaleString()}</div>
-                      <div className={`text-[9px] ${pos.pnl >= 0 ? "text-teal-400/70" : "text-rose-400/70"}`}>{pos.pnlPercent >= 0 ? "+" : ""}{pos.pnlPercent}%</div>
+                      <div className={`text-[10px] font-medium ${pos.pnl >= 0 ? "text-teal-400" : "text-rose-400"}`}>{pos.pnl >= 0 ? "+" : ""}${Math.abs(pos.pnl).toLocaleString()}</div>
+                      <div className={`text-[8px] ${pos.pnl >= 0 ? "text-teal-400/70" : "text-rose-400/70"}`}>{pos.pnlPercent >= 0 ? "+" : ""}{pos.pnlPercent}%</div>
                     </div>
-                    <span className="text-xs text-gray-400 text-right">${pos.entry.toLocaleString()}</span>
-                    <svg className="w-3.5 h-3.5 text-gray-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    <span className="text-[10px] text-gray-400 text-right">${pos.entry.toLocaleString()}</span>
+                    <svg className="w-3 h-3 text-gray-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                   </div>
                 ))}
               </div>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
@@ -74,55 +75,55 @@ function SettingsContent() {
       </div>
 
       {/* Header */}
-      <div className="relative z-10 mt-3 mb-2 flex items-center justify-between px-4">
+      <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
         <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
+          className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
           style={{
             background: "rgba(255,255,255,0.05)",
             border: "1px solid rgba(255,255,255,0.1)",
           }}
         >
-          <Image src={profileIcon} alt="profile" width={14} height={14} />
+          <Image src={profileIcon} alt="profile" width={12} height={12} />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <div
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg"
+            className="flex items-center gap-1 px-2 py-1 rounded-md"
             style={{
               background: "rgba(255,255,255,0.05)",
               border: "1px solid rgba(255,255,255,0.1)",
             }}
           >
-            <Image src={copyCountIcon} alt="copy-count" width={13} height={13} />
-            <span className="text-[11px] font-semibold text-teal-400">4</span>
+            <Image src={copyCountIcon} alt="copy-count" width={11} height={11} />
+            <span className="text-[10px] font-semibold text-teal-400">4</span>
           </div>
           <div
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg"
+            className="flex items-center gap-1 px-2 py-1 rounded-md"
             style={{
               background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)",
               border: "1px solid rgba(45,212,191,0.25)",
               boxShadow: "0 0 15px rgba(45,212,191,0.2)",
             }}
           >
-            <Image src={copyRankIcon} alt="copy-rank" width={13} height={13} />
-            <span className="text-[11px] font-semibold text-teal-400">#64</span>
+            <Image src={copyRankIcon} alt="copy-rank" width={11} height={11} />
+            <span className="text-[10px] font-semibold text-teal-400">#64</span>
           </div>
           <UserMenu />
         </div>
       </div>
 
       {/* Tab */}
-      <div className="relative z-10 px-4 mb-4">
+      <div className="relative z-10 px-3 mb-3">
         <Tab activeTab={activeTab} handleSwitchTab={handleSwitchTab} />
       </div>
 
       {/* Content */}
       {activeTab === TabEnum.follow && (
-        <div key="follow" className="relative z-10 px-4 pb-8 animate-fade-in-up">
+        <div key="follow" className="relative z-10 px-3 pb-6 animate-fade-in-up">
           <DefaultFollow />
         </div>
       )}
       {activeTab === TabEnum.trader && (
-        <div key="trader" className="relative z-10 px-4 pb-8 animate-fade-in-up">
+        <div key="trader" className="relative z-10 px-3 pb-6 animate-fade-in-up">
           <SpecificTraders />
         </div>
       )}

@@ -63,8 +63,8 @@ export default function KolItem({
       <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15) 0%, transparent 60%)" }} />
 
       <div className="relative">
-        {/* Row 1: Rank + Avatar + Name/Handle */}
-        <div className="flex items-center gap-2.5 mb-1.5">
+        {/* Row 1: Rank + Avatar + Name/Handle + Badges + Profit */}
+        <div className="flex items-center gap-2.5 mb-2.5">
           <div
             className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
             style={{ background: rankStyle.bg, boxShadow: rankStyle.shadow, color: rank <= 3 ? "#000" : "#6b7280", border: rank <= 3 ? "none" : rankStyle.border }}
@@ -78,26 +78,18 @@ export default function KolItem({
             {data.x_handle?.[0]?.toUpperCase() || "?"}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-white text-sm font-medium truncate">{data.x_handle}</div>
-            <div className="text-[11px] text-gray-500 truncate">@{data.x_handle}</div>
-          </div>
-        </div>
-
-        {/* Row 2: Badges + Profit */}
-        <div className="flex items-center justify-between mb-2.5 ml-[74px]">
-          <div className="flex items-center gap-1.5">
-            {data.streak && (data.streak as number) > 0 && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded flex items-center gap-0.5 font-bold" style={{ background: "rgba(251,146,60,0.18)", border: "1px solid rgba(251,146,60,0.3)", color: "#fb923c" }}>
-                🔥{data.streak}
+            <div className="flex items-center gap-1.5">
+              <span className="text-white text-sm font-medium truncate">{data.x_handle}</span>
+              <span className="text-[9px] px-1.5 py-0.5 rounded flex items-center gap-0.5 font-bold shrink-0" style={{ background: "rgba(251,146,60,0.18)", border: "1px solid rgba(251,146,60,0.3)", color: "#fb923c" }}>
+                🔥{data.streak || 0}
               </span>
-            )}
-            {data.profit_grade && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(45,212,191,0.18)", border: "1px solid rgba(45,212,191,0.3)", color: "#2dd4bf" }}>
-                {data.profit_grade}
+              <span className="text-[9px] px-1.5 py-0.5 rounded font-bold shrink-0" style={{ background: "rgba(45,212,191,0.18)", border: "1px solid rgba(45,212,191,0.3)", color: "#2dd4bf" }}>
+                {data.profit_grade || "-"}
               </span>
-            )}
+            </div>
+            <div className="text-[10px] text-gray-500 truncate">@{data.x_handle}</div>
           </div>
-          <div className={`text-sm font-bold ${isPositive ? "text-teal-400" : "text-rose-400"}`} style={{ textShadow: isPositive ? "0 0 10px rgba(45,212,191,0.3)" : "0 0 10px rgba(251,113,133,0.3)" }}>
+          <div className={`text-sm font-bold shrink-0 ${isPositive ? "text-teal-400" : "text-rose-400"}`} style={{ textShadow: isPositive ? "0 0 10px rgba(45,212,191,0.3)" : "0 0 10px rgba(251,113,133,0.3)" }}>
             {isPositive ? "+" : ""}${Math.abs(profit * 1000).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
