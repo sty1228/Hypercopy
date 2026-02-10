@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 
-export const ARBITRUM_HTTP_PROVIDER = new ethers.JsonRpcProvider(
+export const ARBITRUM_HTTP_PROVIDER = new ethers.providers.JsonRpcProvider(
   "https://arb1.arbitrum.io/rpc"
 );
 
@@ -15,7 +15,7 @@ export const getArbUSDCBalance = async (address: string) => {
     ARBITRUM_HTTP_PROVIDER
   );
   const balance = await contract.balanceOf(address);
-  const readableBalance = ethers.formatUnits(
+  const readableBalance = ethers.utils.formatUnits(
     balance,
     await contract.decimals()
   );

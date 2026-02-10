@@ -45,10 +45,10 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
           USDC_ARB_ABI,
           ARBITRUM_HTTP_PROVIDER
         );
-        const arbUSDCContractInterface = new ethers.Interface(USDC_ARB_ABI);
+        const arbUSDCContractInterface = new ethers.utils.Interface(USDC_ARB_ABI);
         const usdcDecimals = await usdcContract.decimals();
 
-        const depositAmountInUnits = ethers
+        const depositAmountInUnits = ethers.utils
           .parseUnits(depositAmount.toString(), usdcDecimals)
           .toString();
         console.log("depositAmountInUnits", depositAmountInUnits);
@@ -87,7 +87,6 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
 
 // deposit arbitrum usdc with permit
 export const useArbitrumUSDCDepositWithPermit = () => {
-  // 在顶层调用所有 hooks
   const { signTypedData } = useSignTypedData();
   const { authenticated, user } = usePrivy();
   const currentWallet = useCurrentWallet();
@@ -103,7 +102,6 @@ export const useArbitrumUSDCDepositWithPermit = () => {
       const isMainnet = true;
 
       try {
-        // 重要：需要获取 USDC 合约的 permit nonce，不是交易 nonce
         const usdcAddress = isMainnet
           ? USDC_ARB_MAINNET_ADDRESS
           : USDC_ARB_TESTNET_ADDRESS;
@@ -115,12 +113,11 @@ export const useArbitrumUSDCDepositWithPermit = () => {
         );
         console.log("usdcContract", usdcContract);
 
-        // 获取 permit 的 nonce（不是 getTransactionCount）
         const nonce = await usdcContract.nonces(currentWallet.address);
         const usdcDecimals = await usdcContract.decimals();
         console.log("usdcDecimals", usdcDecimals);
         console.log(
-          ethers.parseUnits(depositAmount.toString(), usdcDecimals).toString()
+          ethers.utils.parseUnits(depositAmount.toString(), usdcDecimals).toString()
         );
 
         const payload = {
@@ -128,10 +125,10 @@ export const useArbitrumUSDCDepositWithPermit = () => {
           spender: isMainnet
             ? "0x2df1c51e09aecf9cacb7bc98cb1742757f163df7"
             : "0x08cfc1B6b2dCF36A1480b99353A354AA8AC56f89",
-          value: ethers
+          value: ethers.utils
             .parseUnits(depositAmount.toString(), usdcDecimals)
             .toString(),
-          nonce: nonce.toString(), // 转为字符串
+          nonce: nonce.toString(),
           deadline: (Math.floor(Date.now() / 1000) + 300).toString(),
         };
         console.log("payload", payload);
@@ -162,7 +159,6 @@ export const useArbitrumUSDCDepositWithPermit = () => {
         console.log("dataToSign", dataToSign);
 
         console.log(user);
-        // 获取当前 chainId，如果不是 1 则切换至 1
         const chainId = await ethereumProvider
           .getNetwork()
           .then((res) => res.chainId);
@@ -188,7 +184,7 @@ export const useArbitrumUSDCDepositWithPermit = () => {
           return null;
         }
 
-        const signature = ethers.Signature.from(data.signature);
+        const signature = ethers.utils.splitSignature(data.signature);
 
         console.log("Permit signature:", {
           r: signature.r,
@@ -196,7 +192,6 @@ export const useArbitrumUSDCDepositWithPermit = () => {
           v: signature.v,
         });
 
-        // 返回完整的 permit 数据
         return {
           owner: payload.owner,
           spender: payload.spender,

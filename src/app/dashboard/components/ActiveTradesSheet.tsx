@@ -2,82 +2,59 @@
 
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import copyCountIcon from "@/assets/icons/copy-count.png";
 import copyRankIcon from "@/assets/icons/copy-rank.png";
-import { ChevronLeft, TrendingUp, TrendingDown, Filter } from "lucide-react";
+import { ChevronLeft, ArrowUpDown, TrendingUp, TrendingDown, Filter } from "lucide-react";
 
-interface Trade {
+interface Position {
   id: number;
   token: string;
   pair: string;
-  side: "long" | "short";
-  pnl: number;
-  pnlPercent: number;
-  entryPrice: number;
-  exitPrice: number;
+  iconUrl: string;
   size: number;
   sizeUsd: number;
-  openTime: string;
-  closeTime: string;
-  duration: string;
-  copiedFrom?: string;
+  pnl: number;
+  pnlPercent: number;
+  entry: number;
 }
 
-const mockTrades: Trade[] = [
-  { id: 1, token: "BTC", pair: "BTC/USDT", side: "long", pnl: 1234.5, pnlPercent: 5.26, entryPrice: 67500, exitPrice: 71050, size: 0.52, sizeUsd: 35100, openTime: "Jan 28, 14:32", closeTime: "Jan 30, 09:15", duration: "1d 18h", copiedFrom: "@geddard" },
-  { id: 2, token: "ETH", pair: "ETH/USDT", side: "short", pnl: 420.3, pnlPercent: 3.12, entryPrice: 2550, exitPrice: 2470, size: 8.4, sizeUsd: 21420, openTime: "Jan 27, 10:05", closeTime: "Jan 28, 22:40", duration: "1d 12h" },
-  { id: 3, token: "SOL", pair: "SOL/USDT", side: "long", pnl: -180.6, pnlPercent: -2.15, entryPrice: 98, exitPrice: 95.9, size: 125, sizeUsd: 12250, openTime: "Jan 25, 08:20", closeTime: "Jan 26, 16:55", duration: "1d 8h", copiedFrom: "@daytrader" },
-  { id: 4, token: "HYPE", pair: "HYPE/USDT", side: "long", pnl: 892.0, pnlPercent: 12.4, entryPrice: 1.12, exitPrice: 1.26, size: 6400, sizeUsd: 7168, openTime: "Jan 22, 11:00", closeTime: "Jan 24, 19:30", duration: "2d 8h", copiedFrom: "@geddard" },
-  { id: 5, token: "BTC", pair: "BTC/USDT", side: "short", pnl: -345.2, pnlPercent: -1.82, entryPrice: 69800, exitPrice: 71070, size: 0.28, sizeUsd: 19544, openTime: "Jan 20, 15:45", closeTime: "Jan 21, 03:20", duration: "11h 35m" },
-  { id: 6, token: "ETH", pair: "ETH/USDT", side: "long", pnl: 562.8, pnlPercent: 4.55, entryPrice: 2380, exitPrice: 2488, size: 5.2, sizeUsd: 12376, openTime: "Jan 18, 09:10", closeTime: "Jan 20, 14:00", duration: "2d 4h", copiedFrom: "@cryptoking" },
-  { id: 7, token: "SOL", pair: "SOL/USDT", side: "long", pnl: 310.5, pnlPercent: 6.88, entryPrice: 88.5, exitPrice: 94.6, size: 75, sizeUsd: 6637, openTime: "Jan 15, 12:30", closeTime: "Jan 17, 08:45", duration: "1d 20h" },
-  { id: 8, token: "HYPE", pair: "HYPE/USDT", side: "short", pnl: -92.4, pnlPercent: -3.2, entryPrice: 1.08, exitPrice: 1.115, size: 3000, sizeUsd: 3240, openTime: "Jan 13, 16:00", closeTime: "Jan 14, 10:20", duration: "18h 20m", copiedFrom: "@daytrader" },
-];
+interface ActiveTradesSheetProps {
+  positions: Position[];
+  onClose: () => void;
+  onSelectPosition: (pos: Position) => void;
+}
 
 const cardStyle = {
   background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)",
   border: "1px solid rgba(255,255,255,0.08)",
 };
 
-// ---------- Animated Number ----------
 const AnimNum = ({ value, prefix = "", suffix = "", decimals = 1, className = "" }: {
   value: number; prefix?: string; suffix?: string; decimals?: number; className?: string;
 }) => {
   const [display, setDisplay] = useState(0);
   const rafRef = useRef<number>(0);
-
   useEffect(() => {
-    const dur = 1200;
-    const start = performance.now();
+    const dur = 1200, start = performance.now();
     const animate = (now: number) => {
       const t = Math.min((now - start) / dur, 1);
-      const ease = 1 - Math.pow(1 - t, 3);
-      setDisplay(value * ease);
+      setDisplay(value * (1 - Math.pow(1 - t, 3)));
       if (t < 1) rafRef.current = requestAnimationFrame(animate);
     };
     rafRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(rafRef.current);
   }, [value]);
-
   return (
     <span className={className}>
-      {prefix}
-      {Math.abs(display).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}
-      {suffix}
+      {prefix}{Math.abs(display).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}{suffix}
     </span>
   );
 };
 
-// ---------- Win Rate Ring ----------
 const WinRateRing = ({ pct }: { pct: number }) => {
   const [progress, setProgress] = useState(0);
-  useEffect(() => {
-    const t = setTimeout(() => setProgress(pct), 200);
-    return () => clearTimeout(t);
-  }, [pct]);
-  const r = 14, c = 2 * Math.PI * r;
-  const offset = c - (progress / 100) * c;
+  useEffect(() => { const t = setTimeout(() => setProgress(pct), 200); return () => clearTimeout(t); }, [pct]);
+  const r = 14, c = 2 * Math.PI * r, offset = c - (progress / 100) * c;
   return (
     <div className="flex items-center gap-2">
       <svg width="36" height="36" viewBox="0 0 36 36" className="transform -rotate-90">
@@ -91,29 +68,47 @@ const WinRateRing = ({ pct }: { pct: number }) => {
   );
 };
 
-export default function TradeHistoryPage() {
-  const router = useRouter();
-  const [filterSide, setFilterSide] = useState<"all" | "long" | "short">("all");
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+const ActiveTradesSheet = ({ positions, onClose, onSelectPosition }: ActiveTradesSheetProps) => {
+  const [filter, setFilter] = useState<"all" | "profit" | "loss">("all");
+  const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    requestAnimationFrame(() => setVisible(true));
+    setMounted(true);
+  }, []);
 
-  const filtered = mockTrades.filter((t) => filterSide === "all" || t.side === filterSide);
+  const handleClose = () => {
+    setVisible(false);
+    setTimeout(onClose, 300);
+  };
 
-  const totalPnl = mockTrades.reduce((s, t) => s + t.pnl, 0);
-  const wins = mockTrades.filter((t) => t.pnl > 0).length;
-  const losses = mockTrades.filter((t) => t.pnl < 0).length;
-  const winRate = Math.round((wins / mockTrades.length) * 100);
+  const filtered = positions.filter((p) => {
+    if (filter === "profit") return p.pnl >= 0;
+    if (filter === "loss") return p.pnl < 0;
+    return true;
+  });
+
+  const totalPnl = positions.reduce((s, p) => s + p.pnl, 0);
+  const totalSize = positions.reduce((s, p) => s + p.sizeUsd, 0);
+  const profitCount = positions.filter((p) => p.pnl >= 0).length;
+  const lossCount = positions.filter((p) => p.pnl < 0).length;
+  const winRate = positions.length > 0 ? Math.round((profitCount / positions.length) * 100) : 0;
 
   return (
-    <div className="min-h-screen text-white relative overflow-hidden" style={{ background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)" }}>
+    <div
+      className="absolute inset-0 z-50 min-h-screen text-white overflow-y-auto overflow-x-hidden transition-all duration-300"
+      style={{
+        background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateX(0)" : "translateX(100%)",
+      }}
+    >
       <style jsx>{`
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeInLeft { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes slideInRight { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes scaleIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
-        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
         .fade-up { opacity: 0; animation: fadeInUp 0.5s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
         .fade-left { opacity: 0; animation: fadeInLeft 0.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
         .slide-right { opacity: 0; animation: slideInRight 0.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
@@ -134,7 +129,7 @@ export default function TradeHistoryPage() {
       {/* Header */}
       <div className="relative z-10 mt-4 mb-3 flex items-center justify-between px-4">
         <div
-          onClick={() => router.back()}
+          onClick={handleClose}
           className="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-200 hover:bg-white/10 active:scale-90 fade-left"
           style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", animationDelay: "0.05s" }}
         >
@@ -157,15 +152,14 @@ export default function TradeHistoryPage() {
 
       {/* Title */}
       <div className="relative z-10 px-4 mb-3 fade-up" style={{ animationDelay: "0.12s" }}>
-        <h1 className="text-lg font-bold text-white">Trade History</h1>
+        <h1 className="text-lg font-bold text-white">Active Trades</h1>
       </div>
 
       {/* Summary strip */}
       <div className="relative z-10 px-4 mb-3">
         <div className="flex gap-2">
-          {/* Total PnL */}
           <div className="flex-1 rounded-xl px-3 py-2 stat-card scale-in" style={{ ...cardStyle, animationDelay: "0.18s" }}>
-            <p className="text-[9px] text-gray-500 mb-0.5">Total PnL</p>
+            <p className="text-[9px] text-gray-500 mb-0.5">Unrealized PnL</p>
             <AnimNum
               value={totalPnl}
               prefix={totalPnl >= 0 ? "+$" : "-$"}
@@ -173,18 +167,17 @@ export default function TradeHistoryPage() {
               className={`text-sm font-bold ${totalPnl >= 0 ? "text-teal-400" : "text-rose-400"}`}
             />
           </div>
-          {/* Win / Loss */}
           <div className="flex-1 rounded-xl px-3 py-2 stat-card scale-in" style={{ ...cardStyle, animationDelay: "0.24s" }}>
-            <p className="text-[9px] text-gray-500 mb-0.5">Win / Loss</p>
-            <p className="text-sm font-bold text-white">
-              <span className="text-teal-400">{wins}W</span>
-              <span className="text-gray-600 mx-1">/</span>
-              <span className="text-rose-400">{losses}L</span>
-            </p>
+            <p className="text-[9px] text-gray-500 mb-0.5">Total Size</p>
+            <AnimNum
+              value={totalSize}
+              prefix="$"
+              decimals={0}
+              className="text-sm font-bold text-white"
+            />
           </div>
-          {/* Win Rate */}
           <div className="flex-1 rounded-xl px-3 py-2 stat-card scale-in" style={{ ...cardStyle, animationDelay: "0.30s" }}>
-            <p className="text-[9px] text-gray-500 mb-0.5">Win Rate</p>
+            <p className="text-[9px] text-gray-500 mb-0.5">Profit Rate</p>
             {mounted && <WinRateRing pct={winRate} />}
           </div>
         </div>
@@ -194,99 +187,77 @@ export default function TradeHistoryPage() {
       <div className="relative z-10 px-4 mb-3 flex items-center justify-between fade-up" style={{ animationDelay: "0.35s" }}>
         <div className="flex items-center gap-1.5">
           <Filter size={12} className="text-gray-500" />
-          {(["all", "long", "short"] as const).map((f) => (
+          {(["all", "profit", "loss"] as const).map((f) => (
             <button
               key={f}
-              onClick={() => setFilterSide(f)}
+              onClick={() => setFilter(f)}
               className="px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all duration-200 capitalize cursor-pointer active:scale-95"
               style={{
-                background: filterSide === f ? (f === "short" ? "rgba(244,63,94,0.15)" : "rgba(45,212,191,0.15)") : "rgba(255,255,255,0.03)",
-                color: filterSide === f ? (f === "short" ? "#f43f5e" : "#2dd4bf") : "rgba(255,255,255,0.4)",
-                border: filterSide === f ? (f === "short" ? "1px solid rgba(244,63,94,0.3)" : "1px solid rgba(45,212,191,0.3)") : "1px solid rgba(255,255,255,0.06)",
+                background: filter === f ? (f === "loss" ? "rgba(244,63,94,0.15)" : "rgba(45,212,191,0.15)") : "rgba(255,255,255,0.03)",
+                color: filter === f ? (f === "loss" ? "#f43f5e" : "#2dd4bf") : "rgba(255,255,255,0.4)",
+                border: filter === f ? (f === "loss" ? "1px solid rgba(244,63,94,0.3)" : "1px solid rgba(45,212,191,0.3)") : "1px solid rgba(255,255,255,0.06)",
               }}
             >
-              {f}
+              {f === "all" ? "All" : f === "profit" ? "Long" : "Short"}
             </button>
           ))}
         </div>
         <span className="text-[10px] text-gray-500 tabular-nums">{filtered.length} trades</span>
       </div>
 
-      {/* Trade List */}
+      {/* Positions List */}
       <div className="relative z-10 px-4 pb-24">
         <div className="space-y-2">
-          {filtered.map((trade, idx) => {
-            const isWin = trade.pnl >= 0;
-            const isExpanded = expandedId === trade.id;
+          {filtered.map((pos, idx) => {
+            const isWin = pos.pnl >= 0;
             return (
               <div
-                key={trade.id}
-                onClick={() => setExpandedId(isExpanded ? null : trade.id)}
+                key={pos.id}
+                onClick={() => onSelectPosition(pos)}
                 className="rounded-xl overflow-hidden cursor-pointer transition-all duration-200 trade-row"
                 style={{ ...cardStyle, animationDelay: `${0.38 + idx * 0.06}s` }}
               >
-                {/* Main row */}
                 <div className="px-3 py-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-200 ${trade.side === "long" ? "bg-teal-400/10" : "bg-rose-400/10"}`}
-                      style={{ transform: isExpanded ? "scale(1.1)" : "scale(1)" }}>
-                      {trade.side === "long"
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isWin ? "bg-teal-400/10" : "bg-rose-400/10"}`}>
+                      {isWin
                         ? <TrendingUp size={14} className="text-teal-400" />
                         : <TrendingDown size={14} className="text-rose-400" />
                       }
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-white">{trade.token}</span>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded capitalize font-medium transition-all duration-200 ${trade.side === "long" ? "bg-teal-400/10 text-teal-400" : "bg-rose-400/10 text-rose-400"}`}>
-                          {trade.side}
+                        <span className="text-sm font-semibold text-white">{pos.token}</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${isWin ? "bg-teal-400/10 text-teal-400" : "bg-rose-400/10 text-rose-400"}`}>
+                          {isWin ? "Long" : "Short"}
                         </span>
-                        {trade.copiedFrom && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded text-gray-400" style={{ background: "rgba(255,255,255,0.05)" }}>
-                            via {trade.copiedFrom}
-                          </span>
-                        )}
                       </div>
-                      <span className="text-[10px] text-gray-500">{trade.closeTime} · {trade.duration}</span>
+                      <span className="text-[10px] text-gray-500">{pos.size} {pos.token} · Entry ${pos.entry.toLocaleString()}</span>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className={`text-sm font-bold ${isWin ? "text-teal-400" : "text-rose-400"}`}>
-                      {isWin ? "+" : "-"}${Math.abs(trade.pnl).toLocaleString()}
+                      {isWin ? "+" : "-"}${Math.abs(pos.pnl).toLocaleString("en-US", { minimumFractionDigits: 1 })}
                     </p>
                     <p className={`text-[10px] ${isWin ? "text-teal-400/70" : "text-rose-400/70"}`}>
-                      {isWin ? "+" : ""}{trade.pnlPercent}%
+                      {pos.pnlPercent >= 0 ? "+" : ""}{pos.pnlPercent}%
                     </p>
-                  </div>
-                </div>
-
-                {/* Expanded detail */}
-                <div
-                  className="overflow-hidden transition-all duration-300 ease-out"
-                  style={{ maxHeight: isExpanded ? 120 : 0, opacity: isExpanded ? 1 : 0 }}
-                >
-                  <div className="px-3 pb-2.5 pt-0">
-                    <div className="h-px mb-2" style={{ background: isWin ? "rgba(45,212,191,0.1)" : "rgba(244,63,94,0.1)" }} />
-                    <div className="grid grid-cols-4 gap-2">
-                      {[
-                        { label: "Entry", val: `$${trade.entryPrice.toLocaleString()}` },
-                        { label: "Exit", val: `$${trade.exitPrice.toLocaleString()}` },
-                        { label: "Size", val: `$${trade.sizeUsd.toLocaleString()}` },
-                        { label: "Opened", val: trade.openTime.split(",")[0] },
-                      ].map((d, i) => (
-                        <div key={i} style={{ opacity: isExpanded ? 1 : 0, transform: isExpanded ? "translateY(0)" : "translateY(6px)", transition: `all 0.3s cubic-bezier(0.25,0.46,0.45,0.94) ${0.05 + i * 0.05}s` }}>
-                          <p className="text-[8px] text-gray-500 uppercase">{d.label}</p>
-                          <p className="text-[11px] text-white font-medium">{d.val}</p>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 </div>
               </div>
             );
           })}
         </div>
+
+        {filtered.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16">
+            <ArrowUpDown size={32} className="text-gray-600 mb-3" />
+            <p className="text-sm text-gray-500">No {filter} trades</p>
+          </div>
+        )}
       </div>
     </div>
   );
-}
+};
+
+export default ActiveTradesSheet;

@@ -1,7 +1,7 @@
 "use client";
 
-import { useContext, useEffect, useState } from "react";
-import { Wallet, TrendingUp, Shield, Zap, Bell, AlertCircle, Loader2 } from "lucide-react";
+import { useContext, useEffect, useState, useRef, useCallback } from "react";
+import { Wallet, TrendingUp, Shield, Zap, Bell, AlertCircle, Loader2, Info } from "lucide-react";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { getPerpsBalance } from "@/helpers/hyperliquid";
@@ -49,6 +49,110 @@ const DEFAULT_FOLLOW_SETTINGS: IDefaultFollowSettings = {
   notifications: true,
 };
 
+const LEVERAGE_TOOLTIP =
+  "The higher the leverage, the less margin you use per trade, but with higher liquidation risk. E.g. $500 position with 10x leverage = $50 margin per trade.";
+
+// ─── Tooltip ───
+function Tooltip({
+  children,
+  text,
+  wide = false,
+}: {
+  children: React.ReactNode;
+  text: string;
+  wide?: boolean;
+}) {
+  const [show, setShow] = useState(false);
+  const popupClass = wide
+    ? "absolute bottom-full mb-2 px-3 py-2 rounded-lg text-[10px] leading-relaxed text-white z-50 pointer-events-none w-56 whitespace-normal left-0"
+    : "absolute bottom-full mb-2 px-3 py-2 rounded-lg text-[10px] leading-relaxed text-white z-50 pointer-events-none whitespace-nowrap left-1/2 -translate-x-1/2";
+  const arrowClass = wide
+    ? "absolute top-full w-0 h-0 left-4"
+    : "absolute top-full w-0 h-0 left-1/2 -translate-x-1/2";
+
+  return (
+    <div
+      className="relative inline-flex"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+      onTouchStart={() => setShow((p) => !p)}
+    >
+      {children}
+      {show && (
+        <div
+          className={popupClass}
+          style={{
+            background: "rgba(20,25,30,0.98)",
+            border: "1px solid rgba(255,255,255,0.2)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
+          }}
+        >
+          {text}
+          <div
+            className={arrowClass}
+            style={{
+              borderLeft: "4px solid transparent",
+              borderRight: "4px solid transparent",
+              borderTop: "4px solid rgba(20,25,30,0.98)",
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Leverage Slider ───
+function LeverageSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const min = 1, max = 20;
+  const pct = ((value - min) / (max - min)) * 100;
+
+  const calcValue = useCallback(
+    (clientX: number) => {
+      if (!trackRef.current) return value;
+      const rect = trackRef.current.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      return Math.round(ratio * (max - min) + min);
+    },
+    [value]
+  );
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation(); e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    onChange(calcValue(e.clientX));
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (e.buttons === 0) return;
+    onChange(calcValue(e.clientX));
+  };
+
+  const thumbColor = value >= 15 ? "rgba(239,68,68,1)" : value >= 10 ? "rgba(251,146,60,1)" : "rgba(45,212,191,1)";
+  const trackColor = value >= 15 ? "rgba(239,68,68,0.6)" : value >= 10 ? "rgba(251,146,60,0.6)" : "rgba(45,212,191,0.6)";
+
+  return (
+    <div className="w-full">
+      <div ref={trackRef} className="relative h-8 flex items-center cursor-pointer"
+        onPointerDown={onPointerDown} onPointerMove={onPointerMove}>
+        <div className="absolute left-0 right-0 h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
+        <div className="absolute left-0 h-1.5 rounded-full transition-colors" style={{ width: `${pct}%`, background: trackColor }} />
+        <div className="absolute w-5 h-5 rounded-full border-2 border-white transition-colors"
+          style={{ left: `calc(${pct}% - 10px)`, background: thumbColor, boxShadow: `0 0 10px ${thumbColor}` }} />
+      </div>
+      <div className="flex justify-between mt-0.5 px-0.5">
+        {[1, 5, 10, 15, 20].map((v) => (
+          <button key={v} onClick={() => onChange(v)}
+            className="text-[10px] transition-all cursor-pointer"
+            style={{ color: v === value ? "rgba(45,212,191,1)" : "rgba(255,255,255,0.3)" }}>
+            {v}x
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Toggle Component
 const Toggle = ({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) => (
   <button
@@ -94,21 +198,6 @@ const TypeButton = ({
     </button>
   );
 };
-
-// Leverage Preset Button
-const LeveragePreset = ({ value, active, onClick }: { value: number; active: boolean; onClick: () => void }) => (
-  <button
-    onClick={onClick}
-    className="px-2 py-1 rounded text-xs font-medium transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
-    style={
-      active
-        ? { background: "rgba(45,212,191,0.2)", color: "rgba(45,212,191,1)", border: "1px solid rgba(45,212,191,0.5)" }
-        : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid transparent" }
-    }
-  >
-    {value}x
-  </button>
-);
 
 // Section Card Component
 const SectionCard = ({
@@ -356,25 +445,32 @@ export default function DefaultFollow() {
           typeValue={settings.tradeSizeType}
           onTypeChange={(v) => updateSetting("tradeSizeType", v)}
         />
-        <InputRow
-          label="Leverage"
-          value={settings.leverage}
-          suffix="x"
-          onChange={(v) => updateSetting("leverage", Number(v) || 0)}
-          showTypeButtons={false}
-        />
-        <div className="flex items-center justify-between mt-2">
-          <div className="flex items-center gap-1">
-            {[1, 3, 5, 10, 20].map((v) => (
-              <LeveragePreset
-                key={v}
-                value={v}
-                active={settings.leverage === v}
-                onClick={() => updateSetting("leverage", v)}
-              />
-            ))}
+
+        {/* Leverage — slider + cross/isolated */}
+        <div className="mt-2">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-xs text-gray-500">Leverage</span>
+            <Tooltip text={LEVERAGE_TOOLTIP} wide>
+              <Info size={14} className="text-gray-500 cursor-help" />
+            </Tooltip>
+            <span className="text-xs font-semibold ml-auto" style={{ color: "rgba(45,212,191,1)" }}>
+              {settings.leverage}x
+            </span>
           </div>
-          <div className="flex gap-1">
+          <LeverageSlider
+            value={settings.leverage}
+            onChange={(v) => updateSetting("leverage", v)}
+          />
+          {settings.leverage >= 10 && (
+            <div
+              className="flex items-center gap-2 p-2 rounded-lg mt-1 mb-1"
+              style={{ background: "rgba(251,146,60,0.1)", border: "1px solid rgba(251,146,60,0.2)" }}
+            >
+              <AlertCircle size={12} className="text-orange-400 flex-shrink-0" />
+              <span className="text-[10px] text-orange-300">High leverage increases liquidation risk</span>
+            </div>
+          )}
+          <div className="flex items-center justify-end gap-1 mt-1">
             {(["cross", "isolated"] as LeverageType[]).map((type) => (
               <button
                 key={type}

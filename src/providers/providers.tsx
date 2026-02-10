@@ -9,11 +9,21 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       appId={privyAccount.appId}
       clientId={privyAccount.clientId}
       config={{
-        // Create embedded wallets for users who don't have a wallet
         embeddedWallets: {
           ethereum: {
             createOnLogin: "users-without-wallets",
           },
+        },
+        appearance: {
+          walletList: [
+            "detected_ethereum_wallets",
+            "rabby_wallet",
+            "metamask",
+            "phantom",
+            "coinbase_wallet",
+            "rainbow",
+            "wallet_connect",
+          ],
         },
       }}
     >

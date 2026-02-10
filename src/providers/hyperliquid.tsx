@@ -12,7 +12,7 @@ const HyperLiquidContext = createContext({
   infoClient: null as hl.InfoClient | null,
   mainExchClient: null as hl.ExchangeClient | null,
   exchClient: null as hl.ExchangeClient | null,
-  agentWallet: null as ethers.BaseWallet | null,
+  agentWallet: null as ethers.Wallet | null,
   tradingEnabled: false as boolean,
   placeOrderAssets: {} as {
     [key: string]: number;
@@ -53,9 +53,7 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
   const [exchClient, setExchClient] = useState<hl.ExchangeClient | null>(null);
   const [mainExchClient, setMainExchClient] =
     useState<hl.ExchangeClient | null>(null);
-  const [agentWallet, setAgentWallet] = useState<ethers.BaseWallet | null>(
-    null
-  );
+  const [agentWallet, setAgentWallet] = useState<ethers.Wallet | null>(null);
   const [tradingEnabled, setTradingEnabled] = useState<boolean>(false);
   const [placeOrderAssets, setPlaceOrderAssets] = useState<{
     [key: string]: number;
@@ -95,15 +93,14 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
     if (!ethereumProvider || !hyperLiquidTransport) {
       return;
     }
-    // 尝试获取签名者
-    ethereumProvider.getSigner().then((res) => {
-      if (!res) {
-        console.error("Failed to get signer");
-        return;
-      }
-      initInfoAndMainExchClient(res);
-      initAgentWallet();
-    });
+    // getSigner() is synchronous in ethers v5
+    const signer = ethereumProvider.getSigner();
+    if (!signer) {
+      console.error("Failed to get signer");
+      return;
+    }
+    initInfoAndMainExchClient(signer);
+    initAgentWallet();
   }, [ethereumProvider, hyperLiquidTransport]);
 
   useEffect(() => {
@@ -132,12 +129,10 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
 
   const initAgentWallet = async () => {
     const agentWalletPrivateKey = localStorage.getItem("agentWalletPrivateKey");
-    // 如果已经有保存，就根据已经保存的创建
     if (agentWalletPrivateKey) {
       setAgentWallet(new ethers.Wallet(agentWalletPrivateKey));
       return;
     }
-    // 如果之前没有创建过，就随机生成一个
     const createAgentWallet = ethers.Wallet.createRandom();
     localStorage.setItem("agentWalletPrivateKey", createAgentWallet.privateKey);
     setAgentWallet(createAgentWallet);
@@ -153,7 +148,7 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
     });
     setInfoClient(infoClient);
     const mainExchClient = new hl.ExchangeClient({
-      wallet: signer,
+      wallet: signer as any,
       transport: hyperLiquidTransport,
     });
     setMainExchClient(mainExchClient);
@@ -164,7 +159,6 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
       console.error("Ethereum provider not found");
       return;
     }
-    // 创建 exchange client
     const exchClient = new hl.ExchangeClient({
       wallet: agentWallet,
       transport: hyperLiquidTransport,
@@ -211,7 +205,6 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
           new BigNumber(process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS!)
         )
     );
-    // ⚠️ maximum fee approved in tenths of a basis point i.e. 1 means 0.001%
     setBuilderFeeApproved(
       new BigNumber(builderFee)
         .dividedBy(10)

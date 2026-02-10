@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import profileIcon from "@/assets/icons/profile.png";
 import copyCountIcon from "@/assets/icons/copy-count.png";
 import copyRankIcon from "@/assets/icons/copy-rank.png";
@@ -11,8 +12,14 @@ import SpecificTraders from "./components/specificTraders";
 import { TabEnum } from "./types";
 import UserMenu from "@/components/UserMenu";
 
-export default function SettingsPage() {
+function SettingsContent() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState(TabEnum.follow);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "trader") setActiveTab(TabEnum.trader);
+  }, [searchParams]);
 
   const handleSwitchTab = (tab: TabEnum) => {
     setActiveTab(tab);
@@ -47,7 +54,7 @@ export default function SettingsPage() {
         .animate-fade-in-up { animation: fade-in-up 0.3s ease-out forwards; }
       `}</style>
 
-      {/* Ambient glow - with floating animation */}
+      {/* Ambient glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div
           className="absolute -top-20 left-1/3 w-[300px] h-[300px] rounded-full animate-float animate-pulse-glow"
@@ -108,7 +115,7 @@ export default function SettingsPage() {
         <Tab activeTab={activeTab} handleSwitchTab={handleSwitchTab} />
       </div>
 
-      {/* Content - with fade in animation */}
+      {/* Content */}
       {activeTab === TabEnum.follow && (
         <div key="follow" className="relative z-10 px-4 pb-8 animate-fade-in-up">
           <DefaultFollow />
@@ -120,5 +127,13 @@ export default function SettingsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SettingsContent />
+    </Suspense>
   );
 }

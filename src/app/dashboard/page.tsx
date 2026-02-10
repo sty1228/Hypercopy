@@ -11,8 +11,12 @@ import { Button } from "@/components/ui/button";
 import TimeRangeTab from "./components/TimeRangeTab";
 import type { TimeRange } from "./components/balanceChart";
 import { balanceHistory } from "@/service";
-import { Copy, Users, ArrowUpDown, CheckCircle2, Settings } from "lucide-react";
+import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
+import PositionDetail, { PositionDetailData, positionExtendedData } from "./components/PositionDetail";
+import CopyingSheet from "./components/CopyingSheet";
+import ActiveTradesSheet from "./components/ActiveTradesSheet";
+import DepositSheet from "./components/DepositSheet";
 
 export interface BalanceChartData {
   label: string;
@@ -28,6 +32,11 @@ const Home = () => {
   const [balance, setBalance] = useState(0);
   const [todayGain, setTodayGain] = useState(0);
   const [activeTab, setActiveTab] = useState<"followed" | "position">("followed");
+  const [selectedPos, setSelectedPos] = useState<PositionDetailData | null>(null);
+  const [showCopying, setShowCopying] = useState(false);
+  const [showCopiers, setShowCopiers] = useState(false);
+  const [showActiveTrades, setShowActiveTrades] = useState(false);
+  const [showDeposit, setShowDeposit] = useState(false);
 
   const followedTraders = [
     { id: 1, name: "@geddard", avatar: "G", avatarBg: "#22c55e", portfolioPercent: 10.6, profit: 4369.2, ta: 24 },
@@ -57,8 +66,8 @@ const Home = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const getChartData = async (timeRange: TimeRange = "M") => {
-    const data = await balanceHistory(timeRange);
+  const getChartData = async (tr: TimeRange = "M") => {
+    const data = await balanceHistory(tr);
     setChartData(data.map((item) => ({ label: "", value: item.acconutValue, timestamp: item.timestamp })));
     setChartAnimated(false);
     setTimeout(() => setChartAnimated(true), 100);
@@ -68,8 +77,8 @@ const Home = () => {
 
   const getSampledData = () => {
     if (chartData.length <= 14) return chartData;
-    const step = Math.ceil(chartData.length / 14);
-    return chartData.filter((_, i) => i % step === 0).slice(0, 14);
+    const s = Math.ceil(chartData.length / 14);
+    return chartData.filter((_, i) => i % s === 0).slice(0, 14);
   };
 
   const sampledData = getSampledData();
@@ -118,6 +127,18 @@ const Home = () => {
     router.push("/");
   };
 
+  const handleSelectPosition = (pos: (typeof currentPositions)[0]) => {
+    const ext = positionExtendedData[pos.token];
+    if (ext) {
+      setSelectedPos({
+        ...pos,
+        color: ext.color,
+        currentPrice: ext.currentPrice,
+        txs: ext.txs,
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen text-white relative overflow-hidden" style={{ background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)" }}>
       <style jsx>{`
@@ -145,10 +166,7 @@ const Home = () => {
       {!authenticated && (
         <div
           className="relative z-10 mx-4 mt-3 mb-1 rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer transition-all duration-300 hover:scale-[1.01]"
-          style={{
-            background: "linear-gradient(135deg, rgba(45,212,191,0.1) 0%, rgba(45,212,191,0.03) 100%)",
-            border: "1px solid rgba(45,212,191,0.2)",
-          }}
+          style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.1) 0%, rgba(45,212,191,0.03) 100%)", border: "1px solid rgba(45,212,191,0.2)" }}
           onClick={() => login()}
         >
           <div className="flex items-center gap-2">
@@ -252,8 +270,13 @@ const Home = () => {
                   <span className="text-[11px] font-semibold text-teal-400" style={{ textShadow: "0 0 10px rgba(45,212,191,0.5)" }}>+4.12%</span>
                 </div>
               </div>
-              <Button className="bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-xs font-bold rounded-xl px-5 py-3 h-auto transition-all cursor-pointer" style={{ boxShadow: "0 0 25px rgba(45,212,191,0.4)" }}>
-                Post a Signal
+              <Button
+                onClick={() => setShowDeposit(true)}
+                className="bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-xs font-bold rounded-xl px-5 py-3 h-auto transition-all cursor-pointer gap-1.5"
+                style={{ boxShadow: "0 0 25px rgba(45,212,191,0.4)" }}
+              >
+                <Download size={14} />
+                Deposit
               </Button>
             </div>
           </div>
@@ -263,8 +286,16 @@ const Home = () => {
       {/* Stats Grid */}
       <div className="relative z-10 flex px-4 mt-4 gap-3">
         <div className="flex flex-1 gap-3">
-          {[{ icon: Copy, label: "Copying", value: "243", color: "teal" }, { icon: Users, label: "Copied", value: "367", color: "purple" }].map((stat, i) => (
-            <div key={i} className="flex-1 rounded-2xl p-4 cursor-pointer transition-all duration-300 hover:scale-[1.02]" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          {[
+            { icon: Copy, label: "Copying", value: "243", color: "teal", action: () => setShowCopying(true) },
+            { icon: Users, label: "Copiers", value: "367", color: "purple", action: () => setShowCopiers(true) },
+          ].map((stat, i) => (
+            <div
+              key={i}
+              onClick={() => stat.action()}
+              className="flex-1 rounded-2xl p-4 cursor-pointer transition-all duration-300 hover:scale-[1.02]"
+              style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
               <div className="flex flex-col items-center">
                 <div className={`w-11 h-11 rounded-full flex items-center justify-center mb-3 ${stat.color === "teal" ? "bg-teal-400/10" : "bg-purple-400/10"}`}>
                   <stat.icon size={20} className={stat.color === "teal" ? "text-teal-400" : "text-purple-400"} />
@@ -276,17 +307,32 @@ const Home = () => {
           ))}
         </div>
         <div className="flex flex-1 flex-col gap-3">
-          {[{ icon: ArrowUpDown, label: "Active Trades", value: "34", color: "orange" }, { icon: CheckCircle2, label: "Trades Ended", value: "376", color: "teal" }].map((stat, i) => (
-            <div key={i} className="flex-1 rounded-2xl px-4 py-3 cursor-pointer transition-all duration-300 hover:scale-[1.02] flex items-center justify-between" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center ${stat.color === "orange" ? "bg-orange-400/10" : "bg-teal-400/10"}`}>
-                  <stat.icon size={18} className={stat.color === "orange" ? "text-orange-400" : "text-teal-400"} />
-                </div>
-                <span className="text-[11px] text-gray-400">{stat.label}</span>
+          <div
+            onClick={() => setShowActiveTrades(true)}
+            className="flex-1 rounded-2xl px-4 py-3 cursor-pointer transition-all duration-300 hover:scale-[1.02] flex items-center justify-between"
+            style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center bg-orange-400/10">
+                <ArrowUpDown size={18} className="text-orange-400" />
               </div>
-              <span className="text-base font-bold text-white">{stat.value}</span>
+              <span className="text-[11px] text-gray-400">Active Trades</span>
             </div>
-          ))}
+            <span className="text-base font-bold text-white">34</span>
+          </div>
+          <div
+            onClick={() => router.push("/tradeHistory")}
+            className="flex-1 rounded-2xl px-4 py-3 cursor-pointer transition-all duration-300 hover:scale-[1.02] flex items-center justify-between"
+            style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center bg-teal-400/10">
+                <CheckCircle2 size={18} className="text-teal-400" />
+              </div>
+              <span className="text-[11px] text-gray-400">Trades Ended</span>
+            </div>
+            <span className="text-base font-bold text-white">376</span>
+          </div>
         </div>
       </div>
 
@@ -300,6 +346,7 @@ const Home = () => {
             ))}
           </div>
           <div className="relative overflow-hidden">
+            {/* Followed Tab */}
             <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "followed" ? 1 : 0, transform: activeTab === "followed" ? "translateX(0)" : "translateX(-20px)", position: activeTab === "followed" ? "relative" : "absolute", pointerEvents: activeTab === "followed" ? "auto" : "none", width: "100%" }}>
               <div className="grid grid-cols-[1fr_70px_80px_40px_30px] gap-2 px-4 py-3 border-b border-white/10">
                 <span className="text-[10px] text-gray-500 uppercase tracking-wide">Trader</span>
@@ -318,21 +365,28 @@ const Home = () => {
                     <span className="text-xs text-teal-400 text-right font-medium">+{trader.portfolioPercent}%</span>
                     <span className="text-xs text-white text-right font-medium">${trader.profit.toLocaleString("en-US", { minimumFractionDigits: 1 })}</span>
                     <span className="text-xs text-gray-400 text-right">{trader.ta}</span>
-                    <button className="flex items-center justify-center text-gray-500 hover:text-teal-400 transition-colors cursor-pointer"><Settings size={14} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); router.push("/settings?tab=trader"); }} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-teal-400 hover:bg-white/10 rounded-md transition-all cursor-pointer"><Settings size={14} /></button>
                   </div>
                 ))}
               </div>
             </div>
+            {/* Positions Tab */}
             <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "position" ? 1 : 0, transform: activeTab === "position" ? "translateX(0)" : "translateX(20px)", position: activeTab === "position" ? "relative" : "absolute", pointerEvents: activeTab === "position" ? "auto" : "none", width: "100%", top: 0 }}>
-              <div className="grid grid-cols-[1fr_80px_90px_70px] gap-2 px-4 py-3 border-b border-white/10">
+              <div className="grid grid-cols-[1fr_80px_90px_70px_20px] gap-2 px-4 py-3 border-b border-white/10">
                 <span className="text-[10px] text-gray-500 uppercase tracking-wide">Token</span>
                 <span className="text-[10px] text-gray-500 text-right uppercase tracking-wide">Size</span>
                 <span className="text-[10px] text-gray-500 text-right uppercase tracking-wide">PnL</span>
                 <span className="text-[10px] text-gray-500 text-right uppercase tracking-wide">Entry</span>
+                <span></span>
               </div>
               <div className="divide-y divide-white/5">
                 {currentPositions.map((pos, index) => (
-                  <div key={pos.id} className="grid grid-cols-[1fr_80px_90px_70px] gap-2 px-4 py-3 items-center hover:bg-white/5 transition-all duration-200 row-animate" style={{ animationDelay: `${index * 0.05}s` }}>
+                  <div
+                    key={pos.id}
+                    onClick={() => handleSelectPosition(pos)}
+                    className="grid grid-cols-[1fr_80px_90px_70px_20px] gap-2 px-4 py-3 items-center hover:bg-white/5 transition-all duration-200 cursor-pointer active:bg-white/10 row-animate"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                  >
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
                         <img src={pos.iconUrl} alt={pos.token} className="w-6 h-6 object-cover" onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentElement!.innerHTML = `<span class="text-xs font-bold text-white">${pos.token[0]}</span>`; }} />
@@ -351,19 +405,27 @@ const Home = () => {
                       <div className={`text-[9px] ${pos.pnl >= 0 ? "text-teal-400/70" : "text-rose-400/70"}`}>{pos.pnlPercent >= 0 ? "+" : ""}{pos.pnlPercent}%</div>
                     </div>
                     <span className="text-xs text-gray-400 text-right">${pos.entry.toLocaleString()}</span>
+                    <svg className="w-3.5 h-3.5 text-gray-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                   </div>
                 ))}
               </div>
             </div>
           </div>
         </div>
-        <div onClick={() => router.push("/tradeHistory")} className="mt-3 flex items-center justify-center gap-1.5 py-2.5 cursor-pointer group">
-          <span className="text-[11px] text-gray-500 group-hover:text-gray-300 transition-colors">View Trade History</span>
-          <svg className="w-3 h-3 text-gray-500 group-hover:text-gray-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </div>
       </div>
+
+      {/* Sheets & Modals */}
+      {showCopying && <CopyingSheet mode="copying" onClose={() => setShowCopying(false)} />}
+      {showCopiers && <CopyingSheet mode="copiers" onClose={() => setShowCopiers(false)} />}
+      {showActiveTrades && (
+        <ActiveTradesSheet
+          positions={currentPositions}
+          onClose={() => setShowActiveTrades(false)}
+          onSelectPosition={(pos) => { handleSelectPosition(pos); }}
+        />
+      )}
+      {selectedPos && <PositionDetail pos={selectedPos} onClose={() => setSelectedPos(null)} />}
+      <DepositSheet isOpen={showDeposit} onClose={() => setShowDeposit(false)} />
     </div>
   );
 };
