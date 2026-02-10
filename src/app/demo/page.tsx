@@ -12,7 +12,7 @@ export default function Home() {
   const { ready, authenticated, logout, login, user, linkEmail } = usePrivy();
   const { wallets: walletsEvm } = useWallets();
   const [ethereumProvider, setEthereumProvider] =
-    useState<ethers.BrowserProvider | null>(null);
+    useState<ethers.providers.Web3Provider | null>(null);
 
   const [hyperLiquidTransport, setHyperLiquidTransport] =
     useState<hl.HttpTransport | null>(null);
@@ -33,9 +33,7 @@ export default function Home() {
     },
     spot: {},
   });
-  const [agentWallet, setAgentWallet] = useState<ethers.BaseWallet | null>(
-    null
-  );
+  const [agentWallet, setAgentWallet] = useState<ethers.Wallet | null>(null);
   const [tradingEnabled, setTradingEnabled] = useState<boolean>(false);
 
   const [placeOrderAsset, setPlaceOrderAsset] = useState<{
@@ -61,56 +59,44 @@ export default function Home() {
     return walletsEvm?.length ? walletsEvm[0] : null;
   }, [authenticated, walletsEvm]);
 
-  // hook for init ethereum provider and hyperLiquid transport
-  // driven by change of currentWallet
   useEffect(() => {
     if (!currentWallet) {
       return;
     }
     console.log("currentWallet", currentWallet?.address);
     setHyperLiquidTransport(new hl.HttpTransport());
-    // 先创建 provider
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    setEthereumProvider(provider);
+    if (typeof window !== "undefined" && (window as any).ethereum) {
+      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
+      setEthereumProvider(provider);
+    }
   }, [currentWallet]);
 
-  // hook for init info client, main exch client(for approving agent wallet and builder fee) and agent wallet
-  // driven by change of ethereumProvider and hyperLiquidTransport
   useEffect(
     () => {
       if (!ethereumProvider || !hyperLiquidTransport) {
         return;
       }
-      // 尝试获取签名者
-      ethereumProvider.getSigner().then((res) => {
-        console.log("signer", res);
-        if (!res) {
-          console.error("Failed to get signer");
-          return;
-        }
-        initInfoAndMainExchClient(res);
-        initAgentWallet();
-      });
+      const signer = ethereumProvider.getSigner();
+      console.log("signer", signer);
+      if (!signer) {
+        console.error("Failed to get signer");
+        return;
+      }
+      initInfoAndMainExchClient(signer);
+      initAgentWallet();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ethereumProvider, hyperLiquidTransport]
   );
 
-  // hook for load market asset data, batch update account info and agent wallet check
-  // driven by change of infoClient and currentWallet
   useEffect(
     () => {
       if (!(infoClient && currentWallet && agentWallet)) {
         return;
       }
-      // 加载市场 asset 数据
       loadMarketAssetData();
-      // 获取用户数据
       batchUpdateAccountInfo(currentWallet.address);
-      // 获取用户订单
       getOpenOrders();
-      // 检查当前 agent wallet 是否已授权
-      // 先获取已经 approve 的 agent wallet
       infoClient
         .extraAgents({
           user: currentWallet!.address,
@@ -131,8 +117,6 @@ export default function Home() {
     [currentWallet, infoClient, agentWallet]
   );
 
-  // hook for init exchange client, this client should created with agent wallet
-  // driven by change of agent wallet
   useEffect(
     () => {
       if (!agentWallet) {
@@ -172,7 +156,7 @@ export default function Home() {
     });
     setInfoClient(infoClient);
     const mainExchClient = new hl.ExchangeClient({
-      wallet: signer,
+      wallet: signer as any,
       transport: hyperLiquidTransport,
     });
     setMainExchClient(mainExchClient);
@@ -182,13 +166,11 @@ export default function Home() {
   const initAgentWallet = async () => {
     console.log("initAgentWallet");
     const agentWalletPrivateKey = localStorage.getItem("agentWalletPrivateKey");
-    // 如果已经有保存，就根据已经保存的创建
     if (agentWalletPrivateKey) {
       setAgentWallet(new ethers.Wallet(agentWalletPrivateKey));
       console.log("initAgentWallet done");
       return;
     }
-    // 如果之前没有创建过，就随机生成一个
     const createAgentWallet = ethers.Wallet.createRandom();
     localStorage.setItem("agentWalletPrivateKey", createAgentWallet.privateKey);
     setAgentWallet(createAgentWallet);
@@ -201,7 +183,6 @@ export default function Home() {
       console.error("Ethereum provider not found");
       return;
     }
-    // 创建 exchange client
     const exchClient = new hl.ExchangeClient({
       wallet: agentWallet,
       transport: hyperLiquidTransport,
@@ -225,9 +206,6 @@ export default function Home() {
           user: walletAddress,
         })
         .catch(() => null),
-      // infoClient.userFees({
-      //   user: walletAddress,
-      // }).catch(() => null),
     ]);
 
     if (accountRes[0]) {
@@ -256,7 +234,6 @@ export default function Home() {
     }
   };
 
-  // approve builder fee, use main exch client
   const approveBuilderFee = async () => {
     if (!mainExchClient) {
       return;
@@ -267,7 +244,6 @@ export default function Home() {
     });
   };
 
-  // enable trading, use main exch client
   const enableTrading = async () => {
     if (!mainExchClient || !infoClient) {
       return;
@@ -286,7 +262,6 @@ export default function Home() {
       });
   };
 
-  // order placing, send with agent wallet, use exchClient
   const placeOrder = async () => {
     if (!exchClient) {
       return;
@@ -399,7 +374,6 @@ export default function Home() {
             {exchClient ? (
               <>
                 <p className="text-center">Hyperliquid Connected</p>
-                {/* balance info */}
                 <p className="text-center">Perps balance:</p>
                 <p className="text-center">{accountBalance.perps.USDC} USDC</p>
                 <p className="text-center mt-1">Spot balance:</p>
@@ -408,7 +382,6 @@ export default function Home() {
                     .map((key) => `${key}: ${accountBalance.spot![key]}`)
                     .join(", ")}
                 </p>
-                {/* approve builder codes */}
                 <p className="mt-2 flex justify-center">
                   <button
                     className="button w-auto rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
@@ -421,7 +394,6 @@ export default function Home() {
                 </p>
                 {agentWallet && tradingEnabled ? (
                   <>
-                    {/* place order */}
                     {accountBalance.perps.USDC > 10 ? (
                       <div className="mt-8">
                         <p>Order params: &nbsp;</p>
