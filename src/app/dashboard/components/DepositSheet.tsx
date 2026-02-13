@@ -74,7 +74,7 @@ export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
   const getProvider = useCallback(async () => {
     if (!wallet) throw new Error("No wallet");
     const eip1193 = await wallet.getEthereumProvider();
-    return new ethers.providers.Web3Provider(eip1193);
+    return new (ethers as any).providers.Web3Provider(eip1193);
   }, [wallet]);
 
   // ─── Load USDC balance on Arbitrum ───
