@@ -29,6 +29,8 @@ export default function KolItem({
   const rank = data.rank || index + 1;
   const profit = data.results_pct || 0;
   const isPositive = profit >= 0;
+  const avgReturn = data.avg_return || 0;
+  const isAvgPositive = avgReturn >= 0;
 
   const getRankStyle = () => {
     if (rank === 1) return { bg: "linear-gradient(135deg, #ffd700 0%, #ffa500 100%)", shadow: "0 0 12px rgba(255,215,0,0.6)", animation: "pulseGold 2s ease-in-out infinite", border: "2px solid #ffd700" };
@@ -39,6 +41,17 @@ export default function KolItem({
 
   const rankStyle = getRankStyle();
 
+  const formatPnl = (pct: number) => {
+    const dollars = Math.abs(pct * 1000);
+    const formatted = dollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return pct >= 0 ? `+$${formatted}` : `-$${formatted}`;
+  };
+
+  const formatPct = (pct: number) => {
+    const val = new BigNumber(pct).decimalPlaces(1).toNumber();
+    return pct >= 0 ? `+${val}%` : `${val}%`;
+  };
+
   const handleProfileClick = () => {
     router.push(`/profile?handle=${data.x_handle}`);
   };
@@ -47,6 +60,8 @@ export default function KolItem({
     e.stopPropagation();
     onClick();
   };
+
+  const displayName = data.display_name || data.x_handle;
 
   return (
     <div
@@ -71,15 +86,27 @@ export default function KolItem({
           >
             {rank}
           </div>
+
+          {/* Avatar: show image if available, otherwise letter initial */}
+          {data.avatar_url ? (
+            <img
+              src={data.avatar_url}
+              alt={displayName}
+              className="w-10 h-10 rounded-xl object-cover shrink-0"
+              style={{ border: rank <= 3 ? rankStyle.border : "none", animation: rank <= 3 ? rankStyle.animation : "none" }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
+            />
+          ) : null}
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm text-white shrink-0"
+            className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm text-white shrink-0 ${data.avatar_url ? 'hidden' : ''}`}
             style={{ background: data.avatarColor || "linear-gradient(135deg, #06b6d4, #3b82f6)", border: rank <= 3 ? rankStyle.border : "none", animation: rank <= 3 ? rankStyle.animation : "none" }}
           >
-            {data.x_handle?.[0]?.toUpperCase() || "?"}
+            {(displayName)?.[0]?.toUpperCase() || "?"}
           </div>
+
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span className="text-white text-sm font-medium truncate">{data.x_handle}</span>
+              <span className="text-white text-sm font-medium truncate">{displayName}</span>
               <span className="text-[9px] px-1.5 py-0.5 rounded flex items-center gap-0.5 font-bold shrink-0" style={{ background: "rgba(251,146,60,0.18)", border: "1px solid rgba(251,146,60,0.3)", color: "#fb923c" }}>
                 🔥{data.streak || 0}
               </span>
@@ -89,8 +116,10 @@ export default function KolItem({
             </div>
             <div className="text-[10px] text-gray-500 truncate">@{data.x_handle}</div>
           </div>
+
+          {/* PnL with proper negative sign */}
           <div className={`text-sm font-bold shrink-0 ${isPositive ? "text-teal-400" : "text-rose-400"}`} style={{ textShadow: isPositive ? "0 0 10px rgba(45,212,191,0.3)" : "0 0 10px rgba(251,113,133,0.3)" }}>
-            {isPositive ? "+" : ""}${Math.abs(profit * 1000).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatPnl(profit)}
           </div>
         </div>
 
@@ -106,12 +135,14 @@ export default function KolItem({
           </div>
           <div>
             <div className="text-[9px] text-gray-500 uppercase tracking-wide">Avg Return</div>
-            <div className="text-[11px] text-teal-400 font-medium">{data.avg_return ? `+${new BigNumber(data.avg_return as number).decimalPlaces(1).toNumber()}%` : "-"}</div>
+            <div className={`text-[11px] font-medium ${isAvgPositive ? "text-teal-400" : "text-rose-400"}`}>
+              {data.avg_return != null && data.avg_return !== 0 ? formatPct(avgReturn) : "-"}
+            </div>
           </div>
           <div>
             <div className="text-[9px] text-gray-500 uppercase tracking-wide">Result</div>
             <div className={`text-[11px] font-semibold ${isPositive ? "text-teal-400" : "text-rose-400"}`}>
-              {isPositive ? "+" : ""}{new BigNumber(profit).decimalPlaces(1).toNumber()}%
+              {formatPct(profit)}
             </div>
           </div>
           <div>
