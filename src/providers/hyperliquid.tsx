@@ -12,7 +12,7 @@ const HyperLiquidContext = createContext({
   infoClient: null as hl.InfoClient | null,
   mainExchClient: null as hl.ExchangeClient | null,
   exchClient: null as hl.ExchangeClient | null,
-  agentWallet: null as ethers.Wallet | null,
+  agentWallet: null as any,
   tradingEnabled: false as boolean,
   placeOrderAssets: {} as {
     [key: string]: number;
@@ -53,7 +53,7 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
   const [exchClient, setExchClient] = useState<hl.ExchangeClient | null>(null);
   const [mainExchClient, setMainExchClient] =
     useState<hl.ExchangeClient | null>(null);
-  const [agentWallet, setAgentWallet] = useState<ethers.Wallet | null>(null);
+  const [agentWallet, setAgentWallet] = useState<any>(null);
   const [tradingEnabled, setTradingEnabled] = useState<boolean>(false);
   const [placeOrderAssets, setPlaceOrderAssets] = useState<{
     [key: string]: number;
@@ -130,15 +130,15 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
   const initAgentWallet = async () => {
     const agentWalletPrivateKey = localStorage.getItem("agentWalletPrivateKey");
     if (agentWalletPrivateKey) {
-      setAgentWallet(new ethers.Wallet(agentWalletPrivateKey));
+      setAgentWallet(new (ethers as any).Wallet(agentWalletPrivateKey));
       return;
     }
-    const createAgentWallet = ethers.Wallet.createRandom();
+    const createAgentWallet = (ethers as any).Wallet.createRandom();
     localStorage.setItem("agentWalletPrivateKey", createAgentWallet.privateKey);
     setAgentWallet(createAgentWallet);
   };
 
-  const initInfoAndMainExchClient = async (signer: ethers.Signer) => {
+  const initInfoAndMainExchClient = async (signer: any) => {
     if (!(ethereumProvider && hyperLiquidTransport)) {
       console.error("Ethereum provider not found");
       return;

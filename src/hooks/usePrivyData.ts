@@ -22,8 +22,7 @@ const useCurrentWallet = () => {
 
 const useEthereumProvider = () => {
   const currentWallet = useCurrentWallet();
-  const [ethereumProvider, setEthereumProvider] =
-    useState<ethers.providers.Web3Provider | null>(null);
+  const [ethereumProvider, setEthereumProvider] = useState<any>(null);
 
   useEffect(() => {
     if (!currentWallet) {
@@ -33,7 +32,7 @@ const useEthereumProvider = () => {
 
     if (typeof window !== "undefined" && (window as any).ethereum) {
       setEthereumProvider(
-        new ethers.providers.Web3Provider((window as any).ethereum)
+        new (ethers as any).providers.Web3Provider((window as any).ethereum)
       );
       return;
     }
@@ -46,7 +45,7 @@ const useEthereumProvider = () => {
           return;
         }
         setEthereumProvider(
-          new ethers.providers.Web3Provider(provider as any)
+          new (ethers as any).providers.Web3Provider(provider as any)
         );
       })
       .catch((error: unknown) => {

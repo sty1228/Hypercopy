@@ -40,15 +40,15 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
           throw e;
         });
 
-        const usdcContract = new ethers.Contract(
+        const usdcContract = new (ethers as any).Contract(
           usdcAddress,
           USDC_ARB_ABI,
           ARBITRUM_HTTP_PROVIDER
         );
-        const arbUSDCContractInterface = new ethers.utils.Interface(USDC_ARB_ABI);
+        const arbUSDCContractInterface = new ((ethers as any).utils).Interface(USDC_ARB_ABI);
         const usdcDecimals = await usdcContract.decimals();
 
-        const depositAmountInUnits = ethers.utils
+        const depositAmountInUnits = ((ethers as any).utils)
           .parseUnits(depositAmount.toString(), usdcDecimals)
           .toString();
         console.log("depositAmountInUnits", depositAmountInUnits);
@@ -106,7 +106,7 @@ export const useArbitrumUSDCDepositWithPermit = () => {
           ? USDC_ARB_MAINNET_ADDRESS
           : USDC_ARB_TESTNET_ADDRESS;
 
-        const usdcContract = new ethers.Contract(
+        const usdcContract = new (ethers as any).Contract(
           usdcAddress,
           USDC_ARB_ABI,
           ARBITRUM_HTTP_PROVIDER
@@ -117,7 +117,7 @@ export const useArbitrumUSDCDepositWithPermit = () => {
         const usdcDecimals = await usdcContract.decimals();
         console.log("usdcDecimals", usdcDecimals);
         console.log(
-          ethers.utils.parseUnits(depositAmount.toString(), usdcDecimals).toString()
+          ((ethers as any).utils).parseUnits(depositAmount.toString(), usdcDecimals).toString()
         );
 
         const payload = {
@@ -125,7 +125,7 @@ export const useArbitrumUSDCDepositWithPermit = () => {
           spender: isMainnet
             ? "0x2df1c51e09aecf9cacb7bc98cb1742757f163df7"
             : "0x08cfc1B6b2dCF36A1480b99353A354AA8AC56f89",
-          value: ethers.utils
+          value: ((ethers as any).utils)
             .parseUnits(depositAmount.toString(), usdcDecimals)
             .toString(),
           nonce: nonce.toString(),
@@ -161,12 +161,12 @@ export const useArbitrumUSDCDepositWithPermit = () => {
         console.log(user);
         const chainId = await ethereumProvider
           .getNetwork()
-          .then((res) => res.chainId);
+          .then((res: any) => res.chainId);
         console.log("chainId", chainId);
         if (Number(chainId) !== 42161) {
           await ethereumProvider
             .send("wallet_switchEthereumChain", [{ chainId: "0xa4b1" }])
-            .catch((e) => {
+            .catch((e: any) => {
               console.log(e);
               throw e;
             });
@@ -174,7 +174,7 @@ export const useArbitrumUSDCDepositWithPermit = () => {
 
         const data = await signTypedData(dataToSign, {
           address: currentWallet.address,
-        }).catch((e) => {
+        }).catch((e: any) => {
           console.log(e);
           return null;
         });
@@ -184,7 +184,7 @@ export const useArbitrumUSDCDepositWithPermit = () => {
           return null;
         }
 
-        const signature = ethers.utils.splitSignature(data.signature);
+        const signature = ((ethers as any).utils).splitSignature(data.signature);
 
         console.log("Permit signature:", {
           r: signature.r,
