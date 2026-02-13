@@ -11,8 +11,7 @@ import { toast } from "sonner";
 export default function Home() {
   const { ready, authenticated, logout, login, user, linkEmail } = usePrivy();
   const { wallets: walletsEvm } = useWallets();
-  const [ethereumProvider, setEthereumProvider] =
-    useState<ethers.providers.Web3Provider | null>(null);
+  const [ethereumProvider, setEthereumProvider] = useState<any>(null);
 
   const [hyperLiquidTransport, setHyperLiquidTransport] =
     useState<hl.HttpTransport | null>(null);
@@ -33,7 +32,7 @@ export default function Home() {
     },
     spot: {},
   });
-  const [agentWallet, setAgentWallet] = useState<ethers.Wallet | null>(null);
+  const [agentWallet, setAgentWallet] = useState<any>(null);
   const [tradingEnabled, setTradingEnabled] = useState<boolean>(false);
 
   const [placeOrderAsset, setPlaceOrderAsset] = useState<{
@@ -66,7 +65,7 @@ export default function Home() {
     console.log("currentWallet", currentWallet?.address);
     setHyperLiquidTransport(new hl.HttpTransport());
     if (typeof window !== "undefined" && (window as any).ethereum) {
-      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
+      const provider = new (ethers as any).providers.Web3Provider((window as any).ethereum);
       setEthereumProvider(provider);
     }
   }, [currentWallet]);
@@ -145,7 +144,7 @@ export default function Home() {
     console.log("loadMarketAssetData done");
   };
 
-  const initInfoAndMainExchClient = async (signer: ethers.Signer) => {
+  const initInfoAndMainExchClient = async (signer: any) => {
     console.log("initInfoAndMainExchClient");
     if (!(ethereumProvider && hyperLiquidTransport)) {
       console.error("Ethereum provider not found");
@@ -167,11 +166,11 @@ export default function Home() {
     console.log("initAgentWallet");
     const agentWalletPrivateKey = localStorage.getItem("agentWalletPrivateKey");
     if (agentWalletPrivateKey) {
-      setAgentWallet(new ethers.Wallet(agentWalletPrivateKey));
+      setAgentWallet(new (ethers as any).Wallet(agentWalletPrivateKey));
       console.log("initAgentWallet done");
       return;
     }
-    const createAgentWallet = ethers.Wallet.createRandom();
+    const createAgentWallet = (ethers as any).Wallet.createRandom();
     localStorage.setItem("agentWalletPrivateKey", createAgentWallet.privateKey);
     setAgentWallet(createAgentWallet);
     console.log("initAgentWallet done");
