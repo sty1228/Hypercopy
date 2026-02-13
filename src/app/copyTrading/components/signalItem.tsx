@@ -44,7 +44,7 @@ export default function SignalItem({
     }
     const tradeSide = SIDE_MAP[side === "copy" ? data.bull_or_bear : data.bull_or_bear === "bearish" ? "bullish" : "bearish"];
     const realtimeOrderbook = await infoClient!.l2Book({ coin: symbol });
-    const { levels } = realtimeOrderbook;
+    const { levels } = realtimeOrderbook!;
     const [bids, asks] = levels || [];
     const orderPrice = tradeSide === "long" ? bids[0].px : asks[0].px;
     const placeOrderAssetId = placeOrderAssets[symbol.toUpperCase()];
