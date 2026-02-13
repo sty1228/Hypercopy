@@ -34,15 +34,15 @@ export default function CopyTrading() {
   const [rawLeaderboardList, setRawLeaderboardList] = useState<LeaderboardItem[]>([]);
   const [clickItemData, setClickItemData] = useState<LeaderboardItem | null>(null);
   const [activeFilter, setActiveFilter] = useState("earners");
-  const [timeFilter, setTimeFilter] = useState("24h");
+  const [timeFilter, setTimeFilter] = useState("30d");
 
   useEffect(() => {
-    fetchLeaderboard();
-  }, []);
+    fetchLeaderboard(timeFilter);
+  }, [timeFilter]);
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = async (window: string) => {
     try {
-      const response = (await leaderboard()) as LeaderboardItem[];
+      const response = (await leaderboard(window)) as LeaderboardItem[];
       if (response && response.length > 0) {
         const rawListWithAvatarColor = response.map((item: LeaderboardItem, index: number) => ({
           ...item,

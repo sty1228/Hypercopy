@@ -2,6 +2,9 @@ import { get, put } from "@/lib/axios";
 
 export interface LeaderboardItem {
   x_handle: string;
+  display_name: string;
+  avatar_url: string | null;
+  is_verified: boolean;
   bull_or_bear: string;
   win_rate: number;
   total_tweets: number;
@@ -23,8 +26,8 @@ export interface LeaderboardItem {
   copiers?: number;
 }
 
-export const leaderboard = async () => {
-  return await get("/api/leaderboard");
+export const leaderboard = async (window: string = "30d") => {
+  return await get(`/api/leaderboard?window=${window}`);
 };
 
 export interface UserSignalItem {
