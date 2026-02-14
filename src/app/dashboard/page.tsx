@@ -20,6 +20,8 @@ import {
   type PositionItem,
   type ProfileDataResponse,
 } from "@/service";
+import { checkBuilderApproval, BUILDER_ADDRESS } from "@/lib/hyperliquid";
+import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
 import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import PositionDetail, { PositionDetailData, positionExtendedData } from "./components/PositionDetail";
@@ -66,6 +68,10 @@ const Home = () => {
   const [profile, setProfile] = useState<ProfileDataResponse | null>(null);
   const [positions, setPositions] = useState<PositionItem[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // ── Builder approval state ──
+  const [builderApproved, setBuilderApproved] = useState<boolean | null>(null);
+  const [builderDismissed, setBuilderDismissed] = useState(false);
 
   // ── UI state ──
   const [timeRange, setTimeRange] = useState<TimeRange>("M");
@@ -130,6 +136,14 @@ const Home = () => {
   }, [authReady]);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+
+  // ── 2b. Check builder fee approval ──
+  useEffect(() => {
+    if (!authReady || !wallet?.address || !BUILDER_ADDRESS) return;
+    checkBuilderApproval(wallet.address)
+      .then((approved) => setBuilderApproved(approved))
+      .catch(() => setBuilderApproved(false));
+  }, [authReady, wallet?.address]);
 
   // ── 3. Animate balance when summary loads ──
   useEffect(() => {
@@ -287,6 +301,14 @@ const Home = () => {
           </div>
           <span className="text-[10px] font-semibold text-teal-400">Connect →</span>
         </div>
+      )}
+
+      {/* Builder Fee Approval Banner */}
+      {authenticated && builderApproved === false && !builderDismissed && (
+        <BuilderApprovalBanner
+          onApproved={() => setBuilderApproved(true)}
+          onDismiss={() => setBuilderDismissed(true)}
+        />
       )}
 
       {/* Header */}
