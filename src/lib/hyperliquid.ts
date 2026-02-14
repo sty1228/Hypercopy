@@ -153,7 +153,14 @@ export async function approveBuilderFee(
     }),
   });
 
-  const result = await res.json();
+  // HL may return plain text on error, so read as text first
+  const text = await res.text();
+  let result: any;
+  try {
+    result = JSON.parse(text);
+  } catch {
+    throw new Error(`ApproveBuilderFee failed: ${text}`);
+  }
 
   // Check response
   if (result.status === "ok") {
