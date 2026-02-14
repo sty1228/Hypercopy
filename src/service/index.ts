@@ -1,4 +1,61 @@
-import { get, put } from "@/lib/axios";
+import { get, post, put } from "@/lib/axios";
+
+// ─── Auth ───────────────────────────────────────────────
+
+export const connectWalletApi = async (
+  walletAddress: string
+): Promise<{ access_token: string; user: Record<string, unknown> }> => {
+  return await post("/api/auth/connect-wallet", {
+    wallet_address: walletAddress,
+  });
+};
+
+// ─── Dashboard / Portfolio (real backend) ───────────────
+
+export interface DashboardSummary {
+  total_balance: number;
+  total_pnl: number;
+  total_pnl_pct: number;
+  open_positions: number;
+  total_trades: number;
+  win_rate: number;
+}
+
+export interface PositionItem {
+  id: string;
+  ticker: string;
+  direction: string;
+  entry_price: number;
+  current_price: number | null;
+  size_usd: number;
+  size_qty: number;
+  leverage: number;
+  pnl_usd: number | null;
+  pnl_pct: number | null;
+  trader_username: string | null;
+  opened_at: string;
+}
+
+export const getDashboardSummary = async (): Promise<DashboardSummary> => {
+  return await get("/api/portfolio/summary");
+};
+
+export const getOpenPositions = async (): Promise<PositionItem[]> => {
+  return await get("/api/portfolio/positions");
+};
+
+export interface BalanceHistoryResponse {
+  acconutValue: number;
+  timestamp: number;
+}
+
+export const balanceHistory = async (
+  timeRange: "D" | "W" | "M" | "YTD" | "ALL"
+): Promise<BalanceHistoryResponse[]> => {
+  return await get(`/api/portfolio/balance-history?timeRange=${timeRange}`);
+};
+
+// ─── Leaderboard ────────────────────────────────────────
 
 export interface LeaderboardItem {
   x_handle: string;
@@ -30,6 +87,8 @@ export const leaderboard = async (window: string = "30d") => {
   return await get(`/api/leaderboard?window=${window}`);
 };
 
+// ─── User Signals ───────────────────────────────────────
+
 export interface UserSignalItem {
   x_handle: string;
   profit_grade: number | null;
@@ -56,22 +115,13 @@ export interface UserSignalResponse {
   signals: UserSignalItem[];
 }
 
-export const userSignals = async (x_handle: string): Promise<UserSignalResponse> => {
+export const userSignals = async (
+  x_handle: string
+): Promise<UserSignalResponse> => {
   return await get(`/api/user/${x_handle}/signals`);
 };
 
-export interface BalanceHistoryResponse {
-  acconutValue: number;
-  timestamp: number;
-}
-
-export const balanceHistory = async (
-  timeRange: "D" | "W" | "M" | "YTD" | "ALL"
-): Promise<BalanceHistoryResponse[]> => {
-  return await get(
-    "https://mock.apidog.com/m1/1147892-1140449-default/api/balanceHistory?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
-  );
-};
+// ─── Profile (real backend) ─────────────────────────────
 
 export interface FollowerItem {
   name: string;
@@ -95,10 +145,10 @@ export interface ProfileDataResponse {
 }
 
 export const getProfileData = async (): Promise<ProfileDataResponse> => {
-  return await get(
-    "https://mock.apidog.com/m1/1147892-1140449-default/api/profile?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
-  );
+  return await get("/api/portfolio/profile");
 };
+
+// ─── Profile sub-data (still mock — needs backend) ─────
 
 export interface TradersCopyingItem {
   name: string;
@@ -108,11 +158,15 @@ export interface TradersCopyingItem {
   pnlValue: number;
 }
 
-export const getProfileTradersCopyingList = async (): Promise<TradersCopyingItem[]> => {
+export const getProfileTradersCopyingList = async (): Promise<
+  TradersCopyingItem[]
+> => {
   return await get(
     "https://mock.apidog.com/m1/1147892-1140449-default/api/copyingList?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
   );
 };
+
+// ─── Settings (still mock — needs backend) ──────────────
 
 export type TradeSizeType = "USD" | "PCT";
 export type LeverageType = "isolated" | "cross";
@@ -132,16 +186,16 @@ export interface DefaultFollowSettings {
   orderType: "market" | "limit";
 }
 
-export const getDefaultFollowSettings = async (): Promise<DefaultFollowSettings> => {
-  return await get(
-    "https://mock.apidog.com/m1/1147892-1140449-default/api/defaultFollowSetting?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
-  );
-};
+export const getDefaultFollowSettings =
+  async (): Promise<DefaultFollowSettings> => {
+    return await get(
+      "https://mock.apidog.com/m1/1147892-1140449-default/api/defaultFollowSetting?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
+    );
+  };
 
 export const updateDefaultFollowSettings = async (
   settings: { address: string } & DefaultFollowSettings
 ) => {
-  console.log("updateDefaultFollowSettings", settings);
   return await put(
     "https://mock.apidog.com/m1/1147892-1140449-default/api/defaultFollowSetting?apidogToken=PbNG_tQ6mXqOpxO8CvYsp",
     settings
