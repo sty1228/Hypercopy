@@ -42,9 +42,8 @@ export default function KolItem({
   const rankStyle = getRankStyle();
 
   const formatPnl = (pct: number) => {
-    const dollars = Math.abs(pct * 1000);
-    const formatted = dollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return pct >= 0 ? `+$${formatted}` : `-$${formatted}`;
+    const val = Math.abs(pct).toFixed(1);
+    return pct >= 0 ? `+${val}%` : `-${val}%`;
   };
 
   const formatPct = (pct: number) => {
