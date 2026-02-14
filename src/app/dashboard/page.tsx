@@ -23,6 +23,33 @@ export interface BalanceChartData {
   value: number;
 }
 
+const IconWithTooltip = ({ tooltip, children }: { tooltip: string; children: React.ReactNode }) => {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (!show) return;
+    const timer = setTimeout(() => setShow(false), 2000);
+    return () => clearTimeout(timer);
+  }, [show]);
+  return (
+    <div className="relative" onClick={() => setShow((p) => !p)}>
+      {children}
+      <div
+        className="absolute top-full right-0 mt-1.5 px-2.5 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-medium pointer-events-none transition-all duration-200 z-50"
+        style={{
+          background: "rgba(15,20,25,0.95)",
+          border: "1px solid rgba(45,212,191,0.3)",
+          color: "rgba(255,255,255,0.9)",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+          opacity: show ? 1 : 0,
+          transform: show ? "translateY(0)" : "translateY(-4px)",
+        }}
+      >
+        {tooltip}
+      </div>
+    </div>
+  );
+};
+
 const Home = () => {
   const router = useRouter();
   const { authenticated, login, logout } = usePrivy();
@@ -194,14 +221,18 @@ const Home = () => {
           <Image src={profileIcon} alt="profile" width={12} height={12} />
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="flex items-center gap-1 px-2 py-1 rounded-md" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <Image src={copyCountIcon} alt="copy-count" width={11} height={11} />
-            <span className="text-[10px] font-semibold text-teal-400">4</span>
-          </div>
-          <div className="flex items-center gap-1 px-2 py-1 rounded-md" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)", border: "1px solid rgba(45,212,191,0.25)", boxShadow: "0 0 15px rgba(45,212,191,0.2)" }}>
-            <Image src={copyRankIcon} alt="copy-rank" width={11} height={11} />
-            <span className="text-[10px] font-semibold text-teal-400">#64</span>
-          </div>
+          <IconWithTooltip tooltip="Active Trades">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <Image src={copyCountIcon} alt="active-trades" width={11} height={11} />
+              <span className="text-[10px] font-semibold text-teal-400">4</span>
+            </div>
+          </IconWithTooltip>
+          <IconWithTooltip tooltip="Your Rank">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)", border: "1px solid rgba(45,212,191,0.25)", boxShadow: "0 0 15px rgba(45,212,191,0.2)" }}>
+              <Image src={copyRankIcon} alt="your-rank" width={11} height={11} />
+              <span className="text-[10px] font-semibold text-teal-400">#64</span>
+            </div>
+          </IconWithTooltip>
           <UserMenu />
         </div>
       </div>
@@ -357,10 +388,15 @@ const Home = () => {
               </div>
               <div className="divide-y divide-white/5">
                 {followedTraders.map((trader, index) => (
-                  <div key={trader.id} className="grid grid-cols-[1fr_60px_70px_32px_24px] gap-1.5 px-3 py-2.5 items-center hover:bg-white/5 transition-all duration-200 row-animate" style={{ animationDelay: `${index * 0.05}s` }}>
+                  <div
+                    key={trader.id}
+                    className="grid grid-cols-[1fr_60px_70px_32px_24px] gap-1.5 px-3 py-2.5 items-center hover:bg-white/5 transition-all duration-200 row-animate cursor-pointer active:bg-white/10"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                    onClick={() => router.push(`/profile?handle=${trader.name.replace("@", "")}`)}
+                  >
                     <div className="flex items-center gap-1.5">
                       <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ backgroundColor: trader.avatarBg }}>{trader.avatar}</div>
-                      <span className="text-[10px] text-gray-300">{trader.name}</span>
+                      <span className="text-[10px] text-gray-300 hover:text-teal-400 transition-colors">{trader.name}</span>
                     </div>
                     <span className="text-[10px] text-teal-400 text-right font-medium">+{trader.portfolioPercent}%</span>
                     <span className="text-[10px] text-white text-right font-medium">${trader.profit.toLocaleString("en-US", { minimumFractionDigits: 1 })}</span>

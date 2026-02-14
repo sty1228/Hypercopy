@@ -529,32 +529,48 @@ const OnboardingContent = () => {
         </Button>
       </div>
 
-      {/* ── explore link ── */}
+      {/* ── explore top traders button (highlighted) ── */}
       <div
         className="relative mx-[48px] mt-3 z-10 cursor-pointer group"
         style={{ animation: "fadeIn 1s ease-out 1.1s both" }}
-        onClick={() => router.push("/dashboard")}
+        onClick={() => router.push("/copyTrading")}
       >
+        {/* animated gradient border */}
         <div
-          className="h-[52px] rounded-[28px] flex items-center justify-center gap-2 transition-all duration-300 group-hover:border-[rgba(80,210,193,0.4)]"
+          className="absolute inset-0 rounded-[28px]"
           style={{
-            border: "1px solid rgba(255,255,255,0.1)",
-            background: "rgba(255,255,255,0.02)",
-            backdropFilter: "blur(10px)",
+            background: "linear-gradient(135deg, rgba(80,210,193,0.6), rgba(240,234,45,0.4), rgba(80,210,193,0.6))",
+            backgroundSize: "200% 200%",
+            animation: "gradientBorder 4s ease infinite",
+            padding: "1px",
+            borderRadius: "28px",
+          }}
+        >
+          <div
+            className="w-full h-full rounded-[28px]"
+            style={{ backgroundColor: "rgba(10, 20, 24, 0.95)" }}
+          />
+        </div>
+
+        <div
+          className="h-[52px] rounded-[28px] flex items-center justify-center gap-2 transition-all duration-300 relative"
+          style={{
+            background: "transparent",
           }}
         >
           <span
-            className="text-[11px] tracking-[2px] uppercase transition-colors duration-300 group-hover:text-[rgba(80,210,193,0.9)]"
+            className="text-[11px] tracking-[2px] uppercase transition-colors duration-300 group-hover:text-[rgba(80,210,193,1)]"
             style={{
-              color: "rgba(255,255,255,0.35)",
+              color: "rgba(80,210,193,0.7)",
               fontFamily: "var(--font-orbitron)",
+              textShadow: "0 0 8px rgba(80,210,193,0.2)",
             }}
           >
             Explore top traders
           </span>
           <svg
-            className="w-3.5 h-3.5 transition-all duration-300 group-hover:translate-x-1 group-hover:text-[rgba(80,210,193,0.9)]"
-            style={{ color: "rgba(255,255,255,0.25)" }}
+            className="w-3.5 h-3.5 transition-all duration-300 group-hover:translate-x-1"
+            style={{ color: "rgba(80,210,193,0.5)" }}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

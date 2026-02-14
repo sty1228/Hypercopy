@@ -12,20 +12,41 @@ import KolDetailSheet from "./components/kolDetailSheet";
 import { randomColor } from "./components/kolItem";
 import UserMenu from "@/components/UserMenu";
 
-const MOCK_LEADERBOARD: LeaderboardItem[] = [
-  { x_handle: "CryptoKing", address: "0x1a2b...3c4d", pnl: 284320, roi: 142.6, copiers: 1243, win_rate: 78.5, total_trades: 892, avg_trade_size: 12500, best_trade: 45200, worst_trade: -8900, active_since: "2023-01", bio: "Full-time crypto trader. 5+ years experience.", avatarColor: "", rank: 1 },
-  { x_handle: "WhaleHunter", address: "0x5e6f...7g8h", pnl: 196540, roi: 98.3, copiers: 876, win_rate: 72.1, total_trades: 1245, avg_trade_size: 8700, best_trade: 32100, worst_trade: -12400, active_since: "2022-06", bio: "Specializing in whale movement analysis.", avatarColor: "", rank: 2 },
-  { x_handle: "DeFiMaster", address: "0x9i0j...1k2l", pnl: 157890, roi: 88.7, copiers: 654, win_rate: 69.8, total_trades: 567, avg_trade_size: 15200, best_trade: 28700, worst_trade: -6300, active_since: "2023-04", bio: "DeFi yield strategist & perps trader.", avatarColor: "", rank: 3 },
-  { x_handle: "AlphaSeeker", address: "0x3m4n...5o6p", pnl: 134670, roi: 76.2, copiers: 532, win_rate: 74.3, total_trades: 423, avg_trade_size: 9800, best_trade: 21500, worst_trade: -7800, active_since: "2023-07", bio: "Finding alpha before the crowd.", avatarColor: "", rank: 4 },
-  { x_handle: "TrendRider", address: "0x7q8r...9s0t", pnl: 112340, roi: 67.4, copiers: 421, win_rate: 71.2, total_trades: 678, avg_trade_size: 7300, best_trade: 19800, worst_trade: -5600, active_since: "2022-11", bio: "Riding trends, cutting losses fast.", avatarColor: "", rank: 5 },
-  { x_handle: "ScalpKing", address: "0x1u2v...3w4x", pnl: 98760, roi: 58.9, copiers: 389, win_rate: 82.1, total_trades: 2134, avg_trade_size: 3200, best_trade: 8900, worst_trade: -2100, active_since: "2023-02", bio: "High-frequency scalper. Consistency is key.", avatarColor: "", rank: 6 },
-  { x_handle: "MacroTrader", address: "0x5y6z...7a8b", pnl: 87430, roi: 52.1, copiers: 312, win_rate: 65.7, total_trades: 234, avg_trade_size: 22000, best_trade: 38500, worst_trade: -15200, active_since: "2022-09", bio: "Macro-driven positions. Patient capital.", avatarColor: "", rank: 7 },
-  { x_handle: "MomentumPro", address: "0x9c0d...1e2f", pnl: 76890, roi: 45.8, copiers: 278, win_rate: 68.4, total_trades: 512, avg_trade_size: 6100, best_trade: 15300, worst_trade: -4700, active_since: "2023-05", bio: "Momentum + volume = profit.", avatarColor: "", rank: 8 },
-  { x_handle: "SwingMaster", address: "0x3g4h...5i6j", pnl: 65420, roi: 41.3, copiers: 234, win_rate: 66.9, total_trades: 345, avg_trade_size: 8400, best_trade: 12800, worst_trade: -6100, active_since: "2023-08", bio: "Swing trading with strict risk management.", avatarColor: "", rank: 9 },
-  { x_handle: "OnChainGuru", address: "0x7k8l...9m0n", pnl: 54310, roi: 36.7, copiers: 198, win_rate: 63.5, total_trades: 289, avg_trade_size: 5600, best_trade: 11200, worst_trade: -3800, active_since: "2023-10", bio: "On-chain data driven trading.", avatarColor: "", rank: 10 },
-  { x_handle: "PerpsWizard", address: "0x1o2p...3q4r", pnl: 48760, roi: 32.4, copiers: 167, win_rate: 70.2, total_trades: 456, avg_trade_size: 4200, best_trade: 9800, worst_trade: -3200, active_since: "2024-01", bio: "Perpetual futures specialist.", avatarColor: "", rank: 11 },
-  { x_handle: "RiskManager", address: "0x5s6t...7u8v", pnl: 41230, roi: 28.9, copiers: 145, win_rate: 75.8, total_trades: 198, avg_trade_size: 11000, best_trade: 18700, worst_trade: -4500, active_since: "2023-03", bio: "Risk-adjusted returns above all.", avatarColor: "", rank: 12 },
-] as any[];
+/* ── Tooltip wrapper (tap on mobile, hover on desktop) ── */
+const IconWithTooltip = ({
+  tooltip,
+  children,
+}: {
+  tooltip: string;
+  children: React.ReactNode;
+}) => {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    if (!show) return;
+    const timer = setTimeout(() => setShow(false), 2000);
+    return () => clearTimeout(timer);
+  }, [show]);
+
+  return (
+    <div className="relative" onClick={() => setShow((p) => !p)}>
+      {children}
+      <div
+        className="absolute top-full right-0 mt-1.5 px-2.5 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-medium pointer-events-none transition-all duration-200 z-50"
+        style={{
+          background: "rgba(15,20,25,0.95)",
+          border: "1px solid rgba(45,212,191,0.3)",
+          color: "rgba(255,255,255,0.9)",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+          opacity: show ? 1 : 0,
+          transform: show ? "translateY(0)" : "translateY(-4px)",
+        }}
+      >
+        {tooltip}
+      </div>
+    </div>
+  );
+};
 
 export default function CopyTrading() {
   const [isOpen, setIsOpen] = useState(false);
@@ -35,35 +56,39 @@ export default function CopyTrading() {
   const [clickItemData, setClickItemData] = useState<LeaderboardItem | null>(null);
   const [activeFilter, setActiveFilter] = useState("earners");
   const [timeFilter, setTimeFilter] = useState("30d");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLeaderboard(timeFilter);
   }, [timeFilter]);
 
   const fetchLeaderboard = async (window: string) => {
+    setLoading(true);
+    setError(null);
     try {
       const response = (await leaderboard(window)) as LeaderboardItem[];
       if (response && response.length > 0) {
-        const rawListWithAvatarColor = response.map((item: LeaderboardItem, index: number) => ({
+        const list = response.map((item: LeaderboardItem, index: number) => ({
           ...item,
           avatarColor: randomColor(),
           rank: index + 1,
         }));
-        setRawLeaderboardList(rawListWithAvatarColor);
-        setLeaderboardList(rawListWithAvatarColor);
-        return;
+        setRawLeaderboardList(list);
+        setLeaderboardList(list);
+      } else {
+        setRawLeaderboardList([]);
+        setLeaderboardList([]);
+        setError("No trader data available for this time window.");
       }
     } catch (e) {
-      console.log("Leaderboard API unavailable, using mock data");
+      console.error("Leaderboard API error:", e);
+      setRawLeaderboardList([]);
+      setLeaderboardList([]);
+      setError("Failed to load leaderboard. Please check your connection and try again.");
+    } finally {
+      setLoading(false);
     }
-    // Fallback to mock data
-    const mockWithColors = MOCK_LEADERBOARD.map((item, index) => ({
-      ...item,
-      avatarColor: randomColor(),
-      rank: index + 1,
-    }));
-    setRawLeaderboardList(mockWithColors as LeaderboardItem[]);
-    setLeaderboardList(mockWithColors as LeaderboardItem[]);
   };
 
   const handleListSearch = () => {
@@ -129,14 +154,22 @@ export default function CopyTrading() {
           <Image src={profileIcon} alt="profile" width={14} height={14} />
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <Image src={copyCountIcon} alt="copy-count" width={13} height={13} />
-            <span className="text-[11px] font-semibold text-teal-400">4</span>
-          </div>
-          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)", border: "1px solid rgba(45,212,191,0.25)", boxShadow: "0 0 15px rgba(45,212,191,0.2)" }}>
-            <Image src={copyRankIcon} alt="copy-rank" width={13} height={13} />
-            <span className="text-[11px] font-semibold text-teal-400">#64</span>
-          </div>
+          {/* Active Trades */}
+          <IconWithTooltip tooltip="Active Trades">
+            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all hover:bg-white/10" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <Image src={copyCountIcon} alt="active-trades" width={13} height={13} />
+              <span className="text-[11px] font-semibold text-teal-400">4</span>
+            </div>
+          </IconWithTooltip>
+
+          {/* Your Rank */}
+          <IconWithTooltip tooltip="Your Rank">
+            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all hover:bg-white/10" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)", border: "1px solid rgba(45,212,191,0.25)", boxShadow: "0 0 15px rgba(45,212,191,0.2)" }}>
+              <Image src={copyRankIcon} alt="your-rank" width={13} height={13} />
+              <span className="text-[11px] font-semibold text-teal-400">#64</span>
+            </div>
+          </IconWithTooltip>
+
           <UserMenu />
         </div>
       </div>
@@ -190,9 +223,40 @@ export default function CopyTrading() {
         </div>
       </div>
 
-      {/* KOL List */}
+      {/* Content area: loading / error / list */}
       <div className="relative z-10 flex-1 overflow-y-auto px-4 pb-20">
-        <KolList onClick={handleClickKOLItem} dataList={leaderboardList} />
+        {loading ? (
+          <div className="flex flex-col items-center justify-center pt-20 gap-3">
+            <div
+              className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
+              style={{ borderColor: "rgba(45,212,191,0.3)", borderTopColor: "transparent" }}
+            />
+            <span className="text-xs text-gray-500">Loading traders...</span>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center pt-20 gap-4">
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}
+            >
+              <svg className="w-5 h-5 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <span className="text-xs text-gray-400 text-center max-w-[250px]">{error}</span>
+            <button
+              onClick={() => fetchLeaderboard(timeFilter)}
+              className="px-4 py-2 rounded-lg text-xs font-medium text-teal-400 transition-all hover:bg-teal-400/10"
+              style={{ border: "1px solid rgba(45,212,191,0.3)" }}
+            >
+              Try Again
+            </button>
+          </div>
+        ) : (
+          <KolList onClick={handleClickKOLItem} dataList={leaderboardList} />
+        )}
       </div>
 
       <KolDetailSheet

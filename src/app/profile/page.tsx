@@ -74,6 +74,33 @@ const DataStreams = () => (
   </div>
 );
 
+const IconWithTooltip = ({ tooltip, children }: { tooltip: string; children: React.ReactNode }) => {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (!show) return;
+    const timer = setTimeout(() => setShow(false), 2000);
+    return () => clearTimeout(timer);
+  }, [show]);
+  return (
+    <div className="relative" onClick={() => setShow((p) => !p)}>
+      {children}
+      <div
+        className="absolute top-full right-0 mt-1.5 px-2.5 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-medium pointer-events-none transition-all duration-200 z-50"
+        style={{
+          background: "rgba(15,20,25,0.95)",
+          border: "1px solid rgba(45,212,191,0.3)",
+          color: "rgba(255,255,255,0.9)",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+          opacity: show ? 1 : 0,
+          transform: show ? "translateY(0)" : "translateY(-4px)",
+        }}
+      >
+        {tooltip}
+      </div>
+    </div>
+  );
+};
+
 const AnimatedNumber = ({ value, prefix = "", suffix = "", decimals = 0, duration = 1200 }: { value: number; prefix?: string; suffix?: string; decimals?: number; duration?: number }) => {
   const [display, setDisplay] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
@@ -709,14 +736,19 @@ export default function KOLProfilePage() {
                 <CheckCircle size={9} className="text-teal-400" />
               </div>
             )}
-            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all hover:scale-105" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }} onClick={() => setShowCopyingSheet(true)}>
-              <Image src={copyCountIcon} alt="copy-count" width={13} height={13} />
-              <span className="text-[11px] font-semibold text-teal-400">4</span>
-            </div>
+
+        <IconWithTooltip tooltip="Active Trades">
+          <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all hover:scale-105" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <Image src={copyCountIcon} alt="active-trades" width={13} height={13} />
+            <span className="text-[11px] font-semibold text-teal-400">4</span>
+          </div>
+        </IconWithTooltip>
+          <IconWithTooltip tooltip="Your Rank">
             <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.15), rgba(45,212,191,0.08))", border: "1px solid rgba(45,212,191,0.25)", boxShadow: "0 0 15px rgba(45,212,191,0.2)" }}>
-              <Image src={copyRankIcon} alt="copy-rank" width={13} height={13} />
+              <Image src={copyRankIcon} alt="your-rank" width={13} height={13} />
               <span className="text-[11px] font-semibold text-teal-400">#64</span>
             </div>
+          </IconWithTooltip>
             <UserMenu />
           </div>
         </div>

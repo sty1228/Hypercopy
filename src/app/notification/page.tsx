@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import profileIcon from "@/assets/icons/profile.png";
 import copyCountIcon from "@/assets/icons/copy-count.png";
@@ -139,6 +139,33 @@ const getNotificationCategory = (type: Notification["type"]): NotificationType =
   return "all";
 };
 
+const IconWithTooltip = ({ tooltip, children }: { tooltip: string; children: React.ReactNode }) => {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (!show) return;
+    const timer = setTimeout(() => setShow(false), 2000);
+    return () => clearTimeout(timer);
+  }, [show]);
+  return (
+    <div className="relative" onClick={() => setShow((p) => !p)}>
+      {children}
+      <div
+        className="absolute top-full right-0 mt-1.5 px-2.5 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-medium pointer-events-none transition-all duration-200 z-50"
+        style={{
+          background: "rgba(15,20,25,0.95)",
+          border: "1px solid rgba(45,212,191,0.3)",
+          color: "rgba(255,255,255,0.9)",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+          opacity: show ? 1 : 0,
+          transform: show ? "translateY(0)" : "translateY(-4px)",
+        }}
+      >
+        {tooltip}
+      </div>
+    </div>
+  );
+};
+
 export default function NotificationPage() {
   const [activeFilter, setActiveFilter] = useState<NotificationType>("all");
   const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
@@ -191,24 +218,18 @@ export default function NotificationPage() {
           <Image src={profileIcon} alt="profile" width={12} height={12} />
         </div>
         <div className="flex items-center gap-1.5">
-          <div
-            className="flex items-center gap-1 px-2 py-1 rounded-md"
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-          >
-            <Image src={copyCountIcon} alt="copy-count" width={11} height={11} />
-            <span className="text-[10px] font-semibold text-teal-400">4</span>
-          </div>
-          <div
-            className="flex items-center gap-1 px-2 py-1 rounded-md"
-            style={{
-              background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)",
-              border: "1px solid rgba(45,212,191,0.25)",
-              boxShadow: "0 0 15px rgba(45,212,191,0.2)",
-            }}
-          >
-            <Image src={copyRankIcon} alt="copy-rank" width={11} height={11} />
-            <span className="text-[10px] font-semibold text-teal-400">#64</span>
-          </div>
+          <IconWithTooltip tooltip="Active Trades">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <Image src={copyCountIcon} alt="active-trades" width={11} height={11} />
+              <span className="text-[10px] font-semibold text-teal-400">4</span>
+            </div>
+          </IconWithTooltip>
+          <IconWithTooltip tooltip="Your Rank">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)", border: "1px solid rgba(45,212,191,0.25)", boxShadow: "0 0 15px rgba(45,212,191,0.2)" }}>
+              <Image src={copyRankIcon} alt="your-rank" width={11} height={11} />
+              <span className="text-[10px] font-semibold text-teal-400">#64</span>
+            </div>
+          </IconWithTooltip>
           <UserMenu />
         </div>
       </div>
