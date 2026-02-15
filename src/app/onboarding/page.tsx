@@ -63,7 +63,7 @@ const DataStreams = () => (
   </div>
 );
 
-/* ── step info tooltip ── */
+/* ── info tooltip for each step ── */
 const StepInfo = ({ step }: { step: string }) => {
   const [open, setOpen] = useState(false);
 
@@ -86,10 +86,10 @@ const StepInfo = ({ step }: { step: string }) => {
   if (!item) return null;
 
   return (
-    <div className="relative inline-block ml-1.5">
+    <span className="relative inline-block ml-1 align-middle">
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-        className="inline-flex items-center justify-center w-[18px] h-[18px] rounded-full text-[11px] font-medium transition-all duration-200"
+        className="inline-flex items-center justify-center w-[16px] h-[16px] rounded-full text-[10px] font-medium transition-all duration-200"
         style={{
           background: open ? "rgba(80,210,193,0.3)" : "rgba(80,210,193,0.12)",
           color: "rgba(80,210,193,0.9)",
@@ -102,7 +102,7 @@ const StepInfo = ({ step }: { step: string }) => {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
-            className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-[280px] p-3.5 rounded-xl z-50"
+            className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-[260px] p-3 rounded-xl z-50"
             style={{
               background: "rgba(10,20,24,0.97)",
               border: "1px solid rgba(80,210,193,0.2)",
@@ -110,13 +110,12 @@ const StepInfo = ({ step }: { step: string }) => {
               backdropFilter: "blur(20px)",
             }}
           >
-            <p className="text-[13px] font-semibold mb-1.5" style={{ color: "rgba(80,210,193,1)" }}>
+            <p className="text-[12px] font-semibold mb-1" style={{ color: "rgba(80,210,193,1)" }}>
               {item.title}
             </p>
-            <p className="text-[12px] leading-[1.5]" style={{ color: "rgba(255,255,255,0.7)" }}>
+            <p className="text-[11px] leading-[1.5]" style={{ color: "rgba(255,255,255,0.7)" }}>
               {item.desc}
             </p>
-            {/* arrow */}
             <div
               className="absolute -bottom-[6px] left-1/2 -translate-x-1/2 w-3 h-3 rotate-45"
               style={{
@@ -128,72 +127,7 @@ const StepInfo = ({ step }: { step: string }) => {
           </div>
         </>
       )}
-    </div>
-  );
-};
-
-/* ── step progress indicator ── */
-const StepProgress = ({ currentStep }: { currentStep: number }) => {
-  const steps = [
-    { label: "Connect", num: 1 },
-    { label: "Deposit", num: 2 },
-    { label: "Trading", num: 3 },
-    { label: "Fee", num: 4 },
-  ];
-
-  return (
-    <div className="flex items-center justify-center gap-1 mt-6 mb-2" style={{ animation: "fadeIn 0.8s ease-out 0.3s both" }}>
-      {steps.map((s, i) => {
-        const done = currentStep > s.num;
-        const active = currentStep === s.num;
-        return (
-          <div key={s.num} className="flex items-center">
-            <div className="flex flex-col items-center">
-              <div
-                className="w-[26px] h-[26px] rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-300"
-                style={{
-                  background: done
-                    ? "rgba(80,210,193,0.9)"
-                    : active
-                    ? "rgba(80,210,193,0.2)"
-                    : "rgba(255,255,255,0.06)",
-                  border: active
-                    ? "1.5px solid rgba(80,210,193,0.7)"
-                    : "1.5px solid transparent",
-                  color: done
-                    ? "rgba(10,20,24,1)"
-                    : active
-                    ? "rgba(80,210,193,1)"
-                    : "rgba(255,255,255,0.3)",
-                  boxShadow: active ? "0 0 12px rgba(80,210,193,0.2)" : "none",
-                }}
-              >
-                {done ? "✓" : s.num}
-              </div>
-              <span
-                className="text-[9px] mt-1 tracking-wider"
-                style={{
-                  fontFamily: "var(--font-orbitron)",
-                  color: done || active ? "rgba(80,210,193,0.8)" : "rgba(255,255,255,0.25)",
-                }}
-              >
-                {s.label}
-              </span>
-            </div>
-            {i < steps.length - 1 && (
-              <div
-                className="w-[28px] h-[1px] mb-3 mx-1"
-                style={{
-                  background: done
-                    ? "rgba(80,210,193,0.5)"
-                    : "rgba(255,255,255,0.08)",
-                }}
-              />
-            )}
-          </div>
-        );
-      })}
-    </div>
+    </span>
   );
 };
 
@@ -232,40 +166,33 @@ const OnboardingContent = () => {
     }
   }, [authenticated, perpsBalance, tradingEnabled, builderFeeApproved, from, router]);
 
-  const currentStep = useMemo(() => {
-    if (!authenticated) return 1;
-    if (perpsBalance <= 0) return 2;
-    if (!tradingEnabled) return 3;
-    if (!builderFeeApproved) return 4;
-    return 5; // all done
+  /* ── step hint text with tooltip key ── */
+  const stepHint = useMemo(() => {
+    if (!authenticated) return null;
+    if (perpsBalance <= 0) return { text: "Transfer USDC to your Hyperliquid account to start trading.", key: "deposit" };
+    if (!tradingEnabled) return { text: "Authorize a local agent wallet so trades execute without signing each one.", key: "enableTrading" };
+    if (!builderFeeApproved) return { text: "One-time approval for a small per-trade fee. No funds deducted now.", key: "builderFee" };
+    return null;
   }, [authenticated, perpsBalance, tradingEnabled, builderFeeApproved]);
 
-  const stepInfoKey = useMemo(() => {
-    if (currentStep === 2) return "deposit";
-    if (currentStep === 3) return "enableTrading";
-    if (currentStep === 4) return "builderFee";
-    return "";
-  }, [currentStep]);
-
   const buttonText = useMemo(() => {
+    console.log(
+      "authenticated", authenticated,
+      "perpsBalance", perpsBalance,
+      "arbUSDCBalance", arbUSDCBalance,
+      "tradingEnabled", tradingEnabled,
+      "builderFeeApproved", builderFeeApproved
+    );
     if (!authenticated) return "GET STARTED";
     if (perpsBalance <= 0) {
       return arbUSDCBalance <= 0.1
         ? "NOT ENOUGH ARBITRUM USDC"
-        : "DEPOSIT 5 USDC TO START";
+        : `DEPOSIT 5 USDC TO START`;
     }
     if (!tradingEnabled) return "ENABLE TRADING";
     if (!builderFeeApproved) return "APPROVE BUILDER FEE";
-    return "GO TO DASHBOARD";
+    return "START";
   }, [authenticated, perpsBalance, arbUSDCBalance, tradingEnabled, builderFeeApproved]);
-
-  const stepDescription = useMemo(() => {
-    if (!authenticated) return "";
-    if (perpsBalance <= 0) return "Transfer USDC to your Hyperliquid account to start trading.";
-    if (!tradingEnabled) return "Authorize a local agent wallet so trades can execute without signing each one.";
-    if (!builderFeeApproved) return "One-time approval for a small per-trade fee. No funds are deducted now.";
-    return "";
-  }, [authenticated, perpsBalance, tradingEnabled, builderFeeApproved]);
 
   useEffect(() => {
     if (!currentWallet || !infoClient || requestLock) return;
@@ -306,7 +233,7 @@ const OnboardingContent = () => {
     }
     if (!tradingEnabled) { await enableTrading(); return; }
     if (!builderFeeApproved) { await approveBuilderFee(); return; }
-    router.push("/dashboard");
+    router.push("/copyTrading");
   };
 
   if (!ready) return <FullScreenLoader />;
@@ -554,72 +481,64 @@ const OnboardingContent = () => {
         </div>
       </div>
 
-      {/* ── step progress (only after login) ── */}
-      {authenticated && (
-        <div className="relative z-10 px-[48px]">
-          <StepProgress currentStep={currentStep} />
-        </div>
-      )}
-
       {/* ── HYPE buyback image with effects ── */}
-      {!authenticated && (
+      <div
+        className="relative z-10 mt-[40px]"
+        style={{
+          animation: "scaleIn 0.9s ease-out 0.75s both",
+        }}
+      >
+        {/* outer glow behind image */}
         <div
-          className="relative z-10 mt-[40px]"
-          style={{ animation: "scaleIn 0.9s ease-out 0.75s both" }}
-        >
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: "radial-gradient(ellipse at 60% 50%, rgba(80,210,193,0.1) 0%, transparent 60%)",
-              filter: "blur(30px)",
-              animation: "borderGlow 4s ease-in-out infinite",
-            }}
-          />
-          <div style={{ animation: "hypeFloat 5s ease-in-out infinite" }}>
-            <Image src={HyperBuybackProgramIcon} alt="logo" className="w-full relative z-10" />
-          </div>
-          <div
-            className="absolute left-0 right-0 h-[2px] pointer-events-none z-20"
-            style={{
-              background: "linear-gradient(90deg, transparent 0%, rgba(80,210,193,0.4) 30%, rgba(80,210,193,0.6) 50%, rgba(80,210,193,0.4) 70%, transparent 100%)",
-              animation: "scanLine 4s linear infinite",
-              filter: "blur(1px)",
-              boxShadow: "0 0 15px rgba(80,210,193,0.3), 0 0 30px rgba(80,210,193,0.15)",
-            }}
-          />
-          <div className="absolute top-2 left-4 w-[20px] h-[20px] border-t-[1.5px] border-l-[1.5px] pointer-events-none z-20 rounded-tl-sm"
-            style={{ borderColor: "rgba(80,210,193,0.4)", animation: "borderGlow 3s ease-in-out infinite" }} />
-          <div className="absolute top-2 right-4 w-[20px] h-[20px] border-t-[1.5px] border-r-[1.5px] pointer-events-none z-20 rounded-tr-sm"
-            style={{ borderColor: "rgba(80,210,193,0.4)", animation: "borderGlow 3s ease-in-out 0.5s infinite" }} />
-          <div className="absolute bottom-2 left-4 w-[20px] h-[20px] border-b-[1.5px] border-l-[1.5px] pointer-events-none z-20 rounded-bl-sm"
-            style={{ borderColor: "rgba(80,210,193,0.4)", animation: "borderGlow 3s ease-in-out 1s infinite" }} />
-          <div className="absolute bottom-2 right-4 w-[20px] h-[20px] border-b-[1.5px] border-r-[1.5px] pointer-events-none z-20 rounded-br-sm"
-            style={{ borderColor: "rgba(80,210,193,0.4)", animation: "borderGlow 3s ease-in-out 1.5s infinite" }} />
-        </div>
-      )}
-
-      {/* ── step description + info tooltip ── */}
-      {authenticated && stepDescription && (
-        <div
-          className="relative z-10 mx-[48px] mt-4 p-3 rounded-xl"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            background: "rgba(80,210,193,0.04)",
-            border: "1px solid rgba(80,210,193,0.1)",
-            animation: "fadeIn 0.5s ease-out both",
+            background: "radial-gradient(ellipse at 60% 50%, rgba(80,210,193,0.1) 0%, transparent 60%)",
+            filter: "blur(30px)",
+            animation: "borderGlow 4s ease-in-out infinite",
           }}
+        />
+
+        {/* the image with subtle float */}
+        <div style={{ animation: "hypeFloat 5s ease-in-out infinite" }}>
+          <Image
+            src={HyperBuybackProgramIcon}
+            alt="logo"
+            className="w-full relative z-10"
+          />
+        </div>
+
+        {/* scan line sweeping across image */}
+        <div
+          className="absolute left-0 right-0 h-[2px] pointer-events-none z-20"
+          style={{
+            background: "linear-gradient(90deg, transparent 0%, rgba(80,210,193,0.4) 30%, rgba(80,210,193,0.6) 50%, rgba(80,210,193,0.4) 70%, transparent 100%)",
+            animation: "scanLine 4s linear infinite",
+            filter: "blur(1px)",
+            boxShadow: "0 0 15px rgba(80,210,193,0.3), 0 0 30px rgba(80,210,193,0.15)",
+          }}
+        />
+
+        {/* corner accents */}
+        <div className="absolute top-2 left-4 w-[20px] h-[20px] border-t-[1.5px] border-l-[1.5px] pointer-events-none z-20 rounded-tl-sm"
+          style={{ borderColor: "rgba(80,210,193,0.4)", animation: "borderGlow 3s ease-in-out infinite" }} />
+        <div className="absolute top-2 right-4 w-[20px] h-[20px] border-t-[1.5px] border-r-[1.5px] pointer-events-none z-20 rounded-tr-sm"
+          style={{ borderColor: "rgba(80,210,193,0.4)", animation: "borderGlow 3s ease-in-out 0.5s infinite" }} />
+        <div className="absolute bottom-2 left-4 w-[20px] h-[20px] border-b-[1.5px] border-l-[1.5px] pointer-events-none z-20 rounded-bl-sm"
+          style={{ borderColor: "rgba(80,210,193,0.4)", animation: "borderGlow 3s ease-in-out 1s infinite" }} />
+        <div className="absolute bottom-2 right-4 w-[20px] h-[20px] border-b-[1.5px] border-r-[1.5px] pointer-events-none z-20 rounded-br-sm"
+          style={{ borderColor: "rgba(80,210,193,0.4)", animation: "borderGlow 3s ease-in-out 1.5s infinite" }} />
+      </div>
+
+      {/* ── step hint (only when authenticated and not fully done) ── */}
+      {stepHint && (
+        <div
+          className="mx-[48px] mt-4 relative z-10"
+          style={{ animation: "fadeIn 0.5s ease-out both" }}
         >
-          <div className="flex items-start gap-2">
-            <div
-              className="flex-shrink-0 w-[18px] h-[18px] rounded-full flex items-center justify-center mt-0.5"
-              style={{ background: "rgba(80,210,193,0.15)", border: "1px solid rgba(80,210,193,0.3)" }}
-            >
-              <span className="text-[10px]" style={{ color: "rgba(80,210,193,0.9)" }}>i</span>
-            </div>
-            <p className="text-[12px] leading-[1.6]" style={{ color: "rgba(255,255,255,0.65)" }}>
-              {stepDescription}
-              {stepInfoKey && <StepInfo step={stepInfoKey} />}
-            </p>
-          </div>
+          <p className="text-[12px] text-center leading-[1.5]" style={{ color: "rgba(255,255,255,0.55)" }}>
+            {stepHint.text}
+            <StepInfo step={stepHint.key} />
+          </p>
         </div>
       )}
 
@@ -639,6 +558,7 @@ const OnboardingContent = () => {
         className="relative mx-[48px] mt-6 group cursor-pointer z-10"
         style={{ animation: "slideUp 0.8s ease-out 1s both" }}
       >
+        {/* animated gradient border */}
         <div
           className="absolute inset-0 rounded-[38px]"
           style={{
@@ -654,6 +574,8 @@ const OnboardingContent = () => {
             style={{ backgroundColor: colors.primary }}
           />
         </div>
+
+        {/* shimmer on hover */}
         <div className="absolute inset-0 rounded-[38px] overflow-hidden pointer-events-none">
           <div
             className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
@@ -663,6 +585,7 @@ const OnboardingContent = () => {
             }}
           />
         </div>
+
         <div
           className="absolute inset-0 rounded-[38px] opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-all duration-200 pointer-events-none"
           style={{ backdropFilter: "blur(30px)" }}
@@ -706,12 +629,13 @@ const OnboardingContent = () => {
         </Button>
       </div>
 
-      {/* ── explore top traders button ── */}
+      {/* ── explore top traders button (highlighted) ── */}
       <div
         className="relative mx-[48px] mt-3 z-10 cursor-pointer group"
         style={{ animation: "fadeIn 1s ease-out 1.1s both" }}
         onClick={() => router.push("/copyTrading")}
       >
+        {/* animated gradient border */}
         <div
           className="absolute inset-0 rounded-[28px]"
           style={{
@@ -727,9 +651,12 @@ const OnboardingContent = () => {
             style={{ backgroundColor: "rgba(10, 20, 24, 0.95)" }}
           />
         </div>
+
         <div
           className="h-[52px] rounded-[28px] flex items-center justify-center gap-2 transition-all duration-300 relative"
-          style={{ background: "transparent" }}
+          style={{
+            background: "transparent",
+          }}
         >
           <span
             className="text-[11px] tracking-[2px] uppercase transition-colors duration-300 group-hover:text-[rgba(80,210,193,1)]"
