@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useContext } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
@@ -20,7 +20,7 @@ import {
   type PositionItem,
   type ProfileDataResponse,
 } from "@/service";
-import { checkBuilderApproval, BUILDER_ADDRESS } from "@/lib/hyperliquid";
+import { HyperLiquidContext } from "@/providers/hyperliquid";
 import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
 import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
@@ -60,6 +60,9 @@ const Home = () => {
   const { wallets } = useWallets();
   const wallet = wallets?.[0];
 
+  // ── HyperLiquid context (builder fee check) ──
+  const { builderFeeApproved } = useContext(HyperLiquidContext);
+
   // ── Auth state ──
   const [authReady, setAuthReady] = useState(false);
 
@@ -69,8 +72,7 @@ const Home = () => {
   const [positions, setPositions] = useState<PositionItem[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // ── Builder approval state ──
-  const [builderApproved, setBuilderApproved] = useState<boolean | null>(null);
+  // ── Builder dismiss state ──
   const [builderDismissed, setBuilderDismissed] = useState(false);
 
   // ── UI state ──
@@ -136,14 +138,6 @@ const Home = () => {
   }, [authReady]);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
-
-  // ── 2b. Check builder fee approval ──
-  useEffect(() => {
-    if (!authReady || !wallet?.address || !BUILDER_ADDRESS) return;
-    checkBuilderApproval(wallet.address)
-      .then((approved) => setBuilderApproved(approved))
-      .catch(() => setBuilderApproved(false));
-  }, [authReady, wallet?.address]);
 
   // ── 3. Animate balance when summary loads ──
   useEffect(() => {
@@ -304,9 +298,9 @@ const Home = () => {
       )}
 
       {/* Builder Fee Approval Banner */}
-      {authenticated && builderApproved === false && !builderDismissed && (
+      {authenticated && !builderFeeApproved && !builderDismissed && (
         <BuilderApprovalBanner
-          onApproved={() => setBuilderApproved(true)}
+          onApproved={() => setBuilderDismissed(true)}
           onDismiss={() => setBuilderDismissed(true)}
         />
       )}

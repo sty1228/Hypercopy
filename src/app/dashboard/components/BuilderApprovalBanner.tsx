@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useWallets } from "@privy-io/react-auth";
+import { useState, useContext } from "react";
 import { Shield, CheckCircle, Loader2, X, AlertCircle } from "lucide-react";
-import { approveBuilderFee, BUILDER_MAX_FEE_RATE } from "@/lib/hyperliquid";
+import { HyperLiquidContext } from "@/providers/hyperliquid";
 
 interface Props {
   onApproved: () => void;
@@ -11,19 +10,16 @@ interface Props {
 }
 
 export default function BuilderApprovalBanner({ onApproved, onDismiss }: Props) {
-  const { wallets } = useWallets();
-  const wallet = wallets?.[0];
+  const { approveBuilderFee } = useContext(HyperLiquidContext);
   const [status, setStatus] = useState<"idle" | "signing" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleApprove = async () => {
-    if (!wallet) return;
     setStatus("signing");
     setErrorMsg("");
 
     try {
-      const provider = await wallet.getEthereumProvider();
-      await approveBuilderFee(provider, wallet.address);
+      await approveBuilderFee();
       setStatus("success");
       setTimeout(onApproved, 1500);
     } catch (err: any) {
@@ -76,7 +72,7 @@ export default function BuilderApprovalBanner({ onApproved, onDismiss }: Props) 
             </p>
             <p className="text-[9px] text-gray-400 leading-relaxed">
               Sign a one-time approval so HyperCopy can execute trades on your behalf.
-              Max fee: {BUILDER_MAX_FEE_RATE} per trade. Revocable anytime.
+              Max fee: 0.01% per trade. Revocable anytime.
             </p>
 
             {status === "error" && (
