@@ -20,12 +20,13 @@ const BRIDGE_MAINNET = "0x2Df1c51E09aECF9cacB7bc98cb1742757f163df7";
 const BRIDGE_TESTNET = "0x08cfc1B6b2dCF36A1480b99353A354AA8AC56f89";
 
 const BRIDGE_ABI = [
-  "function sendUsd(address destination, uint64 amount) external",
+  "function batchedDepositWithPermit(tuple(address user, uint64 usd, uint256 deadline, bytes signature)[] deposits) external",
 ];
 
-// deposit arbitrum usdc via bridge's sendUsd (approve + sendUsd)
+// deposit arbitrum usdc: sign permit + call bridge
 export const useArbitrumUSDCDepositWithTransfer = () => {
   const { sendTransaction } = useSendTransaction();
+  const { signTypedData } = useSignTypedData();
   const currentWallet = useCurrentWallet();
   const ethereumProvider = useEthereumProvider();
 
@@ -55,71 +56,117 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
           ARBITRUM_HTTP_PROVIDER
         );
         const usdcDecimals = await usdcContract.decimals();
-
-        const depositAmountInUnits = (ethers as any).utils
+        const depositAmountInUnits = ((ethers as any).utils)
           .parseUnits(depositAmount.toString(), usdcDecimals)
           .toString();
+
+        const nonce = await usdcContract.nonces(currentWallet.address);
+        const deadline = (Math.floor(Date.now() / 1000) + 300).toString();
+
         console.log("depositAmountInUnits", depositAmountInUnits);
+        console.log("nonce", nonce.toString());
+        console.log("deadline", deadline);
 
-        // --- Step 1: Approve bridge to spend USDC (if needed) ---
-        const currentAllowance = await usdcContract.allowance(
-          currentWallet.address,
-          bridgeAddress
-        );
-        console.log("currentAllowance", currentAllowance.toString());
+        // ── Step 1: Sign USDC EIP-2612 Permit (off-chain, no gas) ──
+        const domain = {
+          name: isMainnet ? "USD Coin" : "USDC2",
+          version: isMainnet ? "2" : "1",
+          chainId: targetChainId,
+          verifyingContract: usdcAddress,
+        };
+        const permitTypes = {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" },
+          ],
+        };
+        const permitMessage = {
+          owner: currentWallet.address,
+          spender: bridgeAddress,
+          value: depositAmountInUnits,
+          nonce: nonce.toString(),
+          deadline,
+        };
 
-        if (currentAllowance.lt(depositAmountInUnits)) {
-          const usdcInterface = new (ethers as any).utils.Interface(USDC_ARB_ABI);
-          const approveCalldata = usdcInterface.encodeFunctionData("approve", [
-            bridgeAddress,
-            depositAmountInUnits,
-          ]);
-          console.log("approveCalldata", approveCalldata);
+        console.log("Signing permit...", permitMessage);
 
-          const approveTx = await sendTransaction(
-            {
-              from: currentWallet.address,
-              to: usdcAddress,
-              data: approveCalldata,
-              chainId: targetChainId,
-            },
-            { address: currentWallet.address }
-          );
-          console.log("approve tx", approveTx);
-        } else {
-          console.log("Sufficient allowance, skipping approve");
+        // Make sure we're on the right chain before signing
+        const chainId = await ethereumProvider
+          .getNetwork()
+          .then((res: any) => res.chainId);
+        if (Number(chainId) !== targetChainId) {
+          await ethereumProvider
+            .send("wallet_switchEthereumChain", [
+              { chainId: isMainnet ? "0xa4b1" : "0x66eee" },
+            ])
+            .catch((e: any) => {
+              console.log(e);
+              throw e;
+            });
         }
 
-        // --- Step 2: Call sendUsd on the bridge contract ---
-        const bridgeInterface = new (ethers as any).utils.Interface(BRIDGE_ABI);
-        const sendUsdCalldata = bridgeInterface.encodeFunctionData("sendUsd", [
-          currentWallet.address, // destination on Hyperliquid L1
-          depositAmountInUnits,
-        ]);
-        console.log("sendUsdCalldata", sendUsdCalldata);
+        const signResult = await signTypedData(
+          {
+            domain,
+            types: permitTypes,
+            primaryType: "Permit",
+            message: permitMessage,
+          },
+          { address: currentWallet.address }
+        ).catch((e: any) => {
+          console.log("Permit sign error:", e);
+          return null;
+        });
+
+        if (!signResult) {
+          toast.error("Permit signature failed");
+          return null;
+        }
+
+        console.log("Permit signed:", signResult.signature);
+
+        // ── Step 2: Call batchedDepositWithPermit on bridge contract ──
+        const bridgeInterface = new ((ethers as any).utils).Interface(BRIDGE_ABI);
+        const calldata = bridgeInterface.encodeFunctionData(
+          "batchedDepositWithPermit",
+          [
+            [
+              {
+                user: currentWallet.address,
+                usd: depositAmountInUnits,
+                deadline: deadline,
+                signature: signResult.signature,
+              },
+            ],
+          ]
+        );
+        console.log("Bridge calldata:", calldata);
 
         const tx = await sendTransaction(
           {
             from: currentWallet.address,
-            to: bridgeAddress,        // <-- call bridge, NOT usdc
-            data: sendUsdCalldata,
+            to: bridgeAddress,
+            data: calldata,
             chainId: targetChainId,
           },
           { address: currentWallet.address }
         );
-        console.log("deposit tx", tx);
+        console.log("Deposit tx:", tx);
         return tx;
       } catch (error) {
         console.error("Failed to deposit:", error);
-        toast.error(`Deposit failed`);
+        toast.error("Deposit failed");
         return null;
       }
     },
-    [sendTransaction, currentWallet, ethereumProvider]
+    [sendTransaction, signTypedData, currentWallet, ethereumProvider]
   );
 };
 
-// deposit arbitrum usdc with permit (unchanged)
+// deposit arbitrum usdc with permit (kept for reference)
 export const useArbitrumUSDCDepositWithPermit = () => {
   const { signTypedData } = useSignTypedData();
   const { authenticated, user } = usePrivy();
