@@ -15,7 +15,15 @@ import {
   USDC_ARB_TESTNET_ADDRESS,
 } from "@/assets/ABI/USDC_ARB";
 
-// deposit arbitrum usdc by sending token
+// --- Bridge constants ---
+const BRIDGE_MAINNET = "0x2Df1c51E09aECF9cacB7bc98cb1742757f163df7";
+const BRIDGE_TESTNET = "0x08cfc1B6b2dCF36A1480b99353A354AA8AC56f89";
+
+const BRIDGE_ABI = [
+  "function sendUsd(address destination, uint64 amount) external",
+];
+
+// deposit arbitrum usdc via bridge's sendUsd (approve + sendUsd)
 export const useArbitrumUSDCDepositWithTransfer = () => {
   const { sendTransaction } = useSendTransaction();
   const currentWallet = useCurrentWallet();
@@ -32,9 +40,10 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
       const usdcAddress = isMainnet
         ? USDC_ARB_MAINNET_ADDRESS
         : USDC_ARB_TESTNET_ADDRESS;
+      const bridgeAddress = isMainnet ? BRIDGE_MAINNET : BRIDGE_TESTNET;
+      const targetChainId = isMainnet ? 42161 : 421614;
 
       try {
-        const targetChainId = isMainnet ? 42161 : 421614;
         await currentWallet.switchChain(targetChainId).catch((e) => {
           console.log(e);
           throw e;
@@ -45,35 +54,60 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
           USDC_ARB_ABI,
           ARBITRUM_HTTP_PROVIDER
         );
-        const arbUSDCContractInterface = new ((ethers as any).utils).Interface(USDC_ARB_ABI);
         const usdcDecimals = await usdcContract.decimals();
 
-        const depositAmountInUnits = ((ethers as any).utils)
+        const depositAmountInUnits = (ethers as any).utils
           .parseUnits(depositAmount.toString(), usdcDecimals)
           .toString();
         console.log("depositAmountInUnits", depositAmountInUnits);
-        const transferCalldata = arbUSDCContractInterface.encodeFunctionData(
-          "transfer",
-          [
-            isMainnet
-              ? "0x2df1c51e09aecf9cacb7bc98cb1742757f163df7"
-              : "0x08cfc1B6b2dCF36A1480b99353A354AA8AC56f89",
-            depositAmountInUnits,
-          ]
+
+        // --- Step 1: Approve bridge to spend USDC (if needed) ---
+        const currentAllowance = await usdcContract.allowance(
+          currentWallet.address,
+          bridgeAddress
         );
-        console.log(transferCalldata);
+        console.log("currentAllowance", currentAllowance.toString());
+
+        if (currentAllowance.lt(depositAmountInUnits)) {
+          const usdcInterface = new (ethers as any).utils.Interface(USDC_ARB_ABI);
+          const approveCalldata = usdcInterface.encodeFunctionData("approve", [
+            bridgeAddress,
+            depositAmountInUnits,
+          ]);
+          console.log("approveCalldata", approveCalldata);
+
+          const approveTx = await sendTransaction(
+            {
+              from: currentWallet.address,
+              to: usdcAddress,
+              data: approveCalldata,
+              chainId: targetChainId,
+            },
+            { address: currentWallet.address }
+          );
+          console.log("approve tx", approveTx);
+        } else {
+          console.log("Sufficient allowance, skipping approve");
+        }
+
+        // --- Step 2: Call sendUsd on the bridge contract ---
+        const bridgeInterface = new (ethers as any).utils.Interface(BRIDGE_ABI);
+        const sendUsdCalldata = bridgeInterface.encodeFunctionData("sendUsd", [
+          currentWallet.address, // destination on Hyperliquid L1
+          depositAmountInUnits,
+        ]);
+        console.log("sendUsdCalldata", sendUsdCalldata);
+
         const tx = await sendTransaction(
           {
             from: currentWallet.address,
-            to: usdcAddress,
-            data: transferCalldata,
-            chainId: isMainnet ? 42161 : 421614,
+            to: bridgeAddress,        // <-- call bridge, NOT usdc
+            data: sendUsdCalldata,
+            chainId: targetChainId,
           },
-          {
-            address: currentWallet.address,
-          }
+          { address: currentWallet.address }
         );
-        console.log("transfer tx", tx);
+        console.log("deposit tx", tx);
         return tx;
       } catch (error) {
         console.error("Failed to deposit:", error);
@@ -85,7 +119,7 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
   );
 };
 
-// deposit arbitrum usdc with permit
+// deposit arbitrum usdc with permit (unchanged)
 export const useArbitrumUSDCDepositWithPermit = () => {
   const { signTypedData } = useSignTypedData();
   const { authenticated, user } = usePrivy();
