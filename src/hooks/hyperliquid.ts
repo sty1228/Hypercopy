@@ -1,7 +1,5 @@
 import {
-  usePrivy,
   useSendTransaction,
-  useSignTransaction,
   useSignTypedData,
 } from "@privy-io/react-auth";
 import { useCallback } from "react";
@@ -19,8 +17,26 @@ import {
 const BRIDGE_MAINNET = "0x2Df1c51E09aECF9cacB7bc98cb1742757f163df7";
 const BRIDGE_TESTNET = "0x08cfc1B6b2dCF36A1480b99353A354AA8AC56f89";
 
+// Use full JSON ABI to avoid ethers v5 human-readable tuple parsing issues
 const BRIDGE_ABI = [
-  "function batchedDepositWithPermit(tuple(address user, uint64 usd, uint256 deadline, bytes signature)[] deposits) external",
+  {
+    name: "batchedDepositWithPermit",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "deposits",
+        type: "tuple[]",
+        components: [
+          { name: "user", type: "address" },
+          { name: "usd", type: "uint64" },
+          { name: "deadline", type: "uint256" },
+          { name: "signature", type: "bytes" },
+        ],
+      },
+    ],
+    outputs: [],
+  },
 ];
 
 // deposit arbitrum usdc: sign permit + call bridge
@@ -59,6 +75,13 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
         const depositAmountInUnits = ((ethers as any).utils)
           .parseUnits(depositAmount.toString(), usdcDecimals)
           .toString();
+
+        // Check USDC balance before proceeding
+        const balance = await usdcContract.balanceOf(currentWallet.address);
+        if (balance.lt((ethers as any).BigNumber.from(depositAmountInUnits))) {
+          toast.error("Insufficient USDC balance");
+          return null;
+        }
 
         const nonce = await usdcContract.nonces(currentWallet.address);
         const deadline = (Math.floor(Date.now() / 1000) + 300).toString();
@@ -143,7 +166,15 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
             ],
           ]
         );
+
+        // Debug: verify calldata length (should be 300+ bytes for a single deposit)
+        console.log("Bridge calldata length:", calldata.length);
         console.log("Bridge calldata:", calldata);
+        if (calldata.length < 200) {
+          console.error("Calldata too short — ABI encoding likely failed");
+          toast.error("Encoding error, please try again");
+          return null;
+        }
 
         const tx = await sendTransaction(
           {
@@ -169,7 +200,6 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
 // deposit arbitrum usdc with permit (kept for reference)
 export const useArbitrumUSDCDepositWithPermit = () => {
   const { signTypedData } = useSignTypedData();
-  const { authenticated, user } = usePrivy();
   const currentWallet = useCurrentWallet();
   const ethereumProvider = useEthereumProvider();
 
@@ -192,27 +222,19 @@ export const useArbitrumUSDCDepositWithPermit = () => {
           USDC_ARB_ABI,
           ARBITRUM_HTTP_PROVIDER
         );
-        console.log("usdcContract", usdcContract);
 
         const nonce = await usdcContract.nonces(currentWallet.address);
         const usdcDecimals = await usdcContract.decimals();
-        console.log("usdcDecimals", usdcDecimals);
-        console.log(
-          ((ethers as any).utils).parseUnits(depositAmount.toString(), usdcDecimals).toString()
-        );
 
         const payload = {
           owner: currentWallet.address,
-          spender: isMainnet
-            ? "0x2df1c51e09aecf9cacb7bc98cb1742757f163df7"
-            : "0x08cfc1B6b2dCF36A1480b99353A354AA8AC56f89",
+          spender: isMainnet ? BRIDGE_MAINNET : BRIDGE_TESTNET,
           value: ((ethers as any).utils)
             .parseUnits(depositAmount.toString(), usdcDecimals)
             .toString(),
           nonce: nonce.toString(),
           deadline: (Math.floor(Date.now() / 1000) + 300).toString(),
         };
-        console.log("payload", payload);
 
         const domain = {
           name: isMainnet ? "USD Coin" : "USDC2",
@@ -237,13 +259,10 @@ export const useArbitrumUSDCDepositWithPermit = () => {
           primaryType: "Permit",
           message: payload,
         };
-        console.log("dataToSign", dataToSign);
 
-        console.log(user);
         const chainId = await ethereumProvider
           .getNetwork()
           .then((res: any) => res.chainId);
-        console.log("chainId", chainId);
         if (Number(chainId) !== 42161) {
           await ethereumProvider
             .send("wallet_switchEthereumChain", [{ chainId: "0xa4b1" }])
@@ -267,12 +286,6 @@ export const useArbitrumUSDCDepositWithPermit = () => {
 
         const signature = ((ethers as any).utils).splitSignature(data.signature);
 
-        console.log("Permit signature:", {
-          r: signature.r,
-          s: signature.s,
-          v: signature.v,
-        });
-
         return {
           owner: payload.owner,
           spender: payload.spender,
@@ -285,7 +298,7 @@ export const useArbitrumUSDCDepositWithPermit = () => {
         };
       } catch (error) {
         console.error("Failed to sign permit:", error);
-        toast.error(`Permit signature failed`);
+        toast.error("Permit signature failed");
         return null;
       }
     },
