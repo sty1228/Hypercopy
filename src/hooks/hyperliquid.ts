@@ -1,6 +1,5 @@
 import {
   useSendTransaction,
-  useSignTypedData,
 } from "@privy-io/react-auth";
 import { useCallback } from "react";
 import { useCurrentWallet, useEthereumProvider } from "./usePrivyData";
@@ -17,7 +16,6 @@ import {
 const BRIDGE_MAINNET = "0x2Df1c51E09aECF9cacB7bc98cb1742757f163df7";
 const BRIDGE_TESTNET = "0x08cfc1B6b2dCF36A1480b99353A354AA8AC56f89";
 
-// Use full JSON ABI to avoid ethers v5 human-readable tuple parsing issues
 const BRIDGE_ABI = [
   {
     name: "batchedDepositWithPermit",
@@ -42,7 +40,6 @@ const BRIDGE_ABI = [
 // deposit arbitrum usdc: sign permit + call bridge
 export const useArbitrumUSDCDepositWithTransfer = () => {
   const { sendTransaction } = useSendTransaction();
-  const { signTypedData } = useSignTypedData();
   const currentWallet = useCurrentWallet();
   const ethereumProvider = useEthereumProvider();
 
@@ -76,7 +73,7 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
           .parseUnits(depositAmount.toString(), usdcDecimals)
           .toString();
 
-        // Check USDC balance before proceeding
+        // Check USDC balance
         const balance = await usdcContract.balanceOf(currentWallet.address);
         if (balance.lt((ethers as any).BigNumber.from(depositAmountInUnits))) {
           toast.error("Insufficient USDC balance");
@@ -84,39 +81,52 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
         }
 
         const nonceRaw = await usdcContract.nonces(currentWallet.address);
-        const nonce = String(nonceRaw);
+        const nonce = nonceRaw.toString();
         const deadline = String(Math.floor(Date.now() / 1000) + 300);
-        const value = String(depositAmountInUnits);
 
-        console.log("depositAmountInUnits", value);
+        console.log("depositAmountInUnits", depositAmountInUnits);
         console.log("nonce", nonce);
         console.log("deadline", deadline);
 
-        // ── Step 1: Sign USDC EIP-2612 Permit (off-chain, no gas) ──
+        // ── Step 1: Sign USDC EIP-2612 Permit via raw eth_signTypedData_v4 ──
         const domain = {
           name: isMainnet ? "USD Coin" : "USDC2",
           version: isMainnet ? "2" : "1",
           chainId: targetChainId,
-          verifyingContract: usdcAddress as `0x${string}`,
+          verifyingContract: usdcAddress,
         };
-        const permitTypes = {
-          Permit: [
-            { name: "owner", type: "address" },
-            { name: "spender", type: "address" },
-            { name: "value", type: "uint256" },
-            { name: "nonce", type: "uint256" },
-            { name: "deadline", type: "uint256" },
-          ],
-        };
+
         const permitMessage = {
           owner: currentWallet.address,
           spender: bridgeAddress,
-          value,
+          value: depositAmountInUnits,
           nonce,
           deadline,
         };
 
-        console.log("Signing permit...", permitMessage);
+        // Build the full EIP-712 typed data with EIP712Domain included
+        const typedData = JSON.stringify({
+          types: {
+            EIP712Domain: [
+              { name: "name", type: "string" },
+              { name: "version", type: "string" },
+              { name: "chainId", type: "uint256" },
+              { name: "verifyingContract", type: "address" },
+            ],
+            Permit: [
+              { name: "owner", type: "address" },
+              { name: "spender", type: "address" },
+              { name: "value", type: "uint256" },
+              { name: "nonce", type: "uint256" },
+              { name: "deadline", type: "uint256" },
+            ],
+          },
+          primaryType: "Permit",
+          domain,
+          message: permitMessage,
+        });
+
+        console.log("Signing permit via eth_signTypedData_v4...", permitMessage);
 
         // Make sure we're on the right chain before signing
         const chainId = await ethereumProvider
@@ -133,25 +143,20 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
             });
         }
 
-        const signResult = await signTypedData(
-          {
-            domain,
-            types: permitTypes,
-            primaryType: "Permit",
-            message: permitMessage,
-          },
-          { address: currentWallet.address }
-        ).catch((e: any) => {
+        // Use raw RPC call instead of Privy's signTypedData wrapper
+        let signature: string;
+        try {
+          signature = await ethereumProvider.send("eth_signTypedData_v4", [
+            currentWallet.address,
+            typedData,
+          ]);
+        } catch (e: any) {
           console.log("Permit sign error:", e);
-          return null;
-        });
-
-        if (!signResult) {
           toast.error("Permit signature failed");
           return null;
         }
 
-        console.log("Permit signed:", signResult.signature);
+        console.log("Permit signed:", signature);
 
         // ── Step 2: Call batchedDepositWithPermit on bridge contract ──
         const bridgeInterface = new ((ethers as any).utils).Interface(BRIDGE_ABI);
@@ -161,15 +166,14 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
             [
               {
                 user: currentWallet.address,
-                usd: value,
+                usd: depositAmountInUnits,
                 deadline,
-                signature: signResult.signature,
+                signature,
               },
             ],
           ]
         );
 
-        // Debug: verify calldata length (should be 300+ bytes for a single deposit)
         console.log("Bridge calldata length:", calldata.length);
         console.log("Bridge calldata:", calldata);
         if (calldata.length < 200) {
@@ -195,115 +199,6 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
         return null;
       }
     },
-    [sendTransaction, signTypedData, currentWallet, ethereumProvider]
-  );
-};
-
-// deposit arbitrum usdc with permit (kept for reference)
-export const useArbitrumUSDCDepositWithPermit = () => {
-  const { signTypedData } = useSignTypedData();
-  const currentWallet = useCurrentWallet();
-  const ethereumProvider = useEthereumProvider();
-
-  return useCallback(
-    async ({ depositAmount }: { depositAmount: number | string }) => {
-      if (!currentWallet || !ethereumProvider) {
-        toast.error("Wallet not connected");
-        return null;
-      }
-
-      const isMainnet = true;
-
-      try {
-        const usdcAddress = isMainnet
-          ? USDC_ARB_MAINNET_ADDRESS
-          : USDC_ARB_TESTNET_ADDRESS;
-
-        const usdcContract = new (ethers as any).Contract(
-          usdcAddress,
-          USDC_ARB_ABI,
-          ARBITRUM_HTTP_PROVIDER
-        );
-
-        const nonce = await usdcContract.nonces(currentWallet.address);
-        const usdcDecimals = await usdcContract.decimals();
-
-        const payload = {
-          owner: currentWallet.address,
-          spender: isMainnet ? BRIDGE_MAINNET : BRIDGE_TESTNET,
-          value: ((ethers as any).utils)
-            .parseUnits(depositAmount.toString(), usdcDecimals)
-            .toString(),
-          nonce: nonce.toString(),
-          deadline: (Math.floor(Date.now() / 1000) + 300).toString(),
-        };
-
-        const domain = {
-          name: isMainnet ? "USD Coin" : "USDC2",
-          version: isMainnet ? "2" : "1",
-          chainId: isMainnet ? 42161 : 421614,
-          verifyingContract: usdcAddress,
-        };
-
-        const permitTypes = {
-          Permit: [
-            { name: "owner", type: "address" },
-            { name: "spender", type: "address" },
-            { name: "value", type: "uint256" },
-            { name: "nonce", type: "uint256" },
-            { name: "deadline", type: "uint256" },
-          ],
-        };
-
-        const dataToSign = {
-          domain,
-          types: permitTypes,
-          primaryType: "Permit",
-          message: payload,
-        };
-
-        const chainId = await ethereumProvider
-          .getNetwork()
-          .then((res: any) => res.chainId);
-        if (Number(chainId) !== 42161) {
-          await ethereumProvider
-            .send("wallet_switchEthereumChain", [{ chainId: "0xa4b1" }])
-            .catch((e: any) => {
-              console.log(e);
-              throw e;
-            });
-        }
-
-        const data = await signTypedData(dataToSign, {
-          address: currentWallet.address,
-        }).catch((e: any) => {
-          console.log(e);
-          return null;
-        });
-
-        if (!data) {
-          toast.error("Sign typed data failed");
-          return null;
-        }
-
-        const signature = ((ethers as any).utils).splitSignature(data.signature);
-
-        return {
-          owner: payload.owner,
-          spender: payload.spender,
-          value: payload.value,
-          deadline: payload.deadline,
-          nonce: payload.nonce,
-          r: signature.r,
-          s: signature.s,
-          v: signature.v,
-        };
-      } catch (error) {
-        console.error("Failed to sign permit:", error);
-        toast.error("Permit signature failed");
-        return null;
-      }
-    },
-    [signTypedData, currentWallet, ethereumProvider]
+    [sendTransaction, currentWallet, ethereumProvider]
   );
 };
