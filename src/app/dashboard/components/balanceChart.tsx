@@ -103,14 +103,14 @@ const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
   const lastValue = chartData[chartData.length - 1]?.value ?? 0;
   const isPositive = lastValue >= refValue;
 
-  // 计算要显示的刻度：最多 5 个，均匀分布
+  // 计算要显示的刻度：最多 6 个，均匀分布
   const tickIndices: number[] = [];
   const len = chartData.length;
-  if (len <= 5) {
+  if (len <= 6) {
     for (let i = 0; i < len; i++) tickIndices.push(i);
   } else {
-    for (let i = 0; i < 5; i++) {
-      tickIndices.push(Math.round((i * (len - 1)) / 4));
+    for (let i = 0; i < 6; i++) {
+      tickIndices.push(Math.round((i * (len - 1)) / 5));
     }
   }
 
