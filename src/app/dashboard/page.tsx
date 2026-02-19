@@ -28,6 +28,8 @@ import PositionDetail, { PositionDetailData, positionExtendedData } from "./comp
 import CopyingSheet from "./components/CopyingSheet";
 import ActiveTradesSheet from "./components/ActiveTradesSheet";
 import DepositSheet from "./components/DepositSheet";
+import { getPerpsBalance } from "@/helpers/hyperliquid";
+import { useCurrentWallet } from "@/hooks/usePrivyData";
 
 export interface BalanceChartData {
   label: string;
@@ -66,7 +68,8 @@ const Home = () => {
   const { wallets } = useWallets();
   const wallet = wallets?.[0];
 
-  const { builderFeeApproved } = useContext(HyperLiquidContext);
+  const { builderFeeApproved, infoClient } = useContext(HyperLiquidContext);
+  const currentWallet = useCurrentWallet();
 
   const [authReady, setAuthReady] = useState(false);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -149,6 +152,28 @@ const Home = () => {
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
+  // ── Fetch HL perps balance directly ──
+  const fetchHLBalance = useCallback(async () => {
+    if (!infoClient || !currentWallet?.address) return;
+    try {
+      const res = await getPerpsBalance({ exchClient: infoClient, walletAddress: currentWallet.address });
+      const hlBalance = Number(res?.marginSummary?.accountValue || 0);
+      if (hlBalance > 0) {
+        setBalance(hlBalance);
+        // Clear pending deposit if balance arrived
+        if (pendingDeposit) {
+          setPendingDeposit(null);
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch HL balance:", err);
+    }
+  }, [infoClient, currentWallet?.address, pendingDeposit]);
+
+  // ── Fetch HL balance on load ──
+  useEffect(() => { fetchHLBalance(); }, [fetchHLBalance]);
+
   // ── Clean up polling on unmount ──
   useEffect(() => {
     return () => {
@@ -174,25 +199,30 @@ const Home = () => {
       timestamp: Date.now(),
     });
 
-    // Start polling every 15s for 2 minutes
+    // Poll HL balance directly every 10s for 2 minutes
     if (pollRef.current) clearInterval(pollRef.current);
     let count = 0;
-    fetchDashboard();
     pollRef.current = setInterval(() => {
+      fetchHLBalance();
       fetchDashboard();
       count++;
-      if (count >= 8) {
+      if (count >= 12) {
         if (pollRef.current) clearInterval(pollRef.current);
       }
-    }, 15000);
-  }, [fetchDashboard]);
+    }, 10000);
+  }, [fetchHLBalance, fetchDashboard]);
 
-  // ── 3. Animate balance ──
+  // ── 3. Animate balance when summary loads (use max of API and current HL balance) ──
   useEffect(() => {
-    if (!summary) { setBalance(0); setTodayGain(0); return; }
-    const bTarget = summary.total_balance;
+    if (!summary) { setTodayGain(0); return; }
+    const bTarget = Math.max(summary.total_balance, balance);
     const gTarget = summary.total_pnl;
     if (bTarget === 0 && gTarget === 0) { setBalance(0); setTodayGain(0); return; }
+    // Only animate if balance is currently 0 (first load)
+    if (balance > 0) {
+      setTodayGain(gTarget);
+      return;
+    }
     const dur = 1500, steps = 60;
     let step = 0;
     const timer = setInterval(() => {
