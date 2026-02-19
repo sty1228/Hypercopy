@@ -7,6 +7,8 @@ import {
   Wallet, ArrowRight, Shield,
 } from "lucide-react";
 import { useWallets } from "@privy-io/react-auth";
+import { ethers } from "ethers";
+import * as hl from "@nktkas/hyperliquid";
 import { toast } from "sonner";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import { recordWithdraw, getSubAccount } from "@/service";
@@ -18,6 +20,31 @@ interface WithdrawSheetProps {
   onClose: () => void;
   availableBalance: number;
   onSuccess?: (amount?: string) => void;
+}
+
+/**
+ * Create an ExchangeClient that bypasses Privy's chainId validation.
+ * Privy rejects eth_signTypedData_v4 when domain.chainId (1337) ≠ wallet chain.
+ * Raw extension provider (MetaMask/Rabby) allows it.
+ */
+async function createRawExchClient(): Promise<hl.ExchangeClient | null> {
+  const raw = (window as any).ethereum;
+  if (!raw) {
+    console.warn("[Withdraw] No window.ethereum found");
+    return null;
+  }
+  try {
+    const provider = new (ethers as any).providers.Web3Provider(raw);
+    const signer = provider.getSigner();
+    await signer.getAddress();
+    return new hl.ExchangeClient({
+      wallet: signer as any,
+      transport: new hl.HttpTransport(),
+    });
+  } catch (e) {
+    console.error("[Withdraw] Failed to create raw ExchangeClient:", e);
+    return null;
+  }
 }
 
 export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuccess }: WithdrawSheetProps) {
@@ -53,7 +80,6 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
     try {
       const res = await getSubAccount();
       if (!res.sub_account_address) {
-        // 还没有子账户，fallback 到 BalanceSnapshot
         console.log("[Withdraw] No sub-account, using BalanceSnapshot:", availableBalance);
         setSubBalance(availableBalance);
         return;
@@ -89,6 +115,11 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
     try {
       setStep("signing");
 
+      // Create raw ExchangeClient using window.ethereum (bypasses Privy chainId check)
+      const rawExchClient = await createRawExchClient();
+      const exchClientForHL = rawExchClient || mainExchClient;
+      console.log("[Withdraw] Using", rawExchClient ? "raw window.ethereum" : "Privy", "ExchangeClient");
+
       // Step 1: 子账户 → 主账户
       let subAddr: string | null = null;
       try {
@@ -98,7 +129,7 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
 
       if (subAddr) {
         console.log("[Withdraw] Transferring from sub-account:", subAddr, "amount:", withdrawAmount);
-        await mainExchClient.subAccountTransfer({
+        await exchClientForHL.subAccountTransfer({
           subAccountUser: subAddr as `0x${string}`,
           isDeposit: false, // false = 子账户 → 主账户
           usd: Math.floor(withdrawAmount * 1e6),
@@ -114,7 +145,7 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
 
       // Step 2: 主账户 → Arbitrum (withdraw3)
       console.log("[Withdraw] Calling withdraw3 to:", wallet.address, "amount:", withdrawAmount.toFixed(2));
-      await mainExchClient.withdraw3({
+      await exchClientForHL.withdraw3({
         destination: wallet.address as `0x${string}`,
         amount: withdrawAmount.toFixed(2),
       });
