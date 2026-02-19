@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 import { useWallets } from "@privy-io/react-auth";
 import { ethers } from "ethers";
-import { toast } from "sonner";
 import * as hl from "@nktkas/hyperliquid";
+import { toast } from "sonner";
 import { depositToHyperliquid, getArbUSDCBalance } from "@/helpers/arbitrum";
 import { recordDeposit, getSubAccount, saveSubAccount } from "@/service";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
@@ -22,6 +22,33 @@ interface DepositSheetProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (txHash?: string, amount?: string) => void;
+}
+
+/**
+ * Create an ExchangeClient that bypasses Privy's chainId validation.
+ * Privy's provider rejects eth_signTypedData_v4 when domain.chainId (1337)
+ * doesn't match the wallet's current chain. window.ethereum (the raw extension
+ * provider from MetaMask/Rabby) does NOT have this restriction.
+ */
+async function createRawExchClient(): Promise<hl.ExchangeClient | null> {
+  const raw = (window as any).ethereum;
+  if (!raw) {
+    console.warn("[SubAccount] No window.ethereum found");
+    return null;
+  }
+  try {
+    const provider = new (ethers as any).providers.Web3Provider(raw);
+    const signer = provider.getSigner();
+    // Verify we can get an address (confirms wallet is connected)
+    await signer.getAddress();
+    return new hl.ExchangeClient({
+      wallet: signer as any,
+      transport: new hl.HttpTransport(),
+    });
+  } catch (e) {
+    console.error("[SubAccount] Failed to create raw ExchangeClient:", e);
+    return null;
+  }
 }
 
 export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositSheetProps) {
@@ -90,12 +117,11 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     }
   }, [infoClient, wallet]);
 
-  // 检查：主账户有仓位且 withdrawable 不够转子账户
   const parsedAmount = parseFloat(amount) || 0;
   const balNum = parseFloat(usdcBalance || "0");
   const hasBlockingPositions = hlHasPositions && hlWithdrawable !== null && hlWithdrawable < parsedAmount && parsedAmount > 0;
 
-  // 获取或创建子账户地址 — 需要传入 fresh exchClient（切链后的）
+  // 获取或创建子账户地址
   const getOrCreateSubAccount = async (exchClient: hl.ExchangeClient): Promise<string | null> => {
     // 1. 先查后端是否已存
     try {
@@ -108,8 +134,8 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
       console.log("[SubAccount] Backend lookup failed:", e);
     }
 
-    // 2. 创建子账户
-    // SDK 返回结构: { status: "ok", response: { type: "createSubAccount", data: "0x..." } }
+    // 2. 创建子账户 — 用 raw ExchangeClient 绕过 Privy chainId 限制
+    // SDK 返回: { status: "ok", response: { type: "createSubAccount", data: "0x..." } }
     try {
       console.log("[SubAccount] Creating sub-account...");
       const result = await exchClient.createSubAccount({ name: "HyperCopy" });
@@ -136,30 +162,30 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     if (parsedAmount > balNum) { toast.error("Insufficient USDC balance"); return; }
     if (!mainExchClient) { toast.error("Enable trading first"); return; }
 
-    // 二次确认：主账户有仓位会阻塞 transfer
     if (hasBlockingPositions) {
       toast.error("Your HL main account has positions using all margin. Please reduce positions on app.hyperliquid.xyz first.");
       return;
     }
 
     try {
-      // Step 1: Switch to Arbitrum — all HL signing + deposit need this chain
+      // Step 1: Switch to Arbitrum
       setStep("switching");
       await wallet.switchChain(ARBITRUM_CHAIN_ID);
       console.log("[Deposit] Switched to Arbitrum");
 
-      // Create a FRESH provider/signer/ExchangeClient on Arbitrum
-      // (mainExchClient was created at page load, might have stale chainId)
+      // Create raw ExchangeClient using window.ethereum (bypasses Privy chainId check)
+      // Privy's provider rejects signTypedData when domain.chainId=1337 ≠ wallet chain
+      // Raw extension provider (MetaMask/Rabby) allows it
+      const rawExchClient = await createRawExchClient();
+      const exchClientForHL = rawExchClient || mainExchClient;
+      console.log("[Deposit] Using", rawExchClient ? "raw window.ethereum" : "Privy", "ExchangeClient");
+
+      // Create/get sub-account
+      const subAddr = await getOrCreateSubAccount(exchClientForHL);
+
+      // Get signer for USDC deposit
       const provider = await getProvider();
       const signer = provider.getSigner();
-      const freshExchClient = new hl.ExchangeClient({
-        wallet: signer as any,
-        transport: new hl.HttpTransport(),
-      });
-      console.log("[Deposit] Created fresh ExchangeClient on Arbitrum");
-
-      // Step 1b: Create sub-account with fresh client
-      const subAddr = await getOrCreateSubAccount(freshExchClient);
 
       // Step 2: Deposit Arbitrum → HL main account
       setStep("approving");
@@ -174,7 +200,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
 
       if (subAddr) {
         try {
-          await freshExchClient.subAccountTransfer({
+          await exchClientForHL.subAccountTransfer({
             subAccountUser: subAddr as `0x${string}`,
             isDeposit: true,
             usd: Math.floor(parsedAmount * 1e6),
