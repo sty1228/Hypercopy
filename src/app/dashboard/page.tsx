@@ -558,7 +558,7 @@ const Home = () => {
         />
       )}
       {selectedPos && <PositionDetail pos={selectedPos} onClose={() => setSelectedPos(null)} />}
-      <DepositSheet isOpen={showDeposit} onClose={() => setShowDeposit(false)} />
+      <DepositSheet isOpen={showDeposit} onClose={() => setShowDeposit(false)} onSuccess={fetchDashboard} />
     </div>
   );
 };

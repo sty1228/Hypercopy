@@ -25,9 +25,10 @@ type DepositStep = "input" | "switching" | "depositing" | "success" | "error";
 interface DepositSheetProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
+export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositSheetProps) {
   const { wallets } = useWallets();
   const [mounted, setMounted] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -105,6 +106,7 @@ export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
 
       setTxHash(tx.hash || null);
       setStep("success");
+      onSuccess?.();
       await loadBalance();
     } catch (err: any) {
       console.error("Deposit failed:", err);
