@@ -69,25 +69,35 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
 
   // 获取或创建子账户地址
   const getOrCreateSubAccount = async (): Promise<string | null> => {
+    // 1. 先查后端是否已存
     try {
       const res = await getSubAccount();
-      if (res.sub_account_address) return res.sub_account_address;
-    } catch {}
-
-    // 没有子账户，创建一个
-    try {
-      const created = await (mainExchClient as any).createSubAccount({ name: "HyperCopy" });
-      // SDK 返回结构可能是 { response: { data: { subAccountUser: "0x..." } } } 或直接 { subAccountUser }
-      const addr =
-        created?.subAccountUser ||
-        created?.response?.data?.subAccountUser ||
-        created?.response?.subAccountUser;
-      if (addr) {
-        await saveSubAccount(addr);
-        return addr;
+      if (res.sub_account_address) {
+        console.log("[SubAccount] Found in backend:", res.sub_account_address);
+        return res.sub_account_address;
       }
     } catch (e) {
-      console.error("Failed to create sub account:", e);
+      console.log("[SubAccount] Backend lookup failed:", e);
+    }
+
+    // 2. 创建子账户
+    // SDK 返回结构: { status: "ok", response: { type: "createSubAccount", data: "0x..." } }
+    try {
+      console.log("[SubAccount] Creating sub-account...");
+      const result = await mainExchClient!.createSubAccount({ name: "HyperCopy" });
+      console.log("[SubAccount] createSubAccount result:", JSON.stringify(result));
+
+      const addr = result.response.data;
+      if (addr) {
+        console.log("[SubAccount] Created address:", addr);
+        await saveSubAccount(addr);
+        return addr;
+      } else {
+        console.error("[SubAccount] No address in response");
+      }
+    } catch (e: any) {
+      console.error("[SubAccount] createSubAccount failed:", e);
+      console.error("[SubAccount] Error detail:", e?.message, e?.response);
     }
     return null;
   };
@@ -122,16 +132,20 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
       const subAddr = await getOrCreateSubAccount();
       if (subAddr) {
         try {
-          await (mainExchClient as any).subAccountTransfer({
-            subAccountUser: subAddr,
+          await mainExchClient.subAccountTransfer({
+            subAccountUser: subAddr as `0x${string}`,
             isDeposit: true,
             usd: Math.floor(depositAmount * 1e6),
           });
+          console.log("[SubAccount] Transfer to sub-account succeeded");
         } catch (e) {
           // transfer 失败不阻断流程，资金还在主账户，用户不会丢钱
-          console.error("subAccountTransfer failed:", e);
+          console.error("[SubAccount] subAccountTransfer failed:", e);
           toast.warning("Funds deposited to HL but sub-account transfer failed. Please contact support.");
         }
+      } else {
+        console.warn("[SubAccount] No sub-account address, skipping transfer");
+        toast.warning("Funds deposited to HL but sub-account creation failed. Please contact support.");
       }
 
       // 记录到后端

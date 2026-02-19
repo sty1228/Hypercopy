@@ -54,13 +54,17 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
       const res = await getSubAccount();
       if (!res.sub_account_address) {
         // 还没有子账户，fallback 到 BalanceSnapshot
+        console.log("[Withdraw] No sub-account, using BalanceSnapshot:", availableBalance);
         setSubBalance(availableBalance);
         return;
       }
-      const state = await infoClient.clearinghouseState({ user: res.sub_account_address });
+      console.log("[Withdraw] Reading sub-account balance for:", res.sub_account_address);
+      const state = await infoClient.clearinghouseState({ user: res.sub_account_address as `0x${string}` });
       const bal = parseFloat(state?.marginSummary?.accountValue ?? "0");
+      console.log("[Withdraw] Sub-account balance:", bal);
       setSubBalance(bal);
-    } catch {
+    } catch (e) {
+      console.error("[Withdraw] Failed to load sub-account balance:", e);
       setSubBalance(availableBalance);
     } finally {
       setLoadingBalance(false);
@@ -93,33 +97,39 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
       } catch {}
 
       if (subAddr) {
-        await (mainExchClient as any).subAccountTransfer({
-          subAccountUser: subAddr,
+        console.log("[Withdraw] Transferring from sub-account:", subAddr, "amount:", withdrawAmount);
+        await mainExchClient.subAccountTransfer({
+          subAccountUser: subAddr as `0x${string}`,
           isDeposit: false, // false = 子账户 → 主账户
           usd: Math.floor(withdrawAmount * 1e6),
         });
+        console.log("[Withdraw] Sub→Main transfer succeeded");
         // 等 HL 结算
         await new Promise(r => setTimeout(r, 1500));
+      } else {
+        console.warn("[Withdraw] No sub-account found, withdrawing directly from main account");
       }
 
       setStep("processing");
 
       // Step 2: 主账户 → Arbitrum (withdraw3)
-      await (mainExchClient as any).withdraw3({
-        destination: wallet.address,
+      console.log("[Withdraw] Calling withdraw3 to:", wallet.address, "amount:", withdrawAmount.toFixed(2));
+      await mainExchClient.withdraw3({
+        destination: wallet.address as `0x${string}`,
         amount: withdrawAmount.toFixed(2),
       });
+      console.log("[Withdraw] withdraw3 succeeded");
 
       // 记录到后端
       try { await recordWithdraw(withdrawAmount); } catch (e) {
-        console.error("Failed to record withdrawal:", e);
+        console.error("[Withdraw] Failed to record withdrawal:", e);
       }
 
       setStep("success");
       toast.success(`Withdrew ${withdrawAmount.toFixed(2)} USDC`);
       onSuccess?.(amount);
     } catch (err: any) {
-      console.error("Withdraw failed:", err);
+      console.error("[Withdraw] Failed:", err);
       setStep("error");
       setErrorMsg(
         err?.code === "ACTION_REJECTED" || err?.code === 4001
