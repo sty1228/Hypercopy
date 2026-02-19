@@ -68,7 +68,6 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     }
   }, [wallet]);
 
-  // ─── Deposit flow using approve + sendUsd ───
   const handleDeposit = async () => {
     if (!wallet || !amount || parseFloat(amount) <= 0) return;
 
@@ -80,14 +79,12 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     }
 
     try {
-      // Step 1: Switch to Arbitrum
       setStep("switching");
       await wallet.switchChain(ARBITRUM_CHAIN_ID);
 
       const provider = await getProvider();
       const signer = provider.getSigner();
 
-      // Step 2: Approve + Send (depositToHyperliquid handles both)
       setStep("approving");
       const result = await depositToHyperliquid(signer, amount);
 
@@ -95,7 +92,6 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
       setStep("success");
       toast.success(`Deposited ${depositAmount.toFixed(2)} USDC`);
 
-      // Record deposit in backend
       try {
         await recordDeposit(depositAmount, result.hash);
       } catch (e) {
@@ -250,6 +246,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                   )}
                 </div>
 
+                {/* ─── Non-custodial info box ─── */}
                 <div
                   className="rounded-xl p-3 flex items-start gap-2"
                   style={{
@@ -259,7 +256,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                 >
                   <Shield size={12} className="text-teal-400 shrink-0 mt-0.5" />
                   <p className="text-[10px] text-gray-400 leading-relaxed">
-                    USDC will be deposited from your Arbitrum wallet to your HyperLiquid perps account. Deposits typically confirm within a few minutes.
+                    Your USDC goes <span className="text-teal-400 font-semibold">directly into your own HyperLiquid account</span> — HyperCopy never holds or controls your funds. We simply route copy trades on your behalf. You stay in full self-custody at all times.
                   </p>
                 </div>
 
@@ -349,11 +346,11 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                 </p>
                 <div
                   className="rounded-lg px-3 py-2 mt-2 mb-3 flex items-start gap-2"
-                  style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}
+                  style={{ background: "rgba(45,212,191,0.06)", border: "1px solid rgba(45,212,191,0.15)" }}
                 >
-                  <Loader2 size={12} className="text-amber-400 animate-spin shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-amber-300/90 leading-relaxed">
-                    HyperLiquid typically credits deposits within <strong>1–2 minutes</strong>. Your balance will update automatically once confirmed. You can safely close this.
+                  <Loader2 size={12} className="text-teal-400 animate-spin shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-teal-300/90 leading-relaxed">
+                    Funds land directly in <strong>your</strong> HyperLiquid account — HyperCopy never touches them. Your balance will update shortly.
                   </p>
                 </div>
 

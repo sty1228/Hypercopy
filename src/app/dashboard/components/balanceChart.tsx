@@ -40,16 +40,30 @@ const CustomTooltip = ({ active, payload }: any) => {
 // 自定义发光圆点
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const GlowDot = (props: any) => {
-  const { cx, cy } = props;
+  const { cx, cy, index, payload } = props;
   if (cx == null || cy == null) return null;
+  const isLast = props.dataLength && index === props.dataLength - 1;
   return (
     <g>
-      {/* 外层 glow */}
-      <circle cx={cx} cy={cy} r={6} fill="rgba(45,212,191,0.12)" />
-      {/* 中层 glow */}
-      <circle cx={cx} cy={cy} r={3.5} fill="rgba(45,212,191,0.25)" />
-      {/* 实心点 */}
-      <circle cx={cx} cy={cy} r={2} fill="#c7fff8" stroke="#2dd4bf" strokeWidth={0.8} />
+      {isLast && (
+        <>
+          <circle cx={cx} cy={cy} r={10} fill="rgba(45,212,191,0.08)">
+            <animate attributeName="r" values="8;14;8" dur="2s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.6;0.15;0.6" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <circle cx={cx} cy={cy} r={5} fill="rgba(45,212,191,0.2)">
+            <animate attributeName="r" values="4;7;4" dur="2s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite" />
+          </circle>
+        </>
+      )}
+      {!isLast && (
+        <>
+          <circle cx={cx} cy={cy} r={6} fill="rgba(45,212,191,0.12)" />
+          <circle cx={cx} cy={cy} r={3.5} fill="rgba(45,212,191,0.25)" />
+        </>
+      )}
+      <circle cx={cx} cy={cy} r={isLast ? 3 : 2} fill="#c7fff8" stroke="#2dd4bf" strokeWidth={isLast ? 1.2 : 0.8} />
     </g>
   );
 };
