@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback, useContext } from "react";
 import { createPortal } from "react-dom";
 import {
   X, Download, Loader2, CheckCircle, AlertCircle,
-  ExternalLink, Wallet, ArrowRight, Shield,
+  ExternalLink, Wallet, ArrowRight, Shield, AlertTriangle,
 } from "lucide-react";
 import { useWallets } from "@privy-io/react-auth";
 import { ethers } from "ethers";
 import { toast } from "sonner";
+import * as hl from "@nktkas/hyperliquid";
 import { depositToHyperliquid, getArbUSDCBalance } from "@/helpers/arbitrum";
 import { recordDeposit, getSubAccount, saveSubAccount } from "@/service";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
@@ -25,7 +26,7 @@ interface DepositSheetProps {
 
 export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositSheetProps) {
   const { wallets } = useWallets();
-  const { mainExchClient } = useContext(HyperLiquidContext);
+  const { mainExchClient, infoClient } = useContext(HyperLiquidContext);
   const [mounted, setMounted] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [amount, setAmount] = useState("");
@@ -35,12 +36,17 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
   const [txHash, setTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // HL 主账户状态
+  const [hlWithdrawable, setHlWithdrawable] = useState<number | null>(null);
+  const [hlHasPositions, setHlHasPositions] = useState(false);
+
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (isOpen) {
       requestAnimationFrame(() => setSheetVisible(true));
       loadBalance();
+      loadHLState();
     } else {
       setSheetVisible(false);
     }
@@ -67,8 +73,30 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     }
   }, [wallet]);
 
-  // 获取或创建子账户地址
-  const getOrCreateSubAccount = async (): Promise<string | null> => {
+  // 查询 HL 主账户 withdrawable + 是否有仓位
+  const loadHLState = useCallback(async () => {
+    if (!infoClient || !wallet) return;
+    try {
+      const state = await infoClient.clearinghouseState({ user: wallet.address as `0x${string}` });
+      const w = parseFloat(state?.withdrawable ?? "0");
+      const pos = parseFloat(state?.marginSummary?.totalNtlPos ?? "0");
+      console.log("[Deposit] HL main account withdrawable:", w, "totalNtlPos:", pos);
+      setHlWithdrawable(w);
+      setHlHasPositions(pos > 0);
+    } catch (e) {
+      console.error("[Deposit] Failed to load HL state:", e);
+      setHlWithdrawable(null);
+      setHlHasPositions(false);
+    }
+  }, [infoClient, wallet]);
+
+  // 检查：主账户有仓位且 withdrawable 不够转子账户
+  const parsedAmount = parseFloat(amount) || 0;
+  const balNum = parseFloat(usdcBalance || "0");
+  const hasBlockingPositions = hlHasPositions && hlWithdrawable !== null && hlWithdrawable < parsedAmount && parsedAmount > 0;
+
+  // 获取或创建子账户地址 — 需要传入 fresh exchClient（切链后的）
+  const getOrCreateSubAccount = async (exchClient: hl.ExchangeClient): Promise<string | null> => {
     // 1. 先查后端是否已存
     try {
       const res = await getSubAccount();
@@ -84,7 +112,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     // SDK 返回结构: { status: "ok", response: { type: "createSubAccount", data: "0x..." } }
     try {
       console.log("[SubAccount] Creating sub-account...");
-      const result = await mainExchClient!.createSubAccount({ name: "HyperCopy" });
+      const result = await exchClient.createSubAccount({ name: "HyperCopy" });
       console.log("[SubAccount] createSubAccount result:", JSON.stringify(result));
 
       const addr = result.response.data;
@@ -103,23 +131,35 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
   };
 
   const handleDeposit = async () => {
-    if (!wallet || !amount || parseFloat(amount) <= 0) return;
+    if (!wallet || !amount || parsedAmount <= 0) return;
 
-    const depositAmount = parseFloat(amount);
-    const balNum = parseFloat(usdcBalance || "0");
-    if (depositAmount > balNum) { toast.error("Insufficient USDC balance"); return; }
+    if (parsedAmount > balNum) { toast.error("Insufficient USDC balance"); return; }
     if (!mainExchClient) { toast.error("Enable trading first"); return; }
 
+    // 二次确认：主账户有仓位会阻塞 transfer
+    if (hasBlockingPositions) {
+      toast.error("Your HL main account has positions using all margin. Please reduce positions on app.hyperliquid.xyz first.");
+      return;
+    }
+
     try {
-      // Step 0: 在切链之前先创建子账户（HL L1 签名需要非 Arbitrum 链）
+      // Step 1: Switch to Arbitrum — all HL signing + deposit need this chain
       setStep("switching");
-      const subAddr = await getOrCreateSubAccount();
-
-      // Step 1: Switch to Arbitrum for USDC deposit
       await wallet.switchChain(ARBITRUM_CHAIN_ID);
+      console.log("[Deposit] Switched to Arbitrum");
 
+      // Create a FRESH provider/signer/ExchangeClient on Arbitrum
+      // (mainExchClient was created at page load, might have stale chainId)
       const provider = await getProvider();
       const signer = provider.getSigner();
+      const freshExchClient = new hl.ExchangeClient({
+        wallet: signer as any,
+        transport: new hl.HttpTransport(),
+      });
+      console.log("[Deposit] Created fresh ExchangeClient on Arbitrum");
+
+      // Step 1b: Create sub-account with fresh client
+      const subAddr = await getOrCreateSubAccount(freshExchClient);
 
       // Step 2: Deposit Arbitrum → HL main account
       setStep("approving");
@@ -132,34 +172,28 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
       // 等 HL 到账（约 30s）
       await new Promise(r => setTimeout(r, 30_000));
 
-      // 切回 Ethereum mainnet 让 HL L1 签名正常工作
-      try { await wallet.switchChain(1); } catch (e) {
-        console.warn("[SubAccount] Failed to switch back to ETH mainnet:", e);
-      }
-
       if (subAddr) {
         try {
-          await mainExchClient.subAccountTransfer({
+          await freshExchClient.subAccountTransfer({
             subAccountUser: subAddr as `0x${string}`,
             isDeposit: true,
-            usd: Math.floor(depositAmount * 1e6),
+            usd: Math.floor(parsedAmount * 1e6),
           });
           console.log("[SubAccount] Transfer to sub-account succeeded");
         } catch (e) {
-          // transfer 失败不阻断流程，资金还在主账户，用户不会丢钱
           console.error("[SubAccount] subAccountTransfer failed:", e);
-          toast.warning("Funds deposited to HL but sub-account transfer failed. Please contact support.");
+          toast.warning("Funds deposited to HL but sub-account transfer failed. Your funds are safe in your main HL account.");
         }
       } else {
         console.warn("[SubAccount] No sub-account address, skipping transfer");
-        toast.warning("Funds deposited to HL but sub-account creation failed. Please contact support.");
+        toast.warning("Funds deposited to HL but sub-account creation failed. Your funds are safe in your main HL account.");
       }
 
       // 记录到后端
-      try { await recordDeposit(depositAmount, result.hash); } catch {}
+      try { await recordDeposit(parsedAmount, result.hash); } catch {}
 
       setStep("success");
-      toast.success(`Deposited ${depositAmount.toFixed(2)} USDC`);
+      toast.success(`Deposited ${parsedAmount.toFixed(2)} USDC`);
       onSuccess?.(result.hash, amount);
       await loadBalance();
     } catch (err: any) {
@@ -181,9 +215,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     onClose();
   };
 
-  const parsedAmount = parseFloat(amount) || 0;
-  const balNum = parseFloat(usdcBalance || "0");
-  const isValid = parsedAmount >= 5 && parsedAmount <= balNum;
+  const isValid = parsedAmount >= 5 && parsedAmount <= balNum && !hasBlockingPositions;
 
   if (!mounted || !isOpen) return null;
 
@@ -262,12 +294,41 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                   {parsedAmount > 0 && parsedAmount < 5 && <p className="text-[10px] text-red-400 mt-1 ml-1">Minimum deposit is 5 USDC</p>}
                 </div>
 
-                <div className="rounded-xl p-3 flex items-start gap-2" style={{ background: "rgba(45,212,191,0.04)", border: "1px solid rgba(45,212,191,0.1)" }}>
-                  <Shield size={12} className="text-teal-400 shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-gray-400 leading-relaxed">
-                    Your USDC goes <span className="text-teal-400 font-semibold">directly into your own HyperLiquid sub-account</span> — HyperCopy never holds or controls your funds. We route copy trades on your behalf. You stay in full self-custody at all times.
-                  </p>
-                </div>
+                {/* ─── Warning: HL positions blocking transfer ─── */}
+                {hasBlockingPositions && (
+                  <div className="rounded-xl p-3 flex items-start gap-2" style={{ background: "rgba(234,179,8,0.06)", border: "1px solid rgba(234,179,8,0.2)" }}>
+                    <AlertTriangle size={14} className="text-yellow-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[11px] text-yellow-300 font-semibold mb-0.5">
+                        Cannot isolate funds
+                      </p>
+                      <p className="text-[10px] text-gray-400 leading-relaxed">
+                        Your HyperLiquid main account has open positions using all available margin
+                        (withdrawable: ${hlWithdrawable?.toFixed(2) ?? "0.00"}).
+                        Deposited funds would be absorbed by existing positions instead of being isolated.
+                      </p>
+                      <a
+                        href="https://app.hyperliquid.xyz/trade"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-yellow-400 font-semibold hover:text-yellow-300"
+                      >
+                        Reduce positions on HyperLiquid
+                        <ExternalLink size={10} />
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {/* ─── Info banner ─── */}
+                {!hasBlockingPositions && (
+                  <div className="rounded-xl p-3 flex items-start gap-2" style={{ background: "rgba(45,212,191,0.04)", border: "1px solid rgba(45,212,191,0.1)" }}>
+                    <Shield size={12} className="text-teal-400 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-gray-400 leading-relaxed">
+                      Your USDC goes <span className="text-teal-400 font-semibold">directly into your own HyperLiquid sub-account</span> — HyperCopy never holds or controls your funds. We route copy trades on your behalf. You stay in full self-custody at all times.
+                    </p>
+                  </div>
+                )}
 
                 <button
                   onClick={handleDeposit}
@@ -281,7 +342,10 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                   }}
                 >
                   <Download size={16} />
-                  {!wallet ? "Connect Wallet First" : !mainExchClient ? "Enable Trading First" : `Deposit $${parsedAmount.toFixed(2)}`}
+                  {!wallet ? "Connect Wallet First"
+                    : !mainExchClient ? "Enable Trading First"
+                    : hasBlockingPositions ? "Reduce HL Positions First"
+                    : `Deposit $${parsedAmount.toFixed(2)}`}
                 </button>
               </div>
             )}
@@ -293,18 +357,18 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                   <Loader2 size={28} className="text-teal-400 animate-spin" />
                 </div>
                 <h3 className="text-sm font-bold text-white mb-1">
-                  {step === "switching" && "Switching to Arbitrum..."}
+                  {step === "switching" && "Preparing sub-account..."}
                   {step === "approving" && "Approving & Depositing..."}
                   {step === "transferring" && "Moving to your sub-account..."}
                 </h3>
                 <p className="text-[11px] text-gray-400 max-w-[240px]">
-                  {step === "switching" && "Please confirm the network switch in your wallet"}
+                  {step === "switching" && "Setting up your isolated sub-account and switching to Arbitrum"}
                   {step === "approving" && "Approve USDC spending, then confirm the deposit"}
                   {step === "transferring" && "Isolating your funds into your HyperCopy sub-account. This takes ~30s."}
                 </p>
 
                 <div className="flex items-center gap-2 mt-6">
-                  {["Switch", "Deposit", "Isolate"].map((s, i) => {
+                  {["Setup", "Deposit", "Isolate"].map((s, i) => {
                     const stepIdx = step === "switching" ? 0 : step === "approving" ? 1 : 2;
                     const done = i < stepIdx;
                     const active = i === stepIdx;
