@@ -166,12 +166,12 @@ const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
             axisLine={false}
             tickLine={false}
             interval={0}
-            tick={({ x, y, index, payload }) => {
+            tick={({ x, y, index, payload }: { x: number; y: number; index: number; payload: { value: string } }) => {
               if (!visibleLabels.has(index)) return <g />;
               return (
                 <text
                   x={x}
-                  y={y + 10}
+                  y={(y as number) + 10}
                   textAnchor="middle"
                   fill="rgba(165,176,176,0.5)"
                   fontSize={9}
