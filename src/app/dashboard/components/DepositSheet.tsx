@@ -9,18 +9,12 @@ import {
 import { useWallets } from "@privy-io/react-auth";
 import { ethers } from "ethers";
 import { toast } from "sonner";
-import { useArbitrumUSDCDepositWithTransfer } from "@/hooks/hyperliquid";
+import { depositToHyperliquid, getArbUSDCBalance } from "@/helpers/arbitrum";
 
 // ─── Constants ───
 const ARBITRUM_CHAIN_ID = 42161;
-const USDC_ADDRESS = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831";
 
-const ERC20_ABI = [
-  "function balanceOf(address owner) view returns (uint256)",
-  "function decimals() view returns (uint8)",
-];
-
-type DepositStep = "input" | "switching" | "depositing" | "success" | "error";
+type DepositStep = "input" | "switching" | "approving" | "depositing" | "success" | "error";
 
 interface DepositSheetProps {
   isOpen: boolean;
@@ -39,9 +33,6 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
   const [step, setStep] = useState<DepositStep>("input");
   const [txHash, setTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
-
-  // Use the existing working hook for permit + bridge deposit
-  const depositWithTransfer = useArbitrumUSDCDepositWithTransfer();
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -66,21 +57,17 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     if (!wallet) return;
     setLoadingBalance(true);
     try {
-      await wallet.switchChain(ARBITRUM_CHAIN_ID);
-      const provider = await getProvider();
-      const usdc = new (ethers as any).Contract(USDC_ADDRESS, ERC20_ABI, provider);
-      const bal = await usdc.balanceOf(wallet.address);
-      const decimals = await usdc.decimals();
-      setUsdcBalance((ethers as any).utils.formatUnits(bal, decimals));
+      const bal = await getArbUSDCBalance(wallet.address);
+      setUsdcBalance(bal);
     } catch (err) {
       console.error("Failed to load USDC balance:", err);
       setUsdcBalance("0");
     } finally {
       setLoadingBalance(false);
     }
-  }, [wallet, getProvider]);
+  }, [wallet]);
 
-  // ─── Deposit flow (now uses the permit-based hook) ───
+  // ─── Deposit flow using approve + sendUsd ───
   const handleDeposit = async () => {
     if (!wallet || !amount || parseFloat(amount) <= 0) return;
 
@@ -92,20 +79,20 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     }
 
     try {
+      // Step 1: Switch to Arbitrum
       setStep("switching");
       await wallet.switchChain(ARBITRUM_CHAIN_ID);
 
-      setStep("depositing");
-      const tx = await depositWithTransfer({ depositAmount: amount });
+      const provider = await getProvider();
+      const signer = provider.getSigner();
 
-      if (!tx) {
-        setStep("error");
-        setErrorMsg("Deposit failed or was rejected. Please try again.");
-        return;
-      }
+      // Step 2: Approve + Send (depositToHyperliquid handles both)
+      setStep("approving");
+      const result = await depositToHyperliquid(signer, amount);
 
-      setTxHash(tx.hash || null);
+      setTxHash(result.hash || null);
       setStep("success");
+      toast.success(`Deposited $${depositAmount.toFixed(2)} USDC`);
       onSuccess?.();
       await loadBalance();
     } catch (err: any) {
@@ -260,7 +247,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                 >
                   <Shield size={12} className="text-teal-400 shrink-0 mt-0.5" />
                   <p className="text-[10px] text-gray-400 leading-relaxed">
-                    USDC will be deposited from your Arbitrum wallet to your HyperLiquid perps account via gasless permit signature. Deposits typically confirm within a few minutes.
+                    USDC will be deposited from your Arbitrum wallet to your HyperLiquid perps account. Deposits typically confirm within a few minutes.
                   </p>
                 </div>
 
@@ -282,7 +269,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
             )}
 
             {/* ─── Processing Steps ─── */}
-            {(step === "switching" || step === "depositing") && (
+            {(step === "switching" || step === "approving" || step === "depositing") && (
               <div className="py-8 flex flex-col items-center text-center">
                 <div
                   className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
@@ -295,16 +282,18 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                 </div>
                 <h3 className="text-sm font-bold text-white mb-1">
                   {step === "switching" && "Switching to Arbitrum..."}
-                  {step === "depositing" && "Depositing to HyperLiquid..."}
+                  {step === "approving" && "Approving & Depositing..."}
+                  {step === "depositing" && "Confirming deposit..."}
                 </h3>
                 <p className="text-[11px] text-gray-400 max-w-[240px]">
                   {step === "switching" && "Please confirm the network switch in your wallet"}
-                  {step === "depositing" && "Sign the permit, then confirm the deposit transaction"}
+                  {step === "approving" && "Approve USDC spending, then confirm the deposit"}
+                  {step === "depositing" && "Waiting for transaction confirmation"}
                 </p>
 
                 <div className="flex items-center gap-2 mt-6">
-                  {["Switch", "Sign & Deposit"].map((s, i) => {
-                    const stepIdx = step === "switching" ? 0 : 1;
+                  {["Switch", "Approve", "Deposit"].map((s, i) => {
+                    const stepIdx = step === "switching" ? 0 : step === "approving" ? 1 : 2;
                     const done = i < stepIdx;
                     const active = i === stepIdx;
                     return (
@@ -320,7 +309,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                           {done ? <CheckCircle size={12} /> : i + 1}
                         </div>
                         <span className="text-[9px]" style={{ color: done || active ? "#2dd4bf" : "rgba(255,255,255,0.3)" }}>{s}</span>
-                        {i < 1 && (
+                        {i < 2 && (
                           <ArrowRight size={10} style={{ color: "rgba(255,255,255,0.15)" }} />
                         )}
                       </div>
