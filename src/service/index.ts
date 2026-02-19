@@ -10,7 +10,15 @@ export const connectWalletApi = async (
   });
 };
 
-// ─── Dashboard / Portfolio (real backend) ───────────────
+export const getSubAccount = async (): Promise<{ sub_account_address: string | null }> => {
+  return await get("/api/auth/sub-account");
+};
+
+export const saveSubAccount = async (subAccountAddress: string) => {
+  return await put("/api/auth/sub-account", { sub_account_address: subAccountAddress });
+};
+
+// ─── Dashboard / Portfolio ───────────────────────────────
 
 export interface DashboardSummary {
   total_balance: number;
@@ -136,7 +144,7 @@ export const userSignals = async (
   return await get(`/api/user/${x_handle}/signals`);
 };
 
-// ─── Profile (real backend) ─────────────────────────────
+// ─── Profile ─────────────────────────────────────────────
 
 export interface FollowerItem {
   name: string;
@@ -163,7 +171,7 @@ export const getProfileData = async (): Promise<ProfileDataResponse> => {
   return await get("/api/portfolio/profile");
 };
 
-// ─── Profile sub-data (still mock — needs backend) ─────
+// ─── Profile sub-data ───────────────────────────────────
 
 export interface TradersCopyingItem {
   name: string;
@@ -173,15 +181,13 @@ export interface TradersCopyingItem {
   pnlValue: number;
 }
 
-export const getProfileTradersCopyingList = async (): Promise<
-  TradersCopyingItem[]
-> => {
+export const getProfileTradersCopyingList = async (): Promise<TradersCopyingItem[]> => {
   return await get(
     "https://mock.apidog.com/m1/1147892-1140449-default/api/copyingList?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
   );
 };
 
-// ─── Settings (still mock — needs backend) ──────────────
+// ─── Settings ───────────────────────────────────────────
 
 export type TradeSizeType = "USD" | "PCT";
 export type LeverageType = "isolated" | "cross";
@@ -201,12 +207,11 @@ export interface DefaultFollowSettings {
   orderType: "market" | "limit";
 }
 
-export const getDefaultFollowSettings =
-  async (): Promise<DefaultFollowSettings> => {
-    return await get(
-      "https://mock.apidog.com/m1/1147892-1140449-default/api/defaultFollowSetting?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
-    );
-  };
+export const getDefaultFollowSettings = async (): Promise<DefaultFollowSettings> => {
+  return await get(
+    "https://mock.apidog.com/m1/1147892-1140449-default/api/defaultFollowSetting?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
+  );
+};
 
 export const updateDefaultFollowSettings = async (
   settings: { address: string } & DefaultFollowSettings
