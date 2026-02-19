@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback, useContext } from "react";
@@ -17,7 +16,7 @@ type WithdrawStep = "input" | "signing" | "processing" | "success" | "error";
 interface WithdrawSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  availableBalance: number;            // from BalanceSnapshot (HyperCopy-managed)
+  availableBalance: number;
   onSuccess?: (amount?: string) => void;
 }
 
@@ -52,18 +51,17 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
     }
 
     try {
-      // Step 1: Sign withdrawal via HL exchange client
       setStep("signing");
 
-      // HyperLiquid L1 → Arbitrum withdrawal
-      const result = await (mainExchClient as any).withdraw({
+      // HyperLiquid L1 → Arbitrum withdrawal (withdraw3 action)
+      await (mainExchClient as any).withdraw3({
         destination: wallet.address,
         amount: withdrawAmount.toString(),
       });
 
       setStep("processing");
 
-      // Step 2: Record withdrawal in backend (reduce BalanceSnapshot)
+      // Record withdrawal in backend
       try {
         await recordWithdraw(withdrawAmount);
       } catch (e) {
@@ -231,7 +229,7 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
                 >
                   <Shield size={12} className="text-purple-400 shrink-0 mt-0.5" />
                   <p className="text-[10px] text-gray-400 leading-relaxed">
-                    USDC will be withdrawn from your HyperLiquid perps account back to your Arbitrum wallet. Withdrawals typically arrive within a few minutes.
+                    USDC will be withdrawn from your HyperLiquid perps account back to your Arbitrum wallet. Withdrawals typically arrive within 3–4 minutes.
                   </p>
                 </div>
 
@@ -326,7 +324,7 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
                 >
                   <Loader2 size={12} className="text-purple-400 animate-spin shrink-0 mt-0.5" />
                   <p className="text-[10px] text-purple-300/90 leading-relaxed">
-                    Withdrawals typically arrive within <strong>1–5 minutes</strong>. Your balance has been updated.
+                    Withdrawals typically arrive within <strong>3–4 minutes</strong>. Your balance has been updated.
                   </p>
                 </div>
 
