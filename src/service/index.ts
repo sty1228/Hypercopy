@@ -55,6 +55,15 @@ export const balanceHistory = async (
   return await get(`/api/portfolio/balance-history?timeRange=${timeRange}`);
 };
 
+// ─── Deposit ────────────────────────────────────────────
+
+export const recordDeposit = async (amount: number, txHash?: string) => {
+  return await post("/api/portfolio/record-deposit", {
+    amount,
+    tx_hash: txHash || null,
+  });
+};
+
 // ─── Leaderboard ────────────────────────────────────────
 
 export interface LeaderboardItem {

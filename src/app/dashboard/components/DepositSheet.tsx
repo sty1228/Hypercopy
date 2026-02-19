@@ -10,6 +10,7 @@ import { useWallets } from "@privy-io/react-auth";
 import { ethers } from "ethers";
 import { toast } from "sonner";
 import { depositToHyperliquid, getArbUSDCBalance } from "@/helpers/arbitrum";
+import { recordDeposit } from "@/service";
 
 // ─── Constants ───
 const ARBITRUM_CHAIN_ID = 42161;
@@ -93,6 +94,14 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
       setTxHash(result.hash || null);
       setStep("success");
       toast.success(`Deposited ${depositAmount.toFixed(2)} USDC`);
+
+      // Record deposit in backend
+      try {
+        await recordDeposit(depositAmount, result.hash);
+      } catch (e) {
+        console.error("Failed to record deposit:", e);
+      }
+
       onSuccess?.(result.hash, amount);
       await loadBalance();
     } catch (err: any) {
