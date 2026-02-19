@@ -7,7 +7,6 @@ import {
   Wallet, ArrowRight, Shield,
 } from "lucide-react";
 import { useWallets } from "@privy-io/react-auth";
-import { ethers } from "ethers";
 import * as hl from "@nktkas/hyperliquid";
 import { toast } from "sonner";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
@@ -22,30 +21,60 @@ interface WithdrawSheetProps {
   onSuccess?: (amount?: string) => void;
 }
 
-/**
- * Create an ExchangeClient that bypasses Privy's chainId validation.
- * Privy rejects eth_signTypedData_v4 when domain.chainId (1337) ≠ wallet chain.
- * Raw extension provider (MetaMask/Rabby) allows it.
- */
-async function createRawExchClient(): Promise<hl.ExchangeClient | null> {
-  const raw = (window as any).ethereum;
-  if (!raw) {
-    console.warn("[Withdraw] No window.ethereum found");
-    return null;
+// ── Same direct-sign approach as DepositSheet ──
+
+function getRawExtensionProvider(): any {
+  const win = window as any;
+  if (win.ethereum?.providers?.length) {
+    const rabby = win.ethereum.providers.find((p: any) => p.isRabby);
+    if (rabby) return rabby;
+    const mm = win.ethereum.providers.find((p: any) => p.isMetaMask);
+    if (mm) return mm;
+    return win.ethereum.providers[0];
   }
+  if (win.rabby) return win.rabby;
+  return win.ethereum;
+}
+
+async function createDirectSignExchClient(walletAddress: string): Promise<hl.ExchangeClient | null> {
+  const rawProvider = getRawExtensionProvider();
+  if (!rawProvider) return null;
+
+  const customWallet = {
+    address: walletAddress as `0x${string}`,
+    getAddresses: async () => [walletAddress as `0x${string}`],
+    signTypedData: async (args: {
+      domain: any; types: any; primaryType: string; message: any;
+    }) => {
+      const { domain, types, primaryType, message } = args;
+      const payload = JSON.stringify({
+        types, primaryType, message,
+        domain: {
+          ...domain,
+          chainId: typeof domain.chainId === "bigint"
+            ? Number(domain.chainId) : domain.chainId,
+        },
+      });
+      const sig = await rawProvider.request({
+        method: "eth_signTypedData_v4",
+        params: [walletAddress, payload],
+      });
+      return sig as `0x${string}`;
+    },
+  };
+
   try {
-    const provider = new (ethers as any).providers.Web3Provider(raw);
-    const signer = provider.getSigner();
-    await signer.getAddress();
     return new hl.ExchangeClient({
-      wallet: signer as any,
+      wallet: customWallet as any,
       transport: new hl.HttpTransport(),
     });
   } catch (e) {
-    console.error("[Withdraw] Failed to create raw ExchangeClient:", e);
+    console.error("[Withdraw] Failed to create direct ExchangeClient:", e);
     return null;
   }
 }
+
+// ────────────────────────────────────────────────────────────────
 
 export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuccess }: WithdrawSheetProps) {
   const { wallets } = useWallets();
@@ -58,7 +87,6 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
   const [step, setStep] = useState<WithdrawStep>("input");
   const [errorMsg, setErrorMsg] = useState("");
 
-  // 子账户真实余额
   const [subBalance, setSubBalance] = useState<number | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
 
@@ -97,7 +125,6 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
     }
   };
 
-  // 可提金额 = min(HyperCopy记录余额, 子账户真实余额)，防止双向漂移
   const effectiveMax = subBalance !== null
     ? Math.min(availableBalance, subBalance)
     : availableBalance;
@@ -115,10 +142,10 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
     try {
       setStep("signing");
 
-      // Create raw ExchangeClient using window.ethereum (bypasses Privy chainId check)
-      const rawExchClient = await createRawExchClient();
-      const exchClientForHL = rawExchClient || mainExchClient;
-      console.log("[Withdraw] Using", rawExchClient ? "raw window.ethereum" : "Privy", "ExchangeClient");
+      // Create direct-sign ExchangeClient (bypasses Privy chainId check)
+      const directClient = await createDirectSignExchClient(wallet.address);
+      const exchClient = directClient || mainExchClient;
+      console.log("[Withdraw] Using", directClient ? "direct-sign" : "Privy", "ExchangeClient");
 
       // Step 1: 子账户 → 主账户
       let subAddr: string | null = null;
@@ -129,31 +156,29 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
 
       if (subAddr) {
         console.log("[Withdraw] Transferring from sub-account:", subAddr, "amount:", withdrawAmount);
-        await exchClientForHL.subAccountTransfer({
+        await exchClient.subAccountTransfer({
           subAccountUser: subAddr as `0x${string}`,
-          isDeposit: false, // false = 子账户 → 主账户
+          isDeposit: false,
           usd: Math.floor(withdrawAmount * 1e6),
         });
         console.log("[Withdraw] Sub→Main transfer succeeded");
-        // 等 HL 结算
         await new Promise(r => setTimeout(r, 1500));
       } else {
-        console.warn("[Withdraw] No sub-account found, withdrawing directly from main account");
+        console.warn("[Withdraw] No sub-account, withdrawing directly from main account");
       }
 
       setStep("processing");
 
       // Step 2: 主账户 → Arbitrum (withdraw3)
-      console.log("[Withdraw] Calling withdraw3 to:", wallet.address, "amount:", withdrawAmount.toFixed(2));
-      await exchClientForHL.withdraw3({
+      console.log("[Withdraw] Calling withdraw3 to:", wallet.address);
+      await exchClient.withdraw3({
         destination: wallet.address as `0x${string}`,
         amount: withdrawAmount.toFixed(2),
       });
       console.log("[Withdraw] withdraw3 succeeded");
 
-      // 记录到后端
       try { await recordWithdraw(withdrawAmount); } catch (e) {
-        console.error("[Withdraw] Failed to record withdrawal:", e);
+        console.error("[Withdraw] Failed to record:", e);
       }
 
       setStep("success");
@@ -219,7 +244,6 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
           </div>
 
           <div className="px-5 pb-6">
-            {/* ─── Input ─── */}
             {step === "input" && (
               <div className="space-y-4">
                 <div className="rounded-xl px-4 py-3 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -235,9 +259,7 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
                         {effectiveMaxRounded.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
                       </span>
                       {subBalance !== null && subBalance < availableBalance && (
-                        <p className="text-[9px] text-yellow-400 mt-0.5">
-                          Adjusted due to trading PnL
-                        </p>
+                        <p className="text-[9px] text-yellow-400 mt-0.5">Adjusted due to trading PnL</p>
                       )}
                     </div>
                   )}
@@ -267,31 +289,24 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
                 <div className="rounded-xl p-3 flex items-start gap-2" style={{ background: "rgba(168,85,247,0.04)", border: "1px solid rgba(168,85,247,0.1)" }}>
                   <Shield size={12} className="text-purple-400 shrink-0 mt-0.5" />
                   <p className="text-[10px] text-gray-400 leading-relaxed">
-                    Funds are withdrawn from your <span className="text-purple-400 font-semibold">dedicated HyperCopy sub-account</span> back to your Arbitrum wallet. Your other HL positions are never affected.
+                    Funds are withdrawn from your <span className="text-purple-400 font-semibold">dedicated HyperCopy sub-account</span> back to your Arbitrum wallet.
                   </p>
                 </div>
 
-                <button
-                  onClick={handleWithdraw}
-                  disabled={!isValid || !wallet || !mainExchClient || loadingBalance}
+                <button onClick={handleWithdraw} disabled={!isValid || !wallet || !mainExchClient || loadingBalance}
                   className="w-full py-3.5 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2"
                   style={{
-                    background: isValid ? "rgba(168,85,247,1)" : "rgba(168,85,247,0.3)",
-                    color: "#ffffff",
+                    background: isValid ? "rgba(168,85,247,1)" : "rgba(168,85,247,0.3)", color: "#ffffff",
                     boxShadow: isValid ? "0 0 25px rgba(168,85,247,0.4)" : "none",
                     opacity: isValid && wallet ? 1 : 0.5,
-                  }}
-                >
+                  }}>
                   <Upload size={16} />
-                  {!wallet ? "Connect Wallet First"
-                    : !mainExchClient ? "Enable Trading First"
-                    : loadingBalance ? "Loading balance..."
-                    : `Withdraw $${parsedAmount.toFixed(2)}`}
+                  {!wallet ? "Connect Wallet First" : !mainExchClient ? "Enable Trading First"
+                    : loadingBalance ? "Loading balance..." : `Withdraw $${parsedAmount.toFixed(2)}`}
                 </button>
               </div>
             )}
 
-            {/* ─── Processing ─── */}
             {(step === "signing" || step === "processing") && (
               <div className="py-8 flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(168,85,247,0.08)", border: "1.5px solid rgba(168,85,247,0.2)" }}>
@@ -301,15 +316,12 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
                   {step === "signing" ? "Moving from sub-account..." : "Sending to your wallet..."}
                 </h3>
                 <p className="text-[11px] text-gray-400 max-w-[240px]">
-                  {step === "signing"
-                    ? "Transferring funds from your HyperCopy sub-account to main account"
-                    : "Initiating withdrawal to your Arbitrum wallet"}
+                  {step === "signing" ? "Transferring from your HyperCopy sub-account" : "Initiating withdrawal to your Arbitrum wallet"}
                 </p>
                 <div className="flex items-center gap-2 mt-6">
                   {["Sub→Main", "Withdraw"].map((s, i) => {
                     const stepIdx = step === "signing" ? 0 : 1;
-                    const done = i < stepIdx;
-                    const active = i === stepIdx;
+                    const done = i < stepIdx; const active = i === stepIdx;
                     return (
                       <div key={s} className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold"
@@ -329,7 +341,6 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
               </div>
             )}
 
-            {/* ─── Success ─── */}
             {step === "success" && (
               <div className="py-8 flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(168,85,247,0.15)", border: "1.5px solid rgba(168,85,247,0.3)" }}>
@@ -340,7 +351,7 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
                 <div className="rounded-lg px-3 py-2 mt-2 mb-5 flex items-start gap-2" style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.15)" }}>
                   <Loader2 size={12} className="text-purple-400 animate-spin shrink-0 mt-0.5" />
                   <p className="text-[10px] text-purple-300/90 leading-relaxed">
-                    Funds are leaving your sub-account and heading to Arbitrum. Typically arrives within <strong>3–4 minutes</strong>.
+                    Funds heading to Arbitrum. Typically arrives within <strong>3–4 minutes</strong>.
                   </p>
                 </div>
                 <button onClick={handleClose} className="px-8 py-2.5 rounded-xl text-[11px] font-bold cursor-pointer transition-all active:scale-95" style={{ background: "rgba(168,85,247,1)", color: "#ffffff" }}>
@@ -349,7 +360,6 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
               </div>
             )}
 
-            {/* ─── Error ─── */}
             {step === "error" && (
               <div className="py-8 flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(239,68,68,0.1)", border: "1.5px solid rgba(239,68,68,0.2)" }}>

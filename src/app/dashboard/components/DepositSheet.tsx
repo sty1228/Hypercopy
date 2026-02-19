@@ -24,32 +24,86 @@ interface DepositSheetProps {
   onSuccess?: (txHash?: string, amount?: string) => void;
 }
 
-/**
- * Create an ExchangeClient that bypasses Privy's chainId validation.
- * Privy's provider rejects eth_signTypedData_v4 when domain.chainId (1337)
- * doesn't match the wallet's current chain. window.ethereum (the raw extension
- * provider from MetaMask/Rabby) does NOT have this restriction.
- */
-async function createRawExchClient(): Promise<hl.ExchangeClient | null> {
-  const raw = (window as any).ethereum;
-  if (!raw) {
-    console.warn("[SubAccount] No window.ethereum found");
+// ────────────────────────────────────────────────────────────────
+// The core fix: bypass Privy's signTypedData chainId validation
+//
+// Problem chain:
+//   HL SDK signL1Action → domain.chainId = 1337 (hardcoded)
+//   → ethers signer._signTypedData(domain, types, msg)
+//   → Privy provider.send("eth_signTypedData_v4", ...)
+//   → Privy checks: domain.chainId (1337) ≠ wallet chain → REJECT
+//
+// Solution:
+//   Create a viem-like wallet that calls eth_signTypedData_v4
+//   directly on the RAW extension provider (Rabby), skipping Privy.
+//   app.hyperliquid.xyz does the same thing and works fine with Rabby.
+// ────────────────────────────────────────────────────────────────
+
+function getRawExtensionProvider(): any {
+  const win = window as any;
+  // EIP-5749 multi-provider: find the actual extension
+  if (win.ethereum?.providers?.length) {
+    const rabby = win.ethereum.providers.find((p: any) => p.isRabby);
+    if (rabby) return rabby;
+    const mm = win.ethereum.providers.find((p: any) => p.isMetaMask);
+    if (mm) return mm;
+    return win.ethereum.providers[0];
+  }
+  if (win.rabby) return win.rabby;
+  return win.ethereum;
+}
+
+async function createDirectSignExchClient(walletAddress: string): Promise<hl.ExchangeClient | null> {
+  const rawProvider = getRawExtensionProvider();
+  if (!rawProvider) {
+    console.warn("[DirectSign] No raw extension provider found");
     return null;
   }
+  console.log("[DirectSign] Raw provider found:", rawProvider.isRabby ? "Rabby" : rawProvider.isMetaMask ? "MetaMask" : "unknown");
+
+  // Custom viem-like wallet — SDK detects it by signTypedData.length === 1
+  const customWallet = {
+    address: walletAddress as `0x${string}`,
+    getAddresses: async () => [walletAddress as `0x${string}`],
+    // Single param → viem style → SDK will include EIP712Domain in types
+    signTypedData: async (args: {
+      domain: any; types: any; primaryType: string; message: any;
+    }) => {
+      const { domain, types, primaryType, message } = args;
+      const payload = JSON.stringify({
+        types,
+        domain: {
+          ...domain,
+          // Ensure chainId is a plain number (not BigInt)
+          chainId: typeof domain.chainId === "bigint"
+            ? Number(domain.chainId) : domain.chainId,
+        },
+        primaryType,
+        message,
+      });
+      console.log("[DirectSign] Signing with domain.chainId:", domain.chainId);
+      const sig = await rawProvider.request({
+        method: "eth_signTypedData_v4",
+        params: [walletAddress, payload],
+      });
+      return sig as `0x${string}`;
+    },
+  };
+
   try {
-    const provider = new (ethers as any).providers.Web3Provider(raw);
-    const signer = provider.getSigner();
-    // Verify we can get an address (confirms wallet is connected)
-    await signer.getAddress();
-    return new hl.ExchangeClient({
-      wallet: signer as any,
+    const client = new hl.ExchangeClient({
+      wallet: customWallet as any,
       transport: new hl.HttpTransport(),
     });
+    console.log("[DirectSign] ExchangeClient created successfully");
+    return client;
   } catch (e) {
-    console.error("[SubAccount] Failed to create raw ExchangeClient:", e);
+    console.error("[DirectSign] Failed to create ExchangeClient:", e);
     return null;
   }
 }
+
+// ────────────────────────────────────────────────────────────────
 
 export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositSheetProps) {
   const { wallets } = useWallets();
@@ -63,7 +117,6 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
   const [txHash, setTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // HL 主账户状态
   const [hlWithdrawable, setHlWithdrawable] = useState<number | null>(null);
   const [hlHasPositions, setHlHasPositions] = useState(false);
 
@@ -100,14 +153,13 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     }
   }, [wallet]);
 
-  // 查询 HL 主账户 withdrawable + 是否有仓位
   const loadHLState = useCallback(async () => {
     if (!infoClient || !wallet) return;
     try {
       const state = await infoClient.clearinghouseState({ user: wallet.address as `0x${string}` });
       const w = parseFloat(state?.withdrawable ?? "0");
       const pos = parseFloat(state?.marginSummary?.totalNtlPos ?? "0");
-      console.log("[Deposit] HL main account withdrawable:", w, "totalNtlPos:", pos);
+      console.log("[Deposit] HL withdrawable:", w, "totalNtlPos:", pos);
       setHlWithdrawable(w);
       setHlHasPositions(pos > 0);
     } catch (e) {
@@ -121,9 +173,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
   const balNum = parseFloat(usdcBalance || "0");
   const hasBlockingPositions = hlHasPositions && hlWithdrawable !== null && hlWithdrawable < parsedAmount && parsedAmount > 0;
 
-  // 获取或创建子账户地址
   const getOrCreateSubAccount = async (exchClient: hl.ExchangeClient): Promise<string | null> => {
-    // 1. 先查后端是否已存
     try {
       const res = await getSubAccount();
       if (res.sub_account_address) {
@@ -134,88 +184,77 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
       console.log("[SubAccount] Backend lookup failed:", e);
     }
 
-    // 2. 创建子账户 — 用 raw ExchangeClient 绕过 Privy chainId 限制
-    // SDK 返回: { status: "ok", response: { type: "createSubAccount", data: "0x..." } }
     try {
       console.log("[SubAccount] Creating sub-account...");
       const result = await exchClient.createSubAccount({ name: "HyperCopy" });
-      console.log("[SubAccount] createSubAccount result:", JSON.stringify(result));
-
+      console.log("[SubAccount] Result:", JSON.stringify(result));
       const addr = result.response.data;
       if (addr) {
         console.log("[SubAccount] Created address:", addr);
         await saveSubAccount(addr);
         return addr;
-      } else {
-        console.error("[SubAccount] No address in response");
       }
     } catch (e: any) {
       console.error("[SubAccount] createSubAccount failed:", e);
-      console.error("[SubAccount] Error detail:", e?.message, e?.response);
+      console.error("[SubAccount] Detail:", e?.message);
     }
     return null;
   };
 
   const handleDeposit = async () => {
     if (!wallet || !amount || parsedAmount <= 0) return;
-
     if (parsedAmount > balNum) { toast.error("Insufficient USDC balance"); return; }
     if (!mainExchClient) { toast.error("Enable trading first"); return; }
-
     if (hasBlockingPositions) {
-      toast.error("Your HL main account has positions using all margin. Please reduce positions on app.hyperliquid.xyz first.");
+      toast.error("Reduce your HL positions first — no free margin for isolation.");
       return;
     }
 
     try {
-      // Step 1: Switch to Arbitrum
       setStep("switching");
+
+      // Create direct-sign ExchangeClient (bypasses Privy chainId check)
+      const directClient = await createDirectSignExchClient(wallet.address);
+      if (!directClient) {
+        throw new Error("Failed to create signing client. Please use an external wallet like Rabby or MetaMask.");
+      }
+
+      // Create/get sub-account (uses direct signing → chainId 1337 OK)
+      const subAddr = await getOrCreateSubAccount(directClient);
+
+      // Switch to Arbitrum for USDC deposit
       await wallet.switchChain(ARBITRUM_CHAIN_ID);
-      console.log("[Deposit] Switched to Arbitrum");
-
-      // Create raw ExchangeClient using window.ethereum (bypasses Privy chainId check)
-      // Privy's provider rejects signTypedData when domain.chainId=1337 ≠ wallet chain
-      // Raw extension provider (MetaMask/Rabby) allows it
-      const rawExchClient = await createRawExchClient();
-      const exchClientForHL = rawExchClient || mainExchClient;
-      console.log("[Deposit] Using", rawExchClient ? "raw window.ethereum" : "Privy", "ExchangeClient");
-
-      // Create/get sub-account
-      const subAddr = await getOrCreateSubAccount(exchClientForHL);
-
-      // Get signer for USDC deposit
       const provider = await getProvider();
       const signer = provider.getSigner();
 
-      // Step 2: Deposit Arbitrum → HL main account
+      // Deposit USDC to HL bridge
       setStep("approving");
       const result = await depositToHyperliquid(signer, amount);
       setTxHash(result.hash || null);
 
-      // Step 3: Transfer main account → sub account
+      // Wait for HL credit (~30s), then transfer to sub-account
       setStep("transferring");
-
-      // 等 HL 到账（约 30s）
       await new Promise(r => setTimeout(r, 30_000));
 
       if (subAddr) {
         try {
-          await exchClientForHL.subAccountTransfer({
+          // Re-create direct client (signer context may have changed after switchChain)
+          const directClient2 = await createDirectSignExchClient(wallet.address);
+          await (directClient2 || directClient).subAccountTransfer({
             subAccountUser: subAddr as `0x${string}`,
             isDeposit: true,
             usd: Math.floor(parsedAmount * 1e6),
           });
-          console.log("[SubAccount] Transfer to sub-account succeeded");
+          console.log("[SubAccount] Transfer succeeded");
         } catch (e) {
-          console.error("[SubAccount] subAccountTransfer failed:", e);
+          console.error("[SubAccount] Transfer failed:", e);
           toast.warning("Funds deposited to HL but sub-account transfer failed. Your funds are safe in your main HL account.");
         }
       } else {
-        console.warn("[SubAccount] No sub-account address, skipping transfer");
+        console.warn("[SubAccount] No address, skipping transfer");
         toast.warning("Funds deposited to HL but sub-account creation failed. Your funds are safe in your main HL account.");
       }
 
-      // 记录到后端
       try { await recordDeposit(parsedAmount, result.hash); } catch {}
 
       setStep("success");
@@ -261,13 +300,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
           transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
         }}
       >
-        <div
-          className="rounded-t-3xl overflow-hidden"
-          style={{
-            background: "linear-gradient(180deg, #111820 0%, #0a0f14 100%)",
-            border: "1px solid rgba(255,255,255,0.1)", borderBottom: "none",
-          }}
-        >
+        <div className="rounded-t-3xl overflow-hidden" style={{ background: "linear-gradient(180deg, #111820 0%, #0a0f14 100%)", border: "1px solid rgba(255,255,255,0.1)", borderBottom: "none" }}>
           <div className="flex justify-center pt-3 pb-1">
             <div className="w-10 h-1 rounded-full bg-white/20" />
           </div>
@@ -288,7 +321,6 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
           </div>
 
           <div className="px-5 pb-6">
-            {/* ─── Input ─── */}
             {step === "input" && (
               <div className="space-y-4">
                 <div className="rounded-xl px-4 py-3 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -320,63 +352,45 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                   {parsedAmount > 0 && parsedAmount < 5 && <p className="text-[10px] text-red-400 mt-1 ml-1">Minimum deposit is 5 USDC</p>}
                 </div>
 
-                {/* ─── Warning: HL positions blocking transfer ─── */}
                 {hasBlockingPositions && (
                   <div className="rounded-xl p-3 flex items-start gap-2" style={{ background: "rgba(234,179,8,0.06)", border: "1px solid rgba(234,179,8,0.2)" }}>
                     <AlertTriangle size={14} className="text-yellow-400 shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-[11px] text-yellow-300 font-semibold mb-0.5">
-                        Cannot isolate funds
-                      </p>
+                      <p className="text-[11px] text-yellow-300 font-semibold mb-0.5">Cannot isolate funds</p>
                       <p className="text-[10px] text-gray-400 leading-relaxed">
-                        Your HyperLiquid main account has open positions using all available margin
-                        (withdrawable: ${hlWithdrawable?.toFixed(2) ?? "0.00"}).
-                        Deposited funds would be absorbed by existing positions instead of being isolated.
+                        Your HL main account has positions using all margin (withdrawable: ${hlWithdrawable?.toFixed(2) ?? "0.00"}). Deposited funds would be absorbed by existing positions.
                       </p>
-                      <a
-                        href="https://app.hyperliquid.xyz/trade"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-yellow-400 font-semibold hover:text-yellow-300"
-                      >
-                        Reduce positions on HyperLiquid
-                        <ExternalLink size={10} />
+                      <a href="https://app.hyperliquid.xyz/trade" target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-yellow-400 font-semibold hover:text-yellow-300">
+                        Reduce positions on HyperLiquid <ExternalLink size={10} />
                       </a>
                     </div>
                   </div>
                 )}
 
-                {/* ─── Info banner ─── */}
                 {!hasBlockingPositions && (
                   <div className="rounded-xl p-3 flex items-start gap-2" style={{ background: "rgba(45,212,191,0.04)", border: "1px solid rgba(45,212,191,0.1)" }}>
                     <Shield size={12} className="text-teal-400 shrink-0 mt-0.5" />
                     <p className="text-[10px] text-gray-400 leading-relaxed">
-                      Your USDC goes <span className="text-teal-400 font-semibold">directly into your own HyperLiquid sub-account</span> — HyperCopy never holds or controls your funds. We route copy trades on your behalf. You stay in full self-custody at all times.
+                      Your USDC goes <span className="text-teal-400 font-semibold">directly into your own HyperLiquid sub-account</span> — HyperCopy never holds or controls your funds.
                     </p>
                   </div>
                 )}
 
-                <button
-                  onClick={handleDeposit}
-                  disabled={!isValid || !wallet || !mainExchClient}
+                <button onClick={handleDeposit} disabled={!isValid || !wallet || !mainExchClient}
                   className="w-full py-3.5 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2"
                   style={{
-                    background: isValid ? "rgba(45,212,191,1)" : "rgba(45,212,191,0.3)",
-                    color: "#0a0f14",
+                    background: isValid ? "rgba(45,212,191,1)" : "rgba(45,212,191,0.3)", color: "#0a0f14",
                     boxShadow: isValid ? "0 0 25px rgba(45,212,191,0.4)" : "none",
                     opacity: isValid && wallet ? 1 : 0.5,
-                  }}
-                >
+                  }}>
                   <Download size={16} />
-                  {!wallet ? "Connect Wallet First"
-                    : !mainExchClient ? "Enable Trading First"
-                    : hasBlockingPositions ? "Reduce HL Positions First"
-                    : `Deposit $${parsedAmount.toFixed(2)}`}
+                  {!wallet ? "Connect Wallet First" : !mainExchClient ? "Enable Trading First"
+                    : hasBlockingPositions ? "Reduce HL Positions First" : `Deposit $${parsedAmount.toFixed(2)}`}
                 </button>
               </div>
             )}
 
-            {/* ─── Processing ─── */}
             {(step === "switching" || step === "approving" || step === "transferring") && (
               <div className="py-8 flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(45,212,191,0.08)", border: "1.5px solid rgba(45,212,191,0.2)" }}>
@@ -388,16 +402,14 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                   {step === "transferring" && "Moving to your sub-account..."}
                 </h3>
                 <p className="text-[11px] text-gray-400 max-w-[240px]">
-                  {step === "switching" && "Setting up your isolated sub-account and switching to Arbitrum"}
+                  {step === "switching" && "Sign the sub-account creation request in your wallet"}
                   {step === "approving" && "Approve USDC spending, then confirm the deposit"}
-                  {step === "transferring" && "Isolating your funds into your HyperCopy sub-account. This takes ~30s."}
+                  {step === "transferring" && "Isolating your funds into your HyperCopy sub-account. ~30s."}
                 </p>
-
                 <div className="flex items-center gap-2 mt-6">
                   {["Setup", "Deposit", "Isolate"].map((s, i) => {
                     const stepIdx = step === "switching" ? 0 : step === "approving" ? 1 : 2;
-                    const done = i < stepIdx;
-                    const active = i === stepIdx;
+                    const done = i < stepIdx; const active = i === stepIdx;
                     return (
                       <div key={s} className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold"
@@ -417,7 +429,6 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
               </div>
             )}
 
-            {/* ─── Success ─── */}
             {step === "success" && (
               <div className="py-8 flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(45,212,191,0.15)", border: "1.5px solid rgba(45,212,191,0.3)" }}>
@@ -428,13 +439,12 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                 <div className="rounded-lg px-3 py-2 mt-2 mb-3 flex items-start gap-2" style={{ background: "rgba(45,212,191,0.06)", border: "1px solid rgba(45,212,191,0.15)" }}>
                   <Shield size={12} className="text-teal-400 shrink-0 mt-0.5" />
                   <p className="text-[10px] text-teal-300/90 leading-relaxed">
-                    Funds are in <strong>your dedicated sub-account</strong> — completely isolated from your other HL positions. HyperCopy never touches them directly.
+                    Funds are in <strong>your dedicated sub-account</strong> — completely isolated from your other HL positions.
                   </p>
                 </div>
                 {txHash && (
                   <a href={`https://arbiscan.io/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[10px] text-teal-400 mb-5 hover:underline">
-                    <span>View on Arbiscan</span>
-                    <ExternalLink size={10} />
+                    <span>View on Arbiscan</span> <ExternalLink size={10} />
                   </a>
                 )}
                 <button onClick={handleClose} className="px-8 py-2.5 rounded-xl text-[11px] font-bold cursor-pointer transition-all active:scale-95" style={{ background: "rgba(45,212,191,1)", color: "#0a0f14" }}>
@@ -443,7 +453,6 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
               </div>
             )}
 
-            {/* ─── Error ─── */}
             {step === "error" && (
               <div className="py-8 flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(239,68,68,0.1)", border: "1.5px solid rgba(239,68,68,0.2)" }}>
