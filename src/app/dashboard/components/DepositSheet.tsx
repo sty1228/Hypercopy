@@ -19,7 +19,7 @@ type DepositStep = "input" | "switching" | "approving" | "depositing" | "success
 interface DepositSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (txHash?: string, amount?: string) => void;
 }
 
 export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositSheetProps) {
@@ -92,8 +92,8 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
 
       setTxHash(result.hash || null);
       setStep("success");
-      toast.success(`Deposited $${depositAmount.toFixed(2)} USDC`);
-      onSuccess?.();
+      toast.success(`Deposited ${depositAmount.toFixed(2)} USDC`);
+      onSuccess?.(result.hash, amount);
       await loadBalance();
     } catch (err: any) {
       console.error("Deposit failed:", err);
@@ -334,13 +334,19 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                 >
                   <CheckCircle size={28} className="text-teal-400" />
                 </div>
-                <h3 className="text-sm font-bold text-white mb-1">Deposit Successful!</h3>
+                <h3 className="text-sm font-bold text-white mb-1">Deposit Submitted!</h3>
                 <p className="text-[11px] text-gray-400 mb-1">
-                  ${parsedAmount.toFixed(2)} USDC deposited to HyperLiquid
+                  ${parsedAmount.toFixed(2)} USDC sent to HyperLiquid bridge
                 </p>
-                <p className="text-[10px] text-gray-500 mb-5">
-                  Funds will appear in your perps account shortly
-                </p>
+                <div
+                  className="rounded-lg px-3 py-2 mt-2 mb-3 flex items-start gap-2"
+                  style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}
+                >
+                  <Loader2 size={12} className="text-amber-400 animate-spin shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-amber-300/90 leading-relaxed">
+                    HyperLiquid typically credits deposits within <strong>1–2 minutes</strong>. Your balance will update automatically once confirmed. You can safely close this.
+                  </p>
+                </div>
 
                 {txHash && (
                   <a

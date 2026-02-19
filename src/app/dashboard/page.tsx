@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useContext } from "react";
+import { useEffect, useState, useCallback, useContext, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
@@ -22,7 +22,7 @@ import {
 } from "@/service";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
-import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download } from "lucide-react";
+import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Loader2, Clock, ExternalLink } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import PositionDetail, { PositionDetailData, positionExtendedData } from "./components/PositionDetail";
 import CopyingSheet from "./components/CopyingSheet";
@@ -32,6 +32,12 @@ import DepositSheet from "./components/DepositSheet";
 export interface BalanceChartData {
   label: string;
   value: number;
+}
+
+interface PendingDeposit {
+  amount: string;
+  txHash: string;
+  timestamp: number;
 }
 
 const IconWithTooltip = ({ tooltip, children }: { tooltip: string; children: React.ReactNode }) => {
@@ -60,22 +66,15 @@ const Home = () => {
   const { wallets } = useWallets();
   const wallet = wallets?.[0];
 
-  // ── HyperLiquid context (builder fee check) ──
   const { builderFeeApproved } = useContext(HyperLiquidContext);
 
-  // ── Auth state ──
   const [authReady, setAuthReady] = useState(false);
-
-  // ── Data from API ──
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [profile, setProfile] = useState<ProfileDataResponse | null>(null);
   const [positions, setPositions] = useState<PositionItem[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // ── Builder dismiss state ──
   const [builderDismissed, setBuilderDismissed] = useState(false);
 
-  // ── UI state ──
   const [timeRange, setTimeRange] = useState<TimeRange>("M");
   const [chartData, setChartData] = useState<BalanceChartData[]>([]);
   const [chartAnimated, setChartAnimated] = useState(false);
@@ -87,6 +86,10 @@ const Home = () => {
   const [showCopiers, setShowCopiers] = useState(false);
   const [showActiveTrades, setShowActiveTrades] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
+
+  // ── Pending deposit state ──
+  const [pendingDeposit, setPendingDeposit] = useState<PendingDeposit | null>(null);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   // ── 1. Privy → Backend JWT sync ──
   useEffect(() => {
@@ -101,7 +104,7 @@ const Home = () => {
       setChartData([]);
       return;
     }
-    if (!wallet?.address) return; // wait for wallet
+    if (!wallet?.address) return;
 
     const existing = localStorage.getItem("token");
     if (existing) {
@@ -117,7 +120,7 @@ const Home = () => {
       .catch((err) => console.error("Auth sync failed:", err));
   }, [authenticated, wallet?.address]);
 
-  // ── 2. Fetch dashboard data when auth ready ──
+  // ── 2. Fetch dashboard data ──
   const fetchDashboard = useCallback(async () => {
     if (!authReady) return;
     setLoading(true);
@@ -127,7 +130,14 @@ const Home = () => {
         getOpenPositions(),
         getProfileData(),
       ]);
-      if (s.status === "fulfilled") setSummary(s.value);
+      if (s.status === "fulfilled") {
+        setSummary(s.value);
+        // Auto-clear pending deposit if balance increased
+        if (pendingDeposit && s.value.total_balance > (summary?.total_balance ?? 0)) {
+          setPendingDeposit(null);
+          if (pollRef.current) clearInterval(pollRef.current);
+        }
+      }
       if (p.status === "fulfilled") setPositions(p.value);
       if (prof.status === "fulfilled") setProfile(prof.value);
     } catch (err) {
@@ -135,11 +145,49 @@ const Home = () => {
     } finally {
       setLoading(false);
     }
-  }, [authReady]);
+  }, [authReady, pendingDeposit, summary?.total_balance]);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  // ── 3. Animate balance when summary loads ──
+  // ── Clean up polling on unmount ──
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  // ── Auto-expire pending deposit after 3 minutes ──
+  useEffect(() => {
+    if (!pendingDeposit) return;
+    const timeout = setTimeout(() => {
+      setPendingDeposit(null);
+      if (pollRef.current) clearInterval(pollRef.current);
+    }, 180000); // 3 minutes
+    return () => clearTimeout(timeout);
+  }, [pendingDeposit]);
+
+  // ── Handle deposit success ──
+  const handleDepositSuccess = useCallback((txHash?: string, amount?: string) => {
+    setPendingDeposit({
+      amount: amount || "0",
+      txHash: txHash || "",
+      timestamp: Date.now(),
+    });
+
+    // Start polling every 15s for 2 minutes
+    if (pollRef.current) clearInterval(pollRef.current);
+    let count = 0;
+    fetchDashboard();
+    pollRef.current = setInterval(() => {
+      fetchDashboard();
+      count++;
+      if (count >= 8) {
+        if (pollRef.current) clearInterval(pollRef.current);
+      }
+    }, 15000);
+  }, [fetchDashboard]);
+
+  // ── 3. Animate balance ──
   useEffect(() => {
     if (!summary) { setBalance(0); setTodayGain(0); return; }
     const bTarget = summary.total_balance;
@@ -179,7 +227,6 @@ const Home = () => {
   const totalTrades = summary?.total_trades ?? 0;
   const copyingCount = profile?.followingCount ?? 0;
 
-  // Map positions from API → component format
   const currentPositions = positions.map((p, idx) => ({
     id: idx + 1,
     token: p.ticker,
@@ -192,10 +239,9 @@ const Home = () => {
     entry: p.entry_price,
   }));
 
-  // TODO: Replace with real API when backend has GET /api/portfolio/following
   const followedTraders: { id: number; name: string; avatar: string; avatarBg: string; portfolioPercent: number; profit: number; ta: number }[] = [];
 
-  // ── Chart helpers (unchanged) ──
+  // ── Chart helpers ──
   const getSampledData = () => {
     if (chartData.length <= 14) return chartData;
     const s = Math.ceil(chartData.length / 14);
@@ -238,7 +284,6 @@ const Home = () => {
     return getPathD() + " L 100 80 L 0 80 Z";
   };
 
-  // ── Handlers ──
   const handleLogout = async () => {
     localStorage.removeItem("token");
     await logout();
@@ -260,6 +305,7 @@ const Home = () => {
         @keyframes dotAppear { from { transform: translate(-50%, -50%) scale(0); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes pulse-glow { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
         .chart-line { stroke-dasharray: 1000; stroke-dashoffset: 1000; }
         .chart-line.animated { animation: drawLine 2.5s ease-out forwards; }
         .chart-area { opacity: 0; }
@@ -275,7 +321,7 @@ const Home = () => {
         <div className="absolute bottom-1/3 -right-20 w-[200px] h-[200px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)", filter: "blur(40px)" }} />
       </div>
 
-      {/* Login Banner — only when NOT connected */}
+      {/* Login Banner */}
       {!authenticated && (
         <div
           className="relative z-10 mx-3 mt-2 mb-1 rounded-lg px-3 py-2 flex items-center justify-between cursor-pointer transition-all duration-300 hover:scale-[1.01]"
@@ -303,6 +349,48 @@ const Home = () => {
           onApproved={() => setBuilderDismissed(true)}
           onDismiss={() => setBuilderDismissed(true)}
         />
+      )}
+
+      {/* ── Pending Deposit Banner ── */}
+      {pendingDeposit && (
+        <div
+          className="relative z-10 mx-3 mt-2 mb-1 rounded-lg px-3 py-2.5 flex items-center justify-between"
+          style={{
+            background: "linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(251,191,36,0.02) 100%)",
+            border: "1px solid rgba(251,191,36,0.2)",
+          }}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(251,191,36,0.15)" }}>
+              <Loader2 size={14} className="text-amber-400 animate-spin" />
+            </div>
+            <div>
+              <p className="text-[10px] font-semibold text-amber-300">Deposit arriving...</p>
+              <p className="text-[9px] text-gray-500">Usually takes 1–2 min to credit</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {pendingDeposit.txHash && (
+              <a
+                href={`https://arbiscan.io/tx/${pendingDeposit.txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[9px] text-amber-400/70 hover:text-amber-400 flex items-center gap-0.5"
+              >
+                Tx <ExternalLink size={8} />
+              </a>
+            )}
+            <button
+              onClick={() => {
+                setPendingDeposit(null);
+                if (pollRef.current) clearInterval(pollRef.current);
+              }}
+              className="text-[9px] text-gray-500 hover:text-gray-300 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Header */}
@@ -366,16 +454,27 @@ const Home = () => {
                   ))}
                 </>
               ) : (
-                <div className="flex items-center justify-center h-full">
-                  <span className="text-[10px] text-gray-600">
-                    {authenticated ? "No balance history yet" : "Connect wallet to view chart"}
-                  </span>
-                </div>
+                /* Empty chart: flat baseline with subtle glow */
+                <svg width="100%" height="100%" viewBox="0 0 100 80" preserveAspectRatio="none" className="absolute inset-0">
+                  <defs>
+                    <linearGradient id="emptyAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.06" />
+                      <stop offset="100%" stopColor="#2dd4bf" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  {/* Flat baseline */}
+                  <line x1="0" y1="40" x2="100" y2="40" stroke="#2dd4bf" strokeWidth="0.5" vectorEffect="non-scaling-stroke" opacity="0.3" />
+                  {/* Subtle area fill below the line */}
+                  <rect x="0" y="40" width="100" height="40" fill="url(#emptyAreaGradient)" />
+                  {/* Dot indicators at edges */}
+                  <circle cx="0" cy="40" r="1.5" fill="#2dd4bf" opacity="0.4" />
+                  <circle cx="100" cy="40" r="1.5" fill="#2dd4bf" opacity="0.4" />
+                </svg>
               )}
             </div>
             <div className="flex justify-between mb-3">
               {timelineLabels.map((label, i) => (
-                <span key={i} className="text-[7px] text-gray-500 font-medium" style={{ opacity: chartAnimated ? 1 : 0, transition: `opacity 0.3s ease ${0.5 + i * 0.05}s` }}>{label}</span>
+                <span key={i} className="text-[7px] text-gray-500 font-medium" style={{ opacity: chartAnimated || pointPositions.length === 0 ? 1 : 0, transition: `opacity 0.3s ease ${0.5 + i * 0.05}s` }}>{label}</span>
               ))}
             </div>
 
@@ -558,7 +657,11 @@ const Home = () => {
         />
       )}
       {selectedPos && <PositionDetail pos={selectedPos} onClose={() => setSelectedPos(null)} />}
-      <DepositSheet isOpen={showDeposit} onClose={() => setShowDeposit(false)} onSuccess={fetchDashboard} />
+      <DepositSheet
+        isOpen={showDeposit}
+        onClose={() => setShowDeposit(false)}
+        onSuccess={handleDepositSuccess}
+      />
     </div>
   );
 };
