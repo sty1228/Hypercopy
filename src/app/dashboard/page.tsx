@@ -23,12 +23,13 @@ import {
 } from "@/service";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
-import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Loader2, Clock, ExternalLink } from "lucide-react";
+import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Upload, Loader2, Clock, ExternalLink } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import PositionDetail, { PositionDetailData, positionExtendedData } from "./components/PositionDetail";
 import CopyingSheet from "./components/CopyingSheet";
 import ActiveTradesSheet from "./components/ActiveTradesSheet";
 import DepositSheet from "./components/DepositSheet";
+import WithdrawSheet from "./components/WithdrawSheet";
 
 export interface BalanceChartData {
   label: string;
@@ -99,6 +100,7 @@ const Home = () => {
   const [showCopiers, setShowCopiers] = useState(false);
   const [showActiveTrades, setShowActiveTrades] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
 
   // ── Pending deposit state ──
   const [pendingDeposit, setPendingDeposit] = useState<PendingDeposit | null>(null);
@@ -414,14 +416,26 @@ const Home = () => {
                   )}
                 </div>
               </div>
-              <Button
-                onClick={() => authenticated ? setShowDeposit(true) : login()}
-                className="bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-[11px] font-bold rounded-lg px-4 py-2.5 h-auto transition-all cursor-pointer gap-1"
-                style={{ boxShadow: "0 0 25px rgba(45,212,191,0.4)" }}
-              >
-                <Download size={12} />
-                {authenticated ? "Deposit" : "Connect"}
-              </Button>
+              <div className="flex gap-2">
+                {authenticated && balance > 0 && (
+                  <Button
+                    onClick={() => setShowWithdraw(true)}
+                    className="bg-transparent hover:bg-white/10 text-purple-400 text-[11px] font-bold rounded-lg px-3 py-2.5 h-auto transition-all cursor-pointer gap-1"
+                    style={{ border: "1px solid rgba(168,85,247,0.3)" }}
+                  >
+                    <Upload size={12} />
+                    Withdraw
+                  </Button>
+                )}
+                <Button
+                  onClick={() => authenticated ? setShowDeposit(true) : login()}
+                  className="bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-[11px] font-bold rounded-lg px-4 py-2.5 h-auto transition-all cursor-pointer gap-1"
+                  style={{ boxShadow: "0 0 25px rgba(45,212,191,0.4)" }}
+                >
+                  <Download size={12} />
+                  {authenticated ? "Deposit" : "Connect"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -579,6 +593,12 @@ const Home = () => {
         isOpen={showDeposit}
         onClose={() => setShowDeposit(false)}
         onSuccess={handleDepositSuccess}
+      />
+      <WithdrawSheet
+        isOpen={showWithdraw}
+        onClose={() => setShowWithdraw(false)}
+        availableBalance={balance}
+        onSuccess={() => fetchDashboard()}
       />
     </div>
   );

@@ -64,6 +64,12 @@ export const recordDeposit = async (amount: number, txHash?: string) => {
   });
 };
 
+// ─── Withdraw ───────────────────────────────────────────
+
+export const recordWithdraw = async (amount: number) => {
+  return await post("/api/portfolio/record-withdraw", { amount });
+};
+
 // ─── Leaderboard ────────────────────────────────────────
 
 export interface LeaderboardItem {
