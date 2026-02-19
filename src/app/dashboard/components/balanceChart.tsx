@@ -103,25 +103,27 @@ const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
   const lastValue = chartData[chartData.length - 1]?.value ?? 0;
   const isPositive = lastValue >= refValue;
 
-  // 计算要显示的刻度：最多 6 个，均匀分布
-  const tickIndices: number[] = [];
+  // 计算要显示的刻度：均匀间隔，最多 6-7 个
+  const visibleLabels = new Set<number>();
   const len = chartData.length;
-  if (len <= 6) {
-    for (let i = 0; i < len; i++) tickIndices.push(i);
+  if (len <= 7) {
+    for (let i = 0; i < len; i++) visibleLabels.add(i);
   } else {
-    for (let i = 0; i < 6; i++) {
-      tickIndices.push(Math.round((i * (len - 1)) / 5));
+    const step = Math.ceil(len / 6);
+    for (let i = 0; i < len; i += step) {
+      visibleLabels.add(i);
     }
+    visibleLabels.add(len - 1); // 始终显示最后一个
   }
 
-  // 去重标签
-  const visibleLabels = new Set<number>();
+  // 去重相同标签
   const seenLabels = new Set<string>();
-  for (const idx of tickIndices) {
+  const finalLabels = new Set<number>();
+  for (const idx of Array.from(visibleLabels).sort((a, b) => a - b)) {
     const lbl = chartData[idx]?.label || "";
     if (!seenLabels.has(lbl)) {
       seenLabels.add(lbl);
-      visibleLabels.add(idx);
+      finalLabels.add(idx);
     }
   }
 
@@ -169,7 +171,7 @@ const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             tick={(props: any) => {
               const { x, y, index, payload } = props;
-              if (!visibleLabels.has(index)) return <g />;
+              if (!finalLabels.has(index)) return <g />;
               return (
                 <text
                   x={Number(x)}
