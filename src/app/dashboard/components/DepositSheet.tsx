@@ -111,8 +111,11 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     if (!mainExchClient) { toast.error("Enable trading first"); return; }
 
     try {
-      // Step 1: Switch network
+      // Step 0: 在切链之前先创建子账户（HL L1 签名需要非 Arbitrum 链）
       setStep("switching");
+      const subAddr = await getOrCreateSubAccount();
+
+      // Step 1: Switch to Arbitrum for USDC deposit
       await wallet.switchChain(ARBITRUM_CHAIN_ID);
 
       const provider = await getProvider();
@@ -126,10 +129,14 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
       // Step 3: Transfer main account → sub account
       setStep("transferring");
 
-      // 等 HL 到账（约 30s），再 transfer 进子账户
+      // 等 HL 到账（约 30s）
       await new Promise(r => setTimeout(r, 30_000));
 
-      const subAddr = await getOrCreateSubAccount();
+      // 切回 Ethereum mainnet 让 HL L1 签名正常工作
+      try { await wallet.switchChain(1); } catch (e) {
+        console.warn("[SubAccount] Failed to switch back to ETH mainnet:", e);
+      }
+
       if (subAddr) {
         try {
           await mainExchClient.subAccountTransfer({
