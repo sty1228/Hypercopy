@@ -7,100 +7,15 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Tooltip,
-  TooltipContentProps,
 } from "recharts";
 import { BalanceChartData } from "../page";
 
-export type TimeRange = "D" | "W" | "M" | "YTD" | "ALL";
+export type TimeRange = "D" | "W" | "M" | "Y" | "ALL";
 
-// Mock 数据 - Day (24小时，每小时一个数据点)
-const dayData = [
-  { label: "00:00", value: 16200 },
-  { label: "04:00", value: 15800 },
-  { label: "08:00", value: 16400 },
-  { label: "12:00", value: 16100 },
-  { label: "16:00", value: 16500 },
-  { label: "20:00", value: 16300 },
-  { label: "24:00", value: 16534 },
-];
-
-// Mock 数据 - Week (7天)
-const weekData = [
-  { label: "Mon", value: 15800 },
-  { label: "Tue", value: 26000 },
-  { label: "Wed", value: 12000 },
-  { label: "Thu", value: 96486 },
-  { label: "Fri", value: 23648 },
-  { label: "Sat", value: 36554 },
-  { label: "Sun", value: 15934 },
-];
-
-// Mock 数据 - Month (当前月份的数据，按周)
-const monthData = [
-  { label: "W1", value: 14200 },
-  { label: "W2", value: 69345 },
-  { label: "W3", value: 6982 },
-  { label: "W4", value: 99755 },
-  { label: "W5", value: 16985 },
-];
-
-// Mock 数据 - YTD (年初至今，按月)
-const ytdData = [
-  { label: "JAN", value: 12000 },
-  { label: "FEB", value: 14200 },
-  { label: "MAR", value: 12500 },
-  { label: "APR", value: 11200 },
-  { label: "MAY", value: 13000 },
-  { label: "JUN", value: 13800 },
-  { label: "JUL", value: 10800 },
-  { label: "AUG", value: 14800 },
-  { label: "SEP", value: 14200 },
-  { label: "OCT", value: 16534 },
-];
-
-// Mock 数据 - All (所有历史数据，按月)
-const allData = [
-  { label: "FEB", value: 14200 },
-  { label: "MAR", value: 12500 },
-  { label: "APR", value: 11200 },
-  { label: "MAY", value: 13000 },
-  { label: "JUN", value: 13800 },
-  { label: "JUL", value: 10800 },
-  { label: "AUG", value: 14800 },
-  { label: "SEP", value: 14200 },
-  { label: "OCT", value: 16500 },
-];
-
-// 根据时间范围获取对应的数据
-const getDataByTimeRange = (timeRange: TimeRange) => {
-  switch (timeRange) {
-    case "D":
-      return dayData;
-    case "W":
-      return weekData;
-    case "M":
-      return monthData;
-    case "YTD":
-      return ytdData;
-    case "ALL":
-      return allData;
-    default:
-      return monthData;
-  }
-};
-
-// 根据时间范围获取基准线值
-const getReferenceLineValue = (timeRange: TimeRange) => {
-  const data = getDataByTimeRange(timeRange);
-  const values = data.map((d) => d.value);
-  return Math.round(values.reduce((sum, val) => sum + val, 0) / values.length);
-};
-
-// 自定义 Tooltip 组件
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
-    const data = payload[0];
+    const d = payload[0];
     return (
       <div
         className="px-3 py-2 rounded-lg shadow-lg"
@@ -110,13 +25,10 @@ const CustomTooltip = ({ active, payload }: any) => {
         }}
       >
         <p className="text-xs mb-1" style={{ color: "rgba(165, 176, 176, 1)" }}>
-          {data.payload.label}
+          {d.payload.label}
         </p>
-        <p
-          className="text-sm font-semibold"
-          style={{ color: "rgba(80, 210, 193, 1)" }}
-        >
-          ${data.value?.toLocaleString()}
+        <p className="text-sm font-semibold" style={{ color: "rgba(80, 210, 193, 1)" }}>
+          ${d.value?.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
       </div>
     );
@@ -130,52 +42,52 @@ interface BalanceChartProps {
 }
 
 const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
-  console.log(chartData);
-  const referenceLineValue = getReferenceLineValue(timeRange);
-  console.log(referenceLineValue);
+  if (!chartData || chartData.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <svg width="100%" height="100%" viewBox="0 0 100 80" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="emptyGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.06" />
+              <stop offset="100%" stopColor="#2dd4bf" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <line x1="0" y1="40" x2="100" y2="40" stroke="#2dd4bf" strokeWidth="0.5" vectorEffect="non-scaling-stroke" opacity="0.3" />
+          <rect x="0" y="40" width="100" height="40" fill="url(#emptyGrad)" />
+          <circle cx="0" cy="40" r="1.5" fill="#2dd4bf" opacity="0.4" />
+          <circle cx="100" cy="40" r="1.5" fill="#2dd4bf" opacity="0.4" />
+        </svg>
+      </div>
+    );
+  }
+
+  // Reference line = first data point (starting balance)
+  const refValue = chartData[0]?.value ?? 0;
+
   return (
     <div className="w-full h-full chart-container">
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-          .chart-container,
-          .chart-container *,
-          .chart-container svg,
-          .recharts-wrapper,
-          .recharts-wrapper *,
-          .recharts-surface,
-          .recharts-layer {
-            outline: none !important;
-          }
-          .chart-container *:focus,
-          .recharts-wrapper *:focus {
-            outline: none !important;
-          }
-        `,
-        }}
-      />
+      <style dangerouslySetInnerHTML={{ __html: `
+        .chart-container, .chart-container *, .chart-container svg,
+        .recharts-wrapper, .recharts-wrapper *, .recharts-surface, .recharts-layer {
+          outline: none !important;
+        }
+        .chart-container *:focus, .recharts-wrapper *:focus {
+          outline: none !important;
+        }
+      `}} />
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart
-          data={chartData}
-          margin={{ top: 0, right: 10, left: 10, bottom: 0 }}
-        >
-          {/* X轴 - 当数据条数大于10时不展示 */}
-          {chartData.length <= 10 && (
+        <LineChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+          {chartData.length <= 12 && (
             <XAxis
               dataKey="label"
               axisLine={false}
               tickLine={false}
               interval={0}
-              tick={{
-                fill: "rgba(165, 176, 176, 0.5)",
-                fontSize: 11,
-                fontWeight: 400,
-              }}
+              tick={{ fill: "rgba(165, 176, 176, 0.5)", fontSize: 9, fontWeight: 400 }}
               dy={3}
             />
           )}
 
-          {/* Tooltip 提示框 */}
           <Tooltip
             content={(props) => <CustomTooltip {...props} />}
             cursor={{
@@ -185,20 +97,18 @@ const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
             }}
           />
 
-          {/* 红色虚线基准线 */}
           <ReferenceLine
-            y={referenceLineValue}
+            y={refValue}
             stroke="rgba(135, 62, 62, 1)"
             strokeDasharray="8 4"
             strokeWidth={1}
           />
 
-          {/* 折线 */}
           <Line
             type="monotone"
             dataKey="value"
             stroke="rgba(80, 210, 193, 1)"
-            strokeWidth={1}
+            strokeWidth={1.5}
             dot={{
               fill: "rgba(199, 255, 248, 1)",
               r: 2,
@@ -206,11 +116,13 @@ const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
               stroke: "rgba(80, 210, 193, 1)",
             }}
             activeDot={{
-              r: 3,
+              r: 4,
               fill: "rgba(199, 255, 248, 1)",
               stroke: "rgba(80, 210, 193, 1)",
-              strokeWidth: 1,
+              strokeWidth: 2,
             }}
+            animationDuration={1500}
+            animationEasing="ease-out"
           />
         </LineChart>
       </ResponsiveContainer>

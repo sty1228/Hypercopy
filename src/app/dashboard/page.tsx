@@ -9,6 +9,7 @@ import copyCountIcon from "@/assets/icons/copy-count.png";
 import copyRankIcon from "@/assets/icons/copy-rank.png";
 import { Button } from "@/components/ui/button";
 import TimeRangeTab from "./components/TimeRangeTab";
+import BalanceChart from "./components/balanceChart";
 import type { TimeRange } from "./components/balanceChart";
 import {
   connectWalletApi,
@@ -60,6 +61,19 @@ const IconWithTooltip = ({ tooltip, children }: { tooltip: string; children: Rea
   );
 };
 
+// Format timestamp label based on time range
+const formatLabel = (ts: number, tr: TimeRange): string => {
+  const d = new Date(ts > 1e12 ? ts : ts * 1000);
+  switch (tr) {
+    case "D": return d.toLocaleTimeString("en-US", { hour: "numeric", hour12: true });
+    case "W": return d.toLocaleDateString("en-US", { weekday: "short" });
+    case "M": return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    case "Y": return d.toLocaleDateString("en-US", { month: "short" });
+    case "ALL": return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+    default: return "";
+  }
+};
+
 const Home = () => {
   const router = useRouter();
   const { authenticated, login, logout } = usePrivy();
@@ -77,7 +91,6 @@ const Home = () => {
 
   const [timeRange, setTimeRange] = useState<TimeRange>("M");
   const [chartData, setChartData] = useState<BalanceChartData[]>([]);
-  const [chartAnimated, setChartAnimated] = useState(false);
   const [balance, setBalance] = useState(0);
   const [todayGain, setTodayGain] = useState(0);
   const [activeTab, setActiveTab] = useState<"followed" | "position">("followed");
@@ -132,7 +145,6 @@ const Home = () => {
       ]);
       if (s.status === "fulfilled") {
         setSummary(s.value);
-        // Auto-clear pending deposit if balance increased
         if (pendingDeposit && s.value.total_balance > (summary?.total_balance ?? 0)) {
           setPendingDeposit(null);
           if (pollRef.current) clearInterval(pollRef.current);
@@ -151,9 +163,7 @@ const Home = () => {
 
   // ── Clean up polling on unmount ──
   useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
   // ── Auto-expire pending deposit after 3 minutes ──
@@ -162,7 +172,7 @@ const Home = () => {
     const timeout = setTimeout(() => {
       setPendingDeposit(null);
       if (pollRef.current) clearInterval(pollRef.current);
-    }, 180000); // 3 minutes
+    }, 180000);
     return () => clearTimeout(timeout);
   }, [pendingDeposit]);
 
@@ -174,7 +184,6 @@ const Home = () => {
       timestamp: Date.now(),
     });
 
-    // Poll backend balance every 10s for 2 minutes
     if (pollRef.current) clearInterval(pollRef.current);
     let count = 0;
     pollRef.current = setInterval(() => {
@@ -192,7 +201,6 @@ const Home = () => {
     const bTarget = summary.total_balance;
     const gTarget = summary.total_pnl;
     if (bTarget === 0 && gTarget === 0) { setBalance(0); setTodayGain(0); return; }
-    // Only animate if balance is currently 0 (first load)
     if (balance > 0) {
       setBalance(bTarget);
       setTodayGain(gTarget);
@@ -207,7 +215,6 @@ const Home = () => {
       setTodayGain(gTarget * e);
       if (step >= steps) clearInterval(timer);
     }, dur / steps);
-    setTimeout(() => setChartAnimated(true), 300);
     return () => clearInterval(timer);
   }, [summary]);
 
@@ -215,10 +222,11 @@ const Home = () => {
   const getChartData = async (tr: TimeRange = "M") => {
     if (!authReady) { setChartData([]); return; }
     try {
-      const data = await balanceHistory(tr);
-      setChartData(data.map((item) => ({ label: "", value: item.acconutValue })));
-      setChartAnimated(false);
-      setTimeout(() => setChartAnimated(true), 100);
+      const data = await balanceHistory(tr === "Y" ? "YTD" : tr);
+      setChartData(data.map((item) => ({
+        label: formatLabel(item.timestamp, tr),
+        value: item.acconutValue,
+      })));
     } catch {
       setChartData([]);
     }
@@ -246,49 +254,6 @@ const Home = () => {
 
   const followedTraders: { id: number; name: string; avatar: string; avatarBg: string; portfolioPercent: number; profit: number; ta: number }[] = [];
 
-  // ── Chart helpers ──
-  const getSampledData = () => {
-    if (chartData.length <= 14) return chartData;
-    const s = Math.ceil(chartData.length / 14);
-    return chartData.filter((_, i) => i % s === 0).slice(0, 14);
-  };
-  const sampledData = getSampledData();
-
-  const getChartYValues = () => {
-    if (sampledData.length === 0) return [];
-    const values = sampledData.map((d) => d.value);
-    const min = Math.min(...values), max = Math.max(...values), range = max - min || 1;
-    return values.map((v) => 15 + (1 - (v - min) / range) * 50);
-  };
-  const yValues = getChartYValues();
-
-  const getTimelineLabels = () => {
-    switch (timeRange) {
-      case "D": return ["12am", "4am", "8am", "12pm", "4pm", "8pm", "12am"];
-      case "W": return ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-      case "M": return ["Day 1", "Day 7", "Day 14", "Day 21", "Day 28"];
-      case "YTD": return ["Jan", "Mar", "May", "Jul", "Sep", "Nov"];
-      case "ALL": return ["2022", "2023", "2024", "2025"];
-      default: return [];
-    }
-  };
-  const timelineLabels = getTimelineLabels();
-
-  const getPointPositions = () => {
-    if (yValues.length <= 1) return yValues.map((y) => ({ x: 0, y }));
-    return yValues.map((y, i) => ({ x: (i / (yValues.length - 1)) * 100, y }));
-  };
-  const pointPositions = getPointPositions();
-
-  const getPathD = () => {
-    if (pointPositions.length === 0) return "";
-    return pointPositions.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
-  };
-  const getAreaD = () => {
-    if (pointPositions.length === 0) return "";
-    return getPathD() + " L 100 80 L 0 80 Z";
-  };
-
   const handleLogout = async () => {
     localStorage.removeItem("token");
     await logout();
@@ -305,18 +270,9 @@ const Home = () => {
   return (
     <div className="min-h-screen text-white relative overflow-hidden" style={{ background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)" }}>
       <style jsx>{`
-        @keyframes drawLine { from { stroke-dashoffset: 1000; } to { stroke-dashoffset: 0; } }
-        @keyframes fadeInArea { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes dotAppear { from { transform: translate(-50%, -50%) scale(0); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes pulse-glow { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
-        .chart-line { stroke-dasharray: 1000; stroke-dashoffset: 1000; }
-        .chart-line.animated { animation: drawLine 2.5s ease-out forwards; }
-        .chart-area { opacity: 0; }
-        .chart-area.animated { animation: fadeInArea 0.8s ease-out 0.8s forwards; }
-        .chart-dot { transform: translate(-50%, -50%) scale(0); opacity: 0; }
-        .chart-dot.animated { animation: dotAppear 0.3s ease-out forwards; }
         .row-animate { animation: slideIn 0.3s ease-out forwards; }
       `}</style>
 
@@ -429,58 +385,15 @@ const Home = () => {
                 </p>
               </div>
               <div className="flex gap-0.5">
-                {(["D", "W", "M", "YTD", "ALL"] as TimeRange[]).map((t) => (
+                {(["D", "W", "M", "Y", "ALL"] as TimeRange[]).map((t) => (
                   <TimeRangeTab key={t} label={t} isActive={timeRange === t} onClick={() => setTimeRange(t)} />
                 ))}
               </div>
             </div>
 
-            {/* Chart area */}
-            <div className="relative h-16 mb-1.5 mt-3">
-              {pointPositions.length > 0 ? (
-                <>
-                  <svg width="100%" height="100%" viewBox="0 0 100 80" preserveAspectRatio="none" className="absolute inset-0" style={{ overflow: "visible" }}>
-                    <defs>
-                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.25" />
-                        <stop offset="100%" stopColor="#2dd4bf" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <line x1="0" y1="40" x2="100" y2="40" stroke="#f43f5e" strokeWidth="1" vectorEffect="non-scaling-stroke" strokeDasharray="4 3" opacity="0.5" />
-                    {pointPositions.length > 1 && (
-                      <>
-                        <path d={getAreaD()} fill="url(#areaGradient)" className={`chart-area ${chartAnimated ? "animated" : ""}`} />
-                        <path d={getPathD()} fill="none" stroke="#2dd4bf" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" className={`chart-line ${chartAnimated ? "animated" : ""}`} />
-                      </>
-                    )}
-                  </svg>
-                  {pointPositions.map((p, i) => (
-                    <div key={i} className={`absolute rounded-full bg-teal-400 chart-dot ${chartAnimated ? "animated" : ""}`} style={{ width: 5, height: 5, left: `${p.x}%`, top: `${(p.y / 80) * 100}%`, boxShadow: "0 0 6px rgba(45,212,191,0.8)", animationDelay: `${0.3 + (i / pointPositions.length) * 1.2}s` }} />
-                  ))}
-                </>
-              ) : (
-                /* Empty chart: flat baseline with subtle glow */
-                <svg width="100%" height="100%" viewBox="0 0 100 80" preserveAspectRatio="none" className="absolute inset-0">
-                  <defs>
-                    <linearGradient id="emptyAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.06" />
-                      <stop offset="100%" stopColor="#2dd4bf" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  {/* Flat baseline */}
-                  <line x1="0" y1="40" x2="100" y2="40" stroke="#2dd4bf" strokeWidth="0.5" vectorEffect="non-scaling-stroke" opacity="0.3" />
-                  {/* Subtle area fill below the line */}
-                  <rect x="0" y="40" width="100" height="40" fill="url(#emptyAreaGradient)" />
-                  {/* Dot indicators at edges */}
-                  <circle cx="0" cy="40" r="1.5" fill="#2dd4bf" opacity="0.4" />
-                  <circle cx="100" cy="40" r="1.5" fill="#2dd4bf" opacity="0.4" />
-                </svg>
-              )}
-            </div>
-            <div className="flex justify-between mb-3">
-              {timelineLabels.map((label, i) => (
-                <span key={i} className="text-[7px] text-gray-500 font-medium" style={{ opacity: chartAnimated || pointPositions.length === 0 ? 1 : 0, transition: `opacity 0.3s ease ${0.5 + i * 0.05}s` }}>{label}</span>
-              ))}
+            {/* Chart area — using recharts BalanceChart */}
+            <div className="relative h-24 mb-1.5 mt-3">
+              <BalanceChart timeRange={timeRange} chartData={chartData} />
             </div>
 
             <div className="h-px bg-white/10 mb-3 rounded-full" />
