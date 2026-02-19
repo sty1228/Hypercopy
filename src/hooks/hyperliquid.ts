@@ -83,11 +83,13 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
           return null;
         }
 
-        const nonce = await usdcContract.nonces(currentWallet.address);
-        const deadline = (Math.floor(Date.now() / 1000) + 300).toString();
+        const nonceRaw = await usdcContract.nonces(currentWallet.address);
+        const nonce = String(nonceRaw);
+        const deadline = String(Math.floor(Date.now() / 1000) + 300);
+        const value = String(depositAmountInUnits);
 
-        console.log("depositAmountInUnits", depositAmountInUnits);
-        console.log("nonce", nonce.toString());
+        console.log("depositAmountInUnits", value);
+        console.log("nonce", nonce);
         console.log("deadline", deadline);
 
         // ── Step 1: Sign USDC EIP-2612 Permit (off-chain, no gas) ──
@@ -95,7 +97,7 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
           name: isMainnet ? "USD Coin" : "USDC2",
           version: isMainnet ? "2" : "1",
           chainId: targetChainId,
-          verifyingContract: usdcAddress,
+          verifyingContract: usdcAddress as `0x${string}`,
         };
         const permitTypes = {
           Permit: [
@@ -109,8 +111,8 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
         const permitMessage = {
           owner: currentWallet.address,
           spender: bridgeAddress,
-          value: depositAmountInUnits,
-          nonce: nonce.toString(),
+          value,
+          nonce,
           deadline,
         };
 
@@ -159,8 +161,8 @@ export const useArbitrumUSDCDepositWithTransfer = () => {
             [
               {
                 user: currentWallet.address,
-                usd: depositAmountInUnits,
-                deadline: deadline,
+                usd: value,
+                deadline,
                 signature: signResult.signature,
               },
             ],
