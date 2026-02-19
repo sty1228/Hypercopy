@@ -116,7 +116,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
 
   const parsedAmount = parseFloat(amount) || 0;
   const balNum = parseFloat(usdcBalance || "0");
-  const isValid = parsedAmount > 0 && parsedAmount <= balNum;
+  const isValid = parsedAmount >= 5 && parsedAmount <= balNum;
 
   if (!mounted || !isOpen) return null;
 
@@ -235,6 +235,9 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                   </div>
                   {parsedAmount > balNum && (
                     <p className="text-[10px] text-red-400 mt-1 ml-1">Insufficient balance</p>
+                  )}
+                  {parsedAmount > 0 && parsedAmount < 5 && (
+                    <p className="text-[10px] text-red-400 mt-1 ml-1">Minimum deposit is 5 USDC</p>
                   )}
                 </div>
 

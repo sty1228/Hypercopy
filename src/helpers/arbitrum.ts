@@ -2,7 +2,6 @@ import { ethers } from "ethers";
 
 const _ethers = ethers as any;
 
-// v5: ethers.providers.JsonRpcProvider / v6: ethers.JsonRpcProvider
 const JsonRpcProvider =
   _ethers.providers?.JsonRpcProvider ?? _ethers.JsonRpcProvider;
 const ContractClass = _ethers.Contract;
@@ -11,18 +10,14 @@ const parseUnitsFunc = _ethers.utils?.parseUnits ?? _ethers.parseUnits;
 
 // --- Constants ---
 const USDC_ADDRESS = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"; // Native USDC on Arbitrum
-const BRIDGE_ADDRESS = "0x2Df1c51E09aECF9cacB7bc98cb1742757f163df7"; // Hyperliquid Bridge
+const BRIDGE_ADDRESS = "0x2Df1c51E09aECF9cacB7bc98cB1742757f163dF7"; // Hyperliquid Bridge2
 const USDC_DECIMALS = 6;
+const MIN_DEPOSIT_USDC = 5; // Minimum deposit is 5 USDC — below this, funds are lost forever!
 
-const USDC_ABI = [
+const ERC20_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
   "function decimals() view returns (uint8)",
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function approve(address spender, uint256 amount) returns (bool)",
-];
-
-const BRIDGE_ABI = [
-  "function sendUsd(address destination, uint64 amount) external",
+  "function transfer(address to, uint256 amount) returns (bool)",
 ];
 
 // --- Provider ---
@@ -34,7 +29,7 @@ export const ARBITRUM_HTTP_PROVIDER = new JsonRpcProvider(
 export const getArbUSDCBalance = async (address: string) => {
   const contract = new ContractClass(
     USDC_ADDRESS,
-    USDC_ABI,
+    ERC20_ABI,
     ARBITRUM_HTTP_PROVIDER
   );
   const balance = await contract.balanceOf(address);
@@ -46,44 +41,29 @@ export const getArbUSDCBalance = async (address: string) => {
 // --- Write: Deposit USDC to Hyperliquid via Bridge ---
 /**
  * Deposit USDC from Arbitrum into Hyperliquid L1.
+ * Per Hyperliquid docs: simply transfer USDC to the bridge address.
+ * MINIMUM 5 USDC — amounts below this are lost forever!
  *
- * @param signer    - ethers Signer connected to Arbitrum (from wallet provider)
- * @param amount    - human-readable USDC amount, e.g. "43"
- * @param destination - L1 destination address (defaults to signer address)
+ * @param signer - ethers Signer connected to Arbitrum (from wallet provider)
+ * @param amount - human-readable USDC amount, e.g. "10"
  */
 export const depositToHyperliquid = async (
   signer: any,
   amount: string,
-  destination?: string
 ) => {
-  const signerAddress = await signer.getAddress();
-  const dest = destination ?? signerAddress;
-
-  const rawAmount = parseUnitsFunc(amount, USDC_DECIMALS);
-
-  const usdcContract = new ContractClass(USDC_ADDRESS, USDC_ABI, signer);
-  const bridgeContract = new ContractClass(BRIDGE_ADDRESS, BRIDGE_ABI, signer);
-
-  // Step 1: Check allowance & approve if needed
-  const currentAllowance = await usdcContract.allowance(
-    signerAddress,
-    BRIDGE_ADDRESS
-  );
-
-  if (currentAllowance.lt ? currentAllowance.lt(rawAmount) : currentAllowance < rawAmount) {
-    console.log(`Approving ${amount} USDC for bridge...`);
-    const approveTx = await usdcContract.approve(BRIDGE_ADDRESS, rawAmount);
-    await approveTx.wait();
-    console.log("Approve confirmed:", approveTx.hash);
-  } else {
-    console.log("Sufficient allowance, skipping approve.");
+  const amountNum = parseFloat(amount);
+  if (amountNum < MIN_DEPOSIT_USDC) {
+    throw new Error(`Minimum deposit is ${MIN_DEPOSIT_USDC} USDC. Amounts below this are lost forever.`);
   }
 
-  // Step 2: Call sendUsd on the bridge contract
-  console.log(`Depositing ${amount} USDC to Hyperliquid for ${dest}...`);
-  const depositTx = await bridgeContract.sendUsd(dest, rawAmount);
-  const receipt = await depositTx.wait();
-  console.log("Deposit confirmed:", depositTx.hash);
+  const rawAmount = parseUnitsFunc(amount, USDC_DECIMALS);
+  const usdcContract = new ContractClass(USDC_ADDRESS, ERC20_ABI, signer);
 
-  return { hash: depositTx.hash, blockNumber: receipt.blockNumber };
+  // Simply transfer USDC to the bridge address
+  console.log(`Transferring ${amount} USDC to Hyperliquid bridge...`);
+  const tx = await usdcContract.transfer(BRIDGE_ADDRESS, rawAmount);
+  const receipt = await tx.wait();
+  console.log("Deposit confirmed:", tx.hash);
+
+  return { hash: tx.hash, blockNumber: receipt.blockNumber };
 };
