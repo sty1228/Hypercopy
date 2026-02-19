@@ -9,36 +9,18 @@ import {
 import { useWallets } from "@privy-io/react-auth";
 import { ethers } from "ethers";
 import { toast } from "sonner";
+import { useArbitrumUSDCDepositWithTransfer } from "@/hooks/hyperliquid";
 
 // ─── Constants ───
-// Arbitrum One
 const ARBITRUM_CHAIN_ID = 42161;
-const ARBITRUM_CHAIN_ID_HEX = "0xa4b1";
-
-// USDC on Arbitrum (native, 6 decimals)
 const USDC_ADDRESS = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831";
-
-// HyperLiquid Bridge on Arbitrum
-// TODO: Verify this is the correct bridge address for your deployment
-const HYPERLIQUID_BRIDGE = "0x2Df1c51E09aECF9cacB7bc98cB1742757f163dF7";
 
 const ERC20_ABI = [
   "function balanceOf(address owner) view returns (uint256)",
-  "function allowance(address owner, address spender) view returns (uint256)",
-  "function approve(address spender, uint256 amount) returns (bool)",
   "function decimals() view returns (uint8)",
 ];
 
-// TODO: Replace with actual HyperLiquid bridge ABI
-// This is a common pattern — check HyperLiquid docs for exact function signature
-const BRIDGE_ABI = [
-  "function depositUsd(uint64 amount) external",
-  // Alternative signatures that HL might use:
-  // "function deposit(address user, uint256 amount) external",
-  // "function sendUsd(address destination, uint64 amount) external",
-];
-
-type DepositStep = "input" | "switching" | "approving" | "depositing" | "success" | "error";
+type DepositStep = "input" | "switching" | "depositing" | "success" | "error";
 
 interface DepositSheetProps {
   isOpen: boolean;
@@ -57,6 +39,9 @@ export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
   const [txHash, setTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Use the existing working hook for permit + bridge deposit
+  const depositWithTransfer = useArbitrumUSDCDepositWithTransfer();
+
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -70,28 +55,22 @@ export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
 
   const wallet = wallets?.[0];
 
-  // ─── Helper: get ethers provider from Privy wallet ───
   const getProvider = useCallback(async () => {
     if (!wallet) throw new Error("No wallet");
     const eip1193 = await wallet.getEthereumProvider();
-    // @ts-ignore - ethers v5/v6 compat
     return new (ethers as any).providers.Web3Provider(eip1193);
   }, [wallet]);
 
-  // ─── Load USDC balance on Arbitrum ───
   const loadBalance = useCallback(async () => {
     if (!wallet) return;
     setLoadingBalance(true);
     try {
-      // Ensure we're on Arbitrum
       await wallet.switchChain(ARBITRUM_CHAIN_ID);
       const provider = await getProvider();
-      // @ts-ignore - ethers v5/v6 compat
-      const usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, provider);
+      const usdc = new (ethers as any).Contract(USDC_ADDRESS, ERC20_ABI, provider);
       const bal = await usdc.balanceOf(wallet.address);
       const decimals = await usdc.decimals();
-      // @ts-ignore - ethers v5/v6 compat
-      setUsdcBalance(ethers.utils.formatUnits(bal, decimals));
+      setUsdcBalance((ethers as any).utils.formatUnits(bal, decimals));
     } catch (err) {
       console.error("Failed to load USDC balance:", err);
       setUsdcBalance("0");
@@ -100,7 +79,7 @@ export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
     }
   }, [wallet, getProvider]);
 
-  // ─── Deposit flow ───
+  // ─── Deposit flow (now uses the permit-based hook) ───
   const handleDeposit = async () => {
     if (!wallet || !amount || parseFloat(amount) <= 0) return;
 
@@ -112,43 +91,20 @@ export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
     }
 
     try {
-      // Step 1: Switch to Arbitrum if needed
       setStep("switching");
       await wallet.switchChain(ARBITRUM_CHAIN_ID);
 
-      const provider = await getProvider();
-      const signer = provider.getSigner();
-      // @ts-ignore - ethers v5/v6 compat
-      const usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, signer);
+      setStep("depositing");
+      const tx = await depositWithTransfer({ depositAmount: amount });
 
-      // USDC has 6 decimals
-      // @ts-ignore - ethers v5/v6 compat
-      const amountRaw = ethers.utils.parseUnits(amount, 6);
-
-      // Step 2: Check allowance & approve if needed
-      setStep("approving");
-      const currentAllowance = await usdc.allowance(wallet.address, HYPERLIQUID_BRIDGE);
-
-      if (currentAllowance.lt(amountRaw)) {
-        const approveTx = await usdc.approve(HYPERLIQUID_BRIDGE, amountRaw);
-        await approveTx.wait();
+      if (!tx) {
+        setStep("error");
+        setErrorMsg("Deposit failed or was rejected. Please try again.");
+        return;
       }
 
-      // Step 3: Deposit to HyperLiquid bridge
-      setStep("depositing");
-      // @ts-ignore - ethers v5/v6 compat
-      const bridge = new ethers.Contract(HYPERLIQUID_BRIDGE, BRIDGE_ABI, signer);
-
-      // HyperLiquid expects amount as uint64 in raw units (6 decimals)
-      // TODO: Verify the exact function call — this may vary
-      const depositTx = await bridge.depositUsd(amountRaw);
-      const receipt = await depositTx.wait();
-
-      setTxHash(receipt.transactionHash);
+      setTxHash(tx.hash || null);
       setStep("success");
-      toast.success(`Deposited $${depositAmount.toFixed(2)} USDC`);
-
-      // Refresh balance
       await loadBalance();
     } catch (err: any) {
       console.error("Deposit failed:", err);
@@ -238,7 +194,6 @@ export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
             {/* ─── Input Step ─── */}
             {step === "input" && (
               <div className="space-y-4">
-                {/* Balance display */}
                 <div
                   className="rounded-xl px-4 py-3 flex items-center justify-between"
                   style={{
@@ -259,7 +214,6 @@ export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
                   )}
                 </div>
 
-                {/* Amount input */}
                 <div>
                   <div
                     className="rounded-xl px-4 py-4 flex items-center gap-3"
@@ -295,7 +249,6 @@ export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
                   )}
                 </div>
 
-                {/* Info */}
                 <div
                   className="rounded-xl p-3 flex items-start gap-2"
                   style={{
@@ -305,11 +258,10 @@ export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
                 >
                   <Shield size={12} className="text-teal-400 shrink-0 mt-0.5" />
                   <p className="text-[10px] text-gray-400 leading-relaxed">
-                    USDC will be deposited from your Arbitrum wallet to your HyperLiquid perps account. Deposits typically confirm within a few minutes.
+                    USDC will be deposited from your Arbitrum wallet to your HyperLiquid perps account via gasless permit signature. Deposits typically confirm within a few minutes.
                   </p>
                 </div>
 
-                {/* Deposit button */}
                 <button
                   onClick={handleDeposit}
                   disabled={!isValid || !wallet}
@@ -328,7 +280,7 @@ export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
             )}
 
             {/* ─── Processing Steps ─── */}
-            {(step === "switching" || step === "approving" || step === "depositing") && (
+            {(step === "switching" || step === "depositing") && (
               <div className="py-8 flex flex-col items-center text-center">
                 <div
                   className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
@@ -341,19 +293,16 @@ export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
                 </div>
                 <h3 className="text-sm font-bold text-white mb-1">
                   {step === "switching" && "Switching to Arbitrum..."}
-                  {step === "approving" && "Approving USDC..."}
                   {step === "depositing" && "Depositing to HyperLiquid..."}
                 </h3>
                 <p className="text-[11px] text-gray-400 max-w-[240px]">
                   {step === "switching" && "Please confirm the network switch in your wallet"}
-                  {step === "approving" && "Approve USDC spending for the HyperLiquid bridge"}
-                  {step === "depositing" && "Confirm the deposit transaction in your wallet"}
+                  {step === "depositing" && "Sign the permit, then confirm the deposit transaction"}
                 </p>
 
-                {/* Progress steps */}
                 <div className="flex items-center gap-2 mt-6">
-                  {["Switch", "Approve", "Deposit"].map((s, i) => {
-                    const stepIdx = step === "switching" ? 0 : step === "approving" ? 1 : 2;
+                  {["Switch", "Sign & Deposit"].map((s, i) => {
+                    const stepIdx = step === "switching" ? 0 : 1;
                     const done = i < stepIdx;
                     const active = i === stepIdx;
                     return (
@@ -369,7 +318,7 @@ export default function DepositSheet({ isOpen, onClose }: DepositSheetProps) {
                           {done ? <CheckCircle size={12} /> : i + 1}
                         </div>
                         <span className="text-[9px]" style={{ color: done || active ? "#2dd4bf" : "rgba(255,255,255,0.3)" }}>{s}</span>
-                        {i < 2 && (
+                        {i < 1 && (
                           <ArrowRight size={10} style={{ color: "rgba(255,255,255,0.15)" }} />
                         )}
                       </div>
