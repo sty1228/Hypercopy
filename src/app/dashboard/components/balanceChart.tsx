@@ -166,12 +166,14 @@ const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
             axisLine={false}
             tickLine={false}
             interval={0}
-            tick={({ x, y, index, payload }: { x: number; y: number; index: number; payload: { value: string } }) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            tick={(props: any) => {
+              const { x, y, index, payload } = props;
               if (!visibleLabels.has(index)) return <g />;
               return (
                 <text
-                  x={x}
-                  y={(y as number) + 10}
+                  x={Number(x)}
+                  y={Number(y) + 10}
                   textAnchor="middle"
                   fill="rgba(165,176,176,0.5)"
                   fontSize={9}
