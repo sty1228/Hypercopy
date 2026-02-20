@@ -1,4 +1,4 @@
-import { get, post, put } from "@/lib/axios";
+import { get, post, put, del, patch } from "@/lib/axios";
 
 // ─── Auth ───────────────────────────────────────────────
 
@@ -109,7 +109,7 @@ export const withdrawFromWallet = async (amount: number): Promise<{ status: stri
   return await post("/api/wallet/withdraw", { amount });
 };
 
-// ─── Follow List ────────────────────────────────────────
+// ─── Follow / Unfollow ──────────────────────────────────
 
 export interface FollowedTrader {
   id: string;
@@ -127,6 +127,78 @@ export interface FollowedTrader {
 
 export const getFollowedTraders = async (window = "30d"): Promise<FollowedTrader[]> => {
   return await get(`/api/follows?window=${window}`);
+};
+
+export const followTrader = async (
+  traderUsername: string,
+  isCopyTrading = false
+): Promise<{ id: string; trader_username: string; is_copy_trading: boolean; created_at: string }> => {
+  return await post("/api/follow", {
+    trader_username: traderUsername,
+    is_copy_trading: isCopyTrading,
+  });
+};
+
+export const unfollowTrader = async (traderUsername: string): Promise<{ message: string }> => {
+  return await del(`/api/follow/${traderUsername}`);
+};
+
+export const toggleCopyTrading = async (
+  traderUsername: string
+): Promise<{ is_copy_trading: boolean }> => {
+  return await patch(`/api/follow/${traderUsername}/copy-trading`, {});
+};
+
+// ─── Trader Profile ─────────────────────────────────────
+
+export interface RadarData {
+  accuracy: number;
+  winRate: number;
+  riskReward: number;
+  consistency: number;
+  timing: number;
+  transparency: number;
+  engagement: number;
+  trackRecord: number;
+}
+
+export interface BestWorstSignal {
+  token: string;
+  pnl: number;
+  date: string;
+}
+
+export interface TraderProfile {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  is_verified: boolean;
+  followers_count: number;
+  following_count: number;
+  total_signals: number;
+  win_rate: number;
+  avg_return_pct: number;
+  total_profit_usd: number;
+  streak: number;
+  points: number;
+  profit_grade: string | null;
+  rank: number | null;
+  copiers_count: number;
+  signal_to_noise: number;
+  radar: RadarData;
+  is_followed: boolean;
+  is_copy_trading: boolean;
+  best_signal: BestWorstSignal | null;
+  worst_signal: BestWorstSignal | null;
+}
+
+export const getTraderProfile = async (
+  handle: string,
+  window = "7d"
+): Promise<TraderProfile> => {
+  return await get(`/api/trader/${handle}/profile?window=${window}`);
 };
 
 // ─── Leaderboard ────────────────────────────────────────
