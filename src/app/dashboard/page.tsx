@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback, useContext, useRef } from "react";
+import { useEffect, useState, useCallback, useContext } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import profileIcon from "@/assets/icons/profile.png";
 import copyCountIcon from "@/assets/icons/copy-count.png";
-import copyRankIcon from "@/assets/icons/copy-rank.png";
 import { Button } from "@/components/ui/button";
 import TimeRangeTab from "./components/TimeRangeTab";
 import BalanceChart from "./components/balanceChart";
@@ -23,7 +22,7 @@ import {
 } from "@/service";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
-import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Upload, Loader2, Clock, ExternalLink } from "lucide-react";
+import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Upload } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import PositionDetail, { PositionDetailData, positionExtendedData } from "./components/PositionDetail";
 import CopyingSheet from "./components/CopyingSheet";
@@ -34,12 +33,6 @@ import WithdrawSheet from "./components/WithdrawSheet";
 export interface BalanceChartData {
   label: string;
   value: number;
-}
-
-interface PendingDeposit {
-  amount: string;
-  txHash: string;
-  timestamp: number;
 }
 
 const IconWithTooltip = ({ tooltip, children }: { tooltip: string; children: React.ReactNode }) => {
@@ -62,7 +55,6 @@ const IconWithTooltip = ({ tooltip, children }: { tooltip: string; children: Rea
   );
 };
 
-// Format timestamp label based on time range
 const formatLabel = (ts: number, tr: TimeRange): string => {
   const d = new Date(ts > 1e12 ? ts : ts * 1000);
   switch (tr) {
@@ -101,10 +93,6 @@ const Home = () => {
   const [showActiveTrades, setShowActiveTrades] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
-
-  // ── Pending deposit state ──
-  const [pendingDeposit, setPendingDeposit] = useState<PendingDeposit | null>(null);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   // ── 1. Privy → Backend JWT sync ──
   useEffect(() => {
@@ -145,13 +133,7 @@ const Home = () => {
         getOpenPositions(),
         getProfileData(),
       ]);
-      if (s.status === "fulfilled") {
-        setSummary(s.value);
-        if (pendingDeposit && s.value.total_balance > (summary?.total_balance ?? 0)) {
-          setPendingDeposit(null);
-          if (pollRef.current) clearInterval(pollRef.current);
-        }
-      }
+      if (s.status === "fulfilled") setSummary(s.value);
       if (p.status === "fulfilled") setPositions(p.value);
       if (prof.status === "fulfilled") setProfile(prof.value);
     } catch (err) {
@@ -159,43 +141,9 @@ const Home = () => {
     } finally {
       setLoading(false);
     }
-  }, [authReady, pendingDeposit, summary?.total_balance]);
+  }, [authReady]);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
-
-  // ── Clean up polling on unmount ──
-  useEffect(() => {
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, []);
-
-  // ── Auto-expire pending deposit after 3 minutes ──
-  useEffect(() => {
-    if (!pendingDeposit) return;
-    const timeout = setTimeout(() => {
-      setPendingDeposit(null);
-      if (pollRef.current) clearInterval(pollRef.current);
-    }, 180000);
-    return () => clearTimeout(timeout);
-  }, [pendingDeposit]);
-
-  // ── Handle deposit success ──
-  const handleDepositSuccess = useCallback((txHash?: string, amount?: string) => {
-    setPendingDeposit({
-      amount: amount || "0",
-      txHash: txHash || "",
-      timestamp: Date.now(),
-    });
-
-    if (pollRef.current) clearInterval(pollRef.current);
-    let count = 0;
-    pollRef.current = setInterval(() => {
-      fetchDashboard();
-      count++;
-      if (count >= 12) {
-        if (pollRef.current) clearInterval(pollRef.current);
-      }
-    }, 10000);
-  }, [fetchDashboard]);
 
   // ── 3. Animate balance when summary loads ──
   useEffect(() => {
@@ -314,48 +262,6 @@ const Home = () => {
         />
       )}
 
-      {/* ── Pending Deposit Banner ── */}
-      {pendingDeposit && (
-        <div
-          className="relative z-10 mx-3 mt-2 mb-1 rounded-lg px-3 py-2.5 flex items-center justify-between"
-          style={{
-            background: "linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(251,191,36,0.02) 100%)",
-            border: "1px solid rgba(251,191,36,0.2)",
-          }}
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(251,191,36,0.15)" }}>
-              <Loader2 size={14} className="text-amber-400 animate-spin" />
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold text-amber-300">Deposit arriving...</p>
-              <p className="text-[9px] text-gray-500">Usually takes 1–2 min to credit</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {pendingDeposit.txHash && (
-              <a
-                href={`https://arbiscan.io/tx/${pendingDeposit.txHash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[9px] text-amber-400/70 hover:text-amber-400 flex items-center gap-0.5"
-              >
-                Tx <ExternalLink size={8} />
-              </a>
-            )}
-            <button
-              onClick={() => {
-                setPendingDeposit(null);
-                if (pollRef.current) clearInterval(pollRef.current);
-              }}
-              className="text-[9px] text-gray-500 hover:text-gray-300 cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
         <div className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }} onClick={handleLogout}>
@@ -393,7 +299,6 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Chart area — using recharts BalanceChart */}
             <div className="relative h-24 mb-1.5 mt-3">
               <BalanceChart timeRange={timeRange} chartData={chartData} />
             </div>
@@ -592,7 +497,7 @@ const Home = () => {
       <DepositSheet
         isOpen={showDeposit}
         onClose={() => setShowDeposit(false)}
-        onSuccess={handleDepositSuccess}
+        onSuccess={() => fetchDashboard()}
       />
       <WithdrawSheet
         isOpen={showWithdraw}
