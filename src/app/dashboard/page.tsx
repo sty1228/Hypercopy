@@ -8,22 +8,25 @@ import profileIcon from "@/assets/icons/profile.png";
 import copyCountIcon from "@/assets/icons/copy-count.png";
 import { Button } from "@/components/ui/button";
 import TimeRangeTab from "./components/TimeRangeTab";
-import BalanceChart, { type TimeRange } from "./components/balanceChart";
+import BalanceChart from "./components/balanceChart";
+import type { TimeRange } from "./components/balanceChart";
 import {
   connectWalletApi,
   getDashboardSummary,
   getOpenPositions,
   getProfileData,
   balanceHistory,
+  getFollowedTraders,
   type DashboardSummary,
   type PositionItem,
   type ProfileDataResponse,
+  type FollowedTrader,
 } from "@/service";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
 import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Upload } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
-import PositionDetail, { type PositionDetailData, positionExtendedData } from "./components/PositionDetail";
+import PositionDetail, { PositionDetailData, positionExtendedData } from "./components/PositionDetail";
 import CopyingSheet from "./components/CopyingSheet";
 import ActiveTradesSheet from "./components/ActiveTradesSheet";
 import DepositSheet from "./components/DepositSheet";
@@ -66,17 +69,7 @@ const formatLabel = (ts: number, tr: TimeRange): string => {
   }
 };
 
-type PositionRow = {
-  id: number;
-  token: string;
-  pair: string;
-  iconUrl: string;
-  size: number;
-  sizeUsd: number;
-  pnl: number;
-  pnlPercent: number;
-  entry: number;
-};
+const AVATAR_COLORS = ["#2dd4bf", "#a78bfa", "#f97316", "#3b82f6", "#ec4899", "#eab308"];
 
 const Home = () => {
   const router = useRouter();
@@ -90,6 +83,7 @@ const Home = () => {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [profile, setProfile] = useState<ProfileDataResponse | null>(null);
   const [positions, setPositions] = useState<PositionItem[]>([]);
+  const [followedTraders, setFollowedTraders] = useState<FollowedTrader[]>([]);
   const [loading, setLoading] = useState(false);
   const [builderDismissed, setBuilderDismissed] = useState(false);
 
@@ -113,6 +107,7 @@ const Home = () => {
       setSummary(null);
       setProfile(null);
       setPositions([]);
+      setFollowedTraders([]);
       setBalance(0);
       setTodayGain(0);
       setChartData([]);
@@ -139,14 +134,16 @@ const Home = () => {
     if (!authReady) return;
     setLoading(true);
     try {
-      const [s, p, prof] = await Promise.allSettled([
+      const [s, p, prof, fol] = await Promise.allSettled([
         getDashboardSummary(),
         getOpenPositions(),
         getProfileData(),
+        getFollowedTraders(),
       ]);
       if (s.status === "fulfilled") setSummary(s.value);
       if (p.status === "fulfilled") setPositions(p.value);
       if (prof.status === "fulfilled") setProfile(prof.value);
+      if (fol.status === "fulfilled") setFollowedTraders(fol.value);
     } catch (err) {
       console.error("Dashboard fetch failed:", err);
     } finally {
@@ -196,9 +193,9 @@ const Home = () => {
 
   useEffect(() => { getChartData(timeRange); }, [timeRange, getChartData]);
 
-  // ── 5. Refresh all data after deposit sheet closes ──
-  const handleDepositClose = useCallback(() => {
-    setShowDeposit(false);
+  // ── 5. Sheet close handlers ──
+  const handleSheetClose = useCallback((setter: (v: boolean) => void) => {
+    setter(false);
     fetchDashboard();
     getChartData(timeRange);
   }, [fetchDashboard, getChartData, timeRange]);
@@ -215,14 +212,7 @@ const Home = () => {
     getChartData(timeRange);
   }, [getChartData, timeRange]);
 
-  const handleWithdrawClose = useCallback(() => {
-    setShowWithdraw(false);
-    getChartData(timeRange);
-    // Delay dashboard refetch so optimistic balance isn't overwritten immediately
-    setTimeout(() => fetchDashboard(), 60_000);
-  }, [fetchDashboard, getChartData, timeRange]);
-
-  // ── Derived: always override chart last point with live balance ──
+  // ── Derived: chart last point = live balance ──
   const finalChartData = useMemo(() => {
     if (!chartData.length || !summary) return chartData;
     const last = chartData[chartData.length - 1];
@@ -239,7 +229,7 @@ const Home = () => {
   const totalTrades = summary?.total_trades ?? 0;
   const copyingCount = profile?.followingCount ?? 0;
 
-  const currentPositions: PositionRow[] = positions.map((p, idx) => ({
+  const currentPositions = positions.map((p, idx) => ({
     id: idx + 1,
     token: p.ticker,
     pair: `${p.ticker}/USDT`,
@@ -251,15 +241,13 @@ const Home = () => {
     entry: p.entry_price,
   }));
 
-  const followedTraders: { id: number; name: string; avatar: string; avatarBg: string; portfolioPercent: number; profit: number; ta: number }[] = [];
-
   const handleLogout = async () => {
     localStorage.removeItem("token");
     await logout();
     router.push("/");
   };
 
-  const handleSelectPosition = (pos: PositionRow) => {
+  const handleSelectPosition = (pos: (typeof currentPositions)[0]) => {
     const ext = positionExtendedData[pos.token];
     if (ext) {
       setSelectedPos({ ...pos, color: ext.color, currentPrice: ext.currentPrice, txs: ext.txs });
@@ -275,13 +263,11 @@ const Home = () => {
         .row-animate { animation: slideIn 0.3s ease-out forwards; }
       `}</style>
 
-      {/* Ambient glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-20 left-1/3 w-[300px] h-[300px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.08) 0%, transparent 60%)", filter: "blur(60px)" }} />
         <div className="absolute bottom-1/3 -right-20 w-[200px] h-[200px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)", filter: "blur(40px)" }} />
       </div>
 
-      {/* Login Banner */}
       {!authenticated && (
         <div
           className="relative z-10 mx-3 mt-2 mb-1 rounded-lg px-3 py-2 flex items-center justify-between cursor-pointer transition-all duration-300 hover:scale-[1.01]"
@@ -303,15 +289,10 @@ const Home = () => {
         </div>
       )}
 
-      {/* Builder Fee Approval Banner */}
       {authenticated && !builderFeeApproved && !builderDismissed && (
-        <BuilderApprovalBanner
-          onApproved={() => setBuilderDismissed(true)}
-          onDismiss={() => setBuilderDismissed(true)}
-        />
+        <BuilderApprovalBanner onApproved={() => setBuilderDismissed(true)} onDismiss={() => setBuilderDismissed(true)} />
       )}
 
-      {/* Header */}
       <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
         <div className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }} onClick={handleLogout}>
           <Image src={profileIcon} alt="profile" width={12} height={12} />
@@ -327,7 +308,6 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Main Balance Card */}
       <div className="relative z-10 px-3">
         <div className="rounded-xl p-4 mb-3 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(45,212,191,0.2)", boxShadow: "0 0 30px rgba(45,212,191,0.1), inset 0 0 40px rgba(45,212,191,0.03)" }}>
           <div className="absolute inset-0 rounded-xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15) 0%, transparent 60%)" }} />
@@ -336,9 +316,7 @@ const Home = () => {
               <div>
                 <p className="text-[11px] text-gray-400 mb-0.5">Current Balance</p>
                 <p className="text-xl font-bold text-white tracking-tight tabular-nums" style={{ textShadow: "0 0 20px rgba(45,212,191,0.3)" }}>
-                  {authenticated
-                    ? `$${balance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                    : "—"}
+                  {authenticated ? `$${balance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
                 </p>
               </div>
               <div className="flex gap-0.5">
@@ -359,9 +337,7 @@ const Home = () => {
                 <p className="text-[10px] text-gray-400 mb-0.5">Total P&L</p>
                 <div className="flex items-center gap-1.5">
                   <span className="text-sm font-bold tabular-nums text-white">
-                    {authenticated
-                      ? `${todayGain >= 0 ? "+" : "-"}$${Math.abs(todayGain).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                      : "—"}
+                    {authenticated ? `${todayGain >= 0 ? "+" : "-"}$${Math.abs(todayGain).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
                   </span>
                   {authenticated && summary && (
                     <span className={`text-[10px] font-semibold ${pnlPct >= 0 ? "text-teal-400" : "text-rose-400"}`} style={{ textShadow: pnlPct >= 0 ? "0 0 10px rgba(45,212,191,0.5)" : "none" }}>
@@ -372,22 +348,12 @@ const Home = () => {
               </div>
               <div className="flex gap-2">
                 {authenticated && balance > 0 && (
-                  <Button
-                    onClick={() => setShowWithdraw(true)}
-                    className="bg-transparent hover:bg-white/10 text-purple-400 text-[11px] font-bold rounded-lg px-3 py-2.5 h-auto transition-all cursor-pointer gap-1"
-                    style={{ border: "1px solid rgba(168,85,247,0.3)" }}
-                  >
-                    <Upload size={12} />
-                    Withdraw
+                  <Button onClick={() => setShowWithdraw(true)} className="bg-transparent hover:bg-white/10 text-purple-400 text-[11px] font-bold rounded-lg px-3 py-2.5 h-auto transition-all cursor-pointer gap-1" style={{ border: "1px solid rgba(168,85,247,0.3)" }}>
+                    <Upload size={12} /> Withdraw
                   </Button>
                 )}
-                <Button
-                  onClick={() => authenticated ? setShowDeposit(true) : login()}
-                  className="bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-[11px] font-bold rounded-lg px-4 py-2.5 h-auto transition-all cursor-pointer gap-1"
-                  style={{ boxShadow: "0 0 25px rgba(45,212,191,0.4)" }}
-                >
-                  <Download size={12} />
-                  {authenticated ? "Deposit" : "Connect"}
+                <Button onClick={() => authenticated ? setShowDeposit(true) : login()} className="bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-[11px] font-bold rounded-lg px-4 py-2.5 h-auto transition-all cursor-pointer gap-1" style={{ boxShadow: "0 0 25px rgba(45,212,191,0.4)" }}>
+                  <Download size={12} /> {authenticated ? "Deposit" : "Connect"}
                 </Button>
               </div>
             </div>
@@ -395,7 +361,6 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Stats Grid */}
       <div className="relative z-10 flex px-3 mt-2.5 gap-2">
         <div className="flex flex-1 gap-2">
           {[
@@ -431,7 +396,6 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Followed / Current Position Section */}
       <div className="relative z-10 px-3 mt-3 mb-24">
         <div className="rounded-xl overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <div className="relative flex border-b border-white/10">
@@ -441,30 +405,59 @@ const Home = () => {
             ))}
           </div>
           <div className="relative overflow-hidden">
-            {/* Followed Tab */}
+            {/* ── Followed Tab ── */}
             <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "followed" ? 1 : 0, transform: activeTab === "followed" ? "translateX(0)" : "translateX(-20px)", position: activeTab === "followed" ? "relative" : "absolute", pointerEvents: activeTab === "followed" ? "auto" : "none", width: "100%" }}>
               {followedTraders.length > 0 ? (
                 <>
-                  <div className="grid grid-cols-[1fr_60px_70px_32px_24px] gap-1.5 px-3 py-2 border-b border-white/10">
+                  <div className="grid grid-cols-[1fr_55px_65px_28px_24px] gap-1.5 px-3 py-2 border-b border-white/10">
                     <span className="text-[8px] text-gray-500 uppercase tracking-wide">Trader</span>
-                    <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">Gain</span>
+                    <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">Return</span>
                     <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">Profit</span>
                     <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">TA</span>
                     <span></span>
                   </div>
                   <div className="divide-y divide-white/5">
-                    {followedTraders.map((trader, index) => (
-                      <div key={trader.id} className="grid grid-cols-[1fr_60px_70px_32px_24px] gap-1.5 px-3 py-2.5 items-center hover:bg-white/5 transition-all duration-200 row-animate cursor-pointer active:bg-white/10" style={{ animationDelay: `${index * 0.05}s` }} onClick={() => router.push(`/profile?handle=${trader.name.replace("@", "")}`)}>
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ backgroundColor: trader.avatarBg }}>{trader.avatar}</div>
-                          <span className="text-[10px] text-gray-300 hover:text-teal-400 transition-colors">{trader.name}</span>
+                    {followedTraders.map((trader, index) => {
+                      const bg = AVATAR_COLORS[index % AVATAR_COLORS.length];
+                      const initial = (trader.display_name || trader.trader_username)?.[0]?.toUpperCase() || "?";
+                      return (
+                        <div
+                          key={trader.id}
+                          className="grid grid-cols-[1fr_55px_65px_28px_24px] gap-1.5 px-3 py-2.5 items-center hover:bg-white/5 transition-all duration-200 row-animate cursor-pointer active:bg-white/10"
+                          style={{ animationDelay: `${index * 0.05}s` }}
+                          onClick={() => router.push(`/profile?handle=${trader.trader_username}`)}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            {trader.avatar_url ? (
+                              <img src={trader.avatar_url} className="w-5 h-5 rounded-full object-cover" alt="" />
+                            ) : (
+                              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ backgroundColor: bg }}>{initial}</div>
+                            )}
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[10px] text-gray-300 hover:text-teal-400 transition-colors truncate">
+                                @{trader.trader_username}
+                              </span>
+                              {trader.profit_grade && (
+                                <span className="text-[8px] text-gray-500">{trader.profit_grade}</span>
+                              )}
+                            </div>
+                          </div>
+                          <span className={`text-[10px] text-right font-medium ${trader.avg_return_pct >= 0 ? "text-teal-400" : "text-rose-400"}`}>
+                            {trader.avg_return_pct >= 0 ? "+" : ""}{trader.avg_return_pct.toFixed(1)}%
+                          </span>
+                          <span className={`text-[10px] text-right font-medium ${trader.total_profit_usd >= 0 ? "text-white" : "text-rose-400"}`}>
+                            {trader.total_profit_usd >= 0 ? "" : "-"}${Math.abs(trader.total_profit_usd).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                          </span>
+                          <span className="text-[10px] text-gray-400 text-right">{trader.total_signals}</span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); router.push(`/settings?tab=trader&handle=${trader.trader_username}`); }}
+                            className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-teal-400 hover:bg-white/10 rounded-md transition-all cursor-pointer"
+                          >
+                            <Settings size={11} />
+                          </button>
                         </div>
-                        <span className="text-[10px] text-teal-400 text-right font-medium">+{trader.portfolioPercent}%</span>
-                        <span className="text-[10px] text-white text-right font-medium">${trader.profit.toLocaleString("en-US", { minimumFractionDigits: 1 })}</span>
-                        <span className="text-[10px] text-gray-400 text-right">{trader.ta}</span>
-                        <button onClick={(e) => { e.stopPropagation(); router.push("/settings?tab=trader"); }} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-teal-400 hover:bg-white/10 rounded-md transition-all cursor-pointer"><Settings size={11} /></button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
               ) : (
@@ -482,7 +475,7 @@ const Home = () => {
               )}
             </div>
 
-            {/* Positions Tab */}
+            {/* ── Positions Tab ── */}
             <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "position" ? 1 : 0, transform: activeTab === "position" ? "translateX(0)" : "translateX(20px)", position: activeTab === "position" ? "relative" : "absolute", pointerEvents: activeTab === "position" ? "auto" : "none", width: "100%", top: 0 }}>
               {currentPositions.length > 0 ? (
                 <>
@@ -498,7 +491,7 @@ const Home = () => {
                       <div key={pos.id} onClick={() => handleSelectPosition(pos)} className="grid grid-cols-[1fr_70px_80px_60px_16px] gap-1.5 px-3 py-2.5 items-center hover:bg-white/5 transition-all duration-200 cursor-pointer active:bg-white/10 row-animate" style={{ animationDelay: `${index * 0.05}s` }}>
                         <div className="flex items-center gap-1.5">
                           <div className="w-5 h-5 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
-                            <img src={pos.iconUrl} alt={pos.token} className="w-5 h-5 object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-[9px] font-bold text-white">${pos.token[0]}</span>`; }} />
+                            <img src={pos.iconUrl} alt={pos.token} className="w-5 h-5 object-cover" onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentElement!.innerHTML = `<span class="text-[9px] font-bold text-white">${pos.token[0]}</span>`; }} />
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[10px] text-white font-medium">{pos.token}</span>
@@ -532,25 +525,28 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Sheets & Modals */}
       {showCopying && <CopyingSheet mode="copying" onClose={() => setShowCopying(false)} />}
       {showCopiers && <CopyingSheet mode="copiers" onClose={() => setShowCopiers(false)} />}
       {showActiveTrades && (
         <ActiveTradesSheet
           positions={currentPositions}
           onClose={() => setShowActiveTrades(false)}
-          onSelectPosition={(pos: PositionRow) => handleSelectPosition(pos)}
+          onSelectPosition={(pos: (typeof currentPositions)[0]) => handleSelectPosition(pos)}
         />
       )}
       {selectedPos && <PositionDetail pos={selectedPos} onClose={() => setSelectedPos(null)} />}
       <DepositSheet
         isOpen={showDeposit}
-        onClose={handleDepositClose}
+        onClose={() => handleSheetClose(setShowDeposit)}
         onSuccess={() => { fetchDashboard(); getChartData(timeRange); }}
       />
       <WithdrawSheet
         isOpen={showWithdraw}
-        onClose={handleWithdrawClose}
+        onClose={() => {
+          setShowWithdraw(false);
+          getChartData(timeRange);
+          setTimeout(() => fetchDashboard(), 60_000);
+        }}
         availableBalance={balance}
         onSuccess={handleWithdrawSuccess}
       />

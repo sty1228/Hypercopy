@@ -101,12 +101,32 @@ export const getWalletBalance = async (): Promise<WalletBalance> => {
   return await get("/api/wallet/balance");
 };
 
-export const getWalletDeposits = async (): Promise<any[]> => {
+export const getWalletDeposits = async (): Promise<unknown[]> => {
   return await get("/api/wallet/deposits");
 };
 
 export const withdrawFromWallet = async (amount: number): Promise<{ status: string; message: string }> => {
   return await post("/api/wallet/withdraw", { amount });
+};
+
+// ─── Follow List ────────────────────────────────────────
+
+export interface FollowedTrader {
+  id: string;
+  trader_username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  is_copy_trading: boolean;
+  created_at: string;
+  win_rate: number;
+  total_profit_usd: number;
+  total_signals: number;
+  avg_return_pct: number;
+  profit_grade: string | null;
+}
+
+export const getFollowedTraders = async (window = "30d"): Promise<FollowedTrader[]> => {
+  return await get(`/api/follows?window=${window}`);
 };
 
 // ─── Leaderboard ────────────────────────────────────────
