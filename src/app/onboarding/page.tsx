@@ -66,11 +66,11 @@ const StepInfo = ({ step }: { step: string }) => {
   const info: Record<string, { title: string; desc: string }> = {
     enableTrading: {
       title: "Enable Trading",
-      desc: "This creates a local agent wallet that can sign trades on your behalf — so you don't have to approve every single order. Your funds can ONLY be withdrawn to your own wallet. This is a standard Hyperliquid security feature.",
+      desc: "Generates a secure agent wallet to execute trades on your behalf — eliminating per-transaction signing. Withdrawals remain restricted to your connected wallet. Standard Hyperliquid protocol security.",
     },
     builderFee: {
       title: "Approve Builder Fee",
-      desc: `HyperCopy charges a small fee (max ${process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS || 10} bps) per trade to sustain the platform. This is a one-time approval — you can revoke it anytime on Hyperliquid. No funds are deducted now.`,
+      desc: `Authorizes a per-trade builder fee (up to ${process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS || 10} bps) to support platform operations. One-time on-chain approval — revocable at any time via Hyperliquid. No funds are charged upon approval.`,
     },
   };
 
@@ -94,7 +94,7 @@ const StepInfo = ({ step }: { step: string }) => {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div
-            className="absolute bottom-[calc(100%+8px)] left-1/2 -translate-x-1/2 w-[260px] p-3 rounded-xl z-50"
+            className="absolute bottom-[calc(100%+8px)] right-0 w-[230px] p-2.5 rounded-xl z-50"
             style={{
               background: "rgba(10,20,24,0.97)",
               border: "1px solid rgba(80,210,193,0.2)",
@@ -102,14 +102,14 @@ const StepInfo = ({ step }: { step: string }) => {
               backdropFilter: "blur(20px)",
             }}
           >
-            <p className="text-[12px] font-semibold mb-1" style={{ color: "rgba(80,210,193,1)" }}>
+            <p className="text-[10px] font-semibold mb-0.5" style={{ color: "rgba(80,210,193,1)" }}>
               {item.title}
             </p>
-            <p className="text-[11px] leading-[1.5]" style={{ color: "rgba(255,255,255,0.7)" }}>
+            <p className="text-[9.5px] leading-[1.45]" style={{ color: "rgba(255,255,255,0.65)" }}>
               {item.desc}
             </p>
             <div
-              className="absolute -bottom-[6px] left-1/2 -translate-x-1/2 w-3 h-3 rotate-45"
+              className="absolute -bottom-[6px] right-[8px] w-3 h-3 rotate-45"
               style={{
                 background: "rgba(10,20,24,0.97)",
                 borderRight: "1px solid rgba(80,210,193,0.2)",
