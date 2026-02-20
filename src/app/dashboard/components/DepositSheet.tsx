@@ -15,6 +15,9 @@ import { recordDeposit, getSubAccount, saveSubAccount } from "@/service";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 
 const ARBITRUM_CHAIN_ID = 42161;
+const HL_CHAIN_ID = 1337;
+const ARB_CHAIN_ID_HEX = "0xa4b1";
+const HL_CHAIN_ID_HEX = "0x" + HL_CHAIN_ID.toString(16); // 0x539
 
 type DepositStep = "input" | "switching" | "approving" | "transferring" | "success" | "error";
 
@@ -25,23 +28,24 @@ interface DepositSheetProps {
 }
 
 // ────────────────────────────────────────────────────────────────
-// The core fix: bypass Privy's signTypedData chainId validation
+// Bypass Privy + wallet extension chainId validation
 //
-// Problem chain:
-//   HL SDK signL1Action → domain.chainId = 1337 (hardcoded)
-//   → ethers signer._signTypedData(domain, types, msg)
-//   → Privy provider.send("eth_signTypedData_v4", ...)
-//   → Privy checks: domain.chainId (1337) ≠ wallet chain → REJECT
+// Problem:
+//   HL SDK signL1Action → domain.chainId = 1337
+//   → Privy rejects (chainId mismatch)
+//   → Even raw Rabby rejects (current chain ≠ 1337)
 //
 // Solution:
-//   Create a viem-like wallet that calls eth_signTypedData_v4
-//   directly on the RAW extension provider (Rabby), skipping Privy.
-//   app.hyperliquid.xyz does the same thing and works fine with Rabby.
+//   1. Get the RAW extension provider (skip Privy entirely)
+//   2. Before signing, switch raw provider to chain 1337
+//   3. Sign with eth_signTypedData_v4
+//   4. Switch back to Arbitrum
+//
+// This works with Rabby, MetaMask, and any EIP-1193 wallet.
 // ────────────────────────────────────────────────────────────────
 
 function getRawExtensionProvider(): any {
   const win = window as any;
-  // EIP-5749 multi-provider: find the actual extension
   if (win.ethereum?.providers?.length) {
     const rabby = win.ethereum.providers.find((p: any) => p.isRabby);
     if (rabby) return rabby;
@@ -53,39 +57,92 @@ function getRawExtensionProvider(): any {
   return win.ethereum;
 }
 
+/** Ensure chain 1337 is registered in the wallet (no-op if already exists) */
+async function ensureHLChainRegistered(provider: any): Promise<void> {
+  try {
+    await provider.request({
+      method: "wallet_addEthereumChain",
+      params: [{
+        chainId: HL_CHAIN_ID_HEX,
+        chainName: "Hyperliquid L1",
+        nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+        rpcUrls: ["https://api.hyperliquid.xyz/evm"],
+        blockExplorerUrls: ["https://explorer.hyperliquid.xyz"],
+      }],
+    });
+  } catch {
+    // Already registered or wallet doesn't support addChain — fine
+  }
+}
+
+/** Switch raw provider to a specific chain */
+async function switchRawChain(provider: any, chainIdHex: string): Promise<void> {
+  await provider.request({
+    method: "wallet_switchEthereumChain",
+    params: [{ chainId: chainIdHex }],
+  });
+}
+
 async function createDirectSignExchClient(walletAddress: string): Promise<hl.ExchangeClient | null> {
   const rawProvider = getRawExtensionProvider();
   if (!rawProvider) {
     console.warn("[DirectSign] No raw extension provider found");
     return null;
   }
-  console.log("[DirectSign] Raw provider found:", rawProvider.isRabby ? "Rabby" : rawProvider.isMetaMask ? "MetaMask" : "unknown");
+  console.log("[DirectSign] Raw provider:", rawProvider.isRabby ? "Rabby" : rawProvider.isMetaMask ? "MetaMask" : "unknown");
 
-  // Custom viem-like wallet — SDK detects it by signTypedData.length === 1
+  // Pre-register chain 1337 so switch won't fail later
+  await ensureHLChainRegistered(rawProvider);
+
   const customWallet = {
     address: walletAddress as `0x${string}`,
     getAddresses: async () => [walletAddress as `0x${string}`],
-    // Single param → viem style → SDK will include EIP712Domain in types
+
+    // viem-style single-param signTypedData (SDK detects by .length === 1)
     signTypedData: async (args: {
       domain: any; types: any; primaryType: string; message: any;
     }) => {
       const { domain, types, primaryType, message } = args;
+
+      const targetChainId = typeof domain.chainId === "bigint"
+        ? Number(domain.chainId) : (domain.chainId ?? HL_CHAIN_ID);
+
+      const targetChainHex = "0x" + targetChainId.toString(16);
+
+      // ── Switch to the domain's chain so wallet validation passes ──
+      try {
+        await switchRawChain(rawProvider, targetChainHex);
+        console.log("[DirectSign] Switched to chain", targetChainId);
+      } catch (e) {
+        console.warn("[DirectSign] Chain switch failed:", e);
+        // Continue anyway — some wallets may not require it
+      }
+
       const payload = JSON.stringify({
         types,
-        domain: {
-          ...domain,
-          // Ensure chainId is a plain number (not BigInt)
-          chainId: typeof domain.chainId === "bigint"
-            ? Number(domain.chainId) : domain.chainId,
-        },
+        domain: { ...domain, chainId: targetChainId },
         primaryType,
         message,
       });
-      console.log("[DirectSign] Signing with domain.chainId:", domain.chainId);
-      const sig = await rawProvider.request({
-        method: "eth_signTypedData_v4",
-        params: [walletAddress, payload],
-      });
+
+      console.log("[DirectSign] Signing with domain.chainId:", targetChainId);
+
+      let sig: string;
+      try {
+        sig = await rawProvider.request({
+          method: "eth_signTypedData_v4",
+          params: [walletAddress, payload],
+        });
+      } finally {
+        // ── Always switch back to Arbitrum ──
+        try {
+          await switchRawChain(rawProvider, ARB_CHAIN_ID_HEX);
+          console.log("[DirectSign] Switched back to Arbitrum");
+        } catch (e) {
+          console.warn("[DirectSign] Switch-back to Arbitrum failed:", e);
+        }
+      }
+
       return sig as `0x${string}`;
     },
   };
@@ -174,6 +231,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
   const hasBlockingPositions = hlHasPositions && hlWithdrawable !== null && hlWithdrawable < parsedAmount && parsedAmount > 0;
 
   const getOrCreateSubAccount = async (exchClient: hl.ExchangeClient): Promise<string | null> => {
+    // 1. Check backend cache
     try {
       const res = await getSubAccount();
       if (res.sub_account_address) {
@@ -184,6 +242,22 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
       console.log("[SubAccount] Backend lookup failed:", e);
     }
 
+    // 2. Check if sub-account already exists on HL (e.g. user created manually)
+    try {
+      const subs = await (exchClient as any).subAccounts?.();
+      if (subs?.length) {
+        const existing = subs.find((s: any) => s.name === "HyperCopy");
+        if (existing?.address) {
+          console.log("[SubAccount] Found on-chain:", existing.address);
+          await saveSubAccount(existing.address);
+          return existing.address;
+        }
+      }
+    } catch (e) {
+      console.log("[SubAccount] On-chain lookup skipped:", e);
+    }
+
+    // 3. Create new
     try {
       console.log("[SubAccount] Creating sub-account...");
       const result = await exchClient.createSubAccount({ name: "HyperCopy" });
@@ -201,6 +275,38 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     return null;
   };
 
+  /** Poll HL main-account withdrawable until deposit lands or timeout */
+  const waitForHLCredit = async (expectedAmount: number, timeoutMs = 120_000): Promise<number> => {
+    if (!infoClient || !wallet) return 0;
+
+    const startWithdrawable = hlWithdrawable ?? 0;
+    const interval = 5_000;
+    const maxAttempts = Math.ceil(timeoutMs / interval);
+
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, interval));
+      try {
+        const state = await infoClient.clearinghouseState({ user: wallet.address as `0x${string}` });
+        const current = parseFloat(state?.withdrawable ?? "0");
+        console.log(`[Deposit] Polling HL credit: attempt ${i + 1}, withdrawable: ${current}`);
+        // Credit landed if withdrawable increased by at least 90% of expected (bridge fees)
+        if (current >= startWithdrawable + expectedAmount * 0.9) {
+          return current;
+        }
+      } catch (e) {
+        console.warn("[Deposit] Polling error:", e);
+      }
+    }
+    console.warn("[Deposit] Timed out waiting for HL credit");
+    // Return whatever we have — transfer will use actual available amount
+    try {
+      const state = await infoClient.clearinghouseState({ user: wallet.address as `0x${string}` });
+      return parseFloat(state?.withdrawable ?? "0");
+    } catch {
+      return startWithdrawable;
+    }
+  };
+
   const handleDeposit = async () => {
     if (!wallet || !amount || parsedAmount <= 0) return;
     if (parsedAmount > balNum) { toast.error("Insufficient USDC balance"); return; }
@@ -213,16 +319,16 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     try {
       setStep("switching");
 
-      // Create direct-sign ExchangeClient (bypasses Privy chainId check)
+      // Create direct-sign ExchangeClient (bypasses Privy + handles chain switching)
       const directClient = await createDirectSignExchClient(wallet.address);
       if (!directClient) {
         throw new Error("Failed to create signing client. Please use an external wallet like Rabby or MetaMask.");
       }
 
-      // Create/get sub-account (uses direct signing → chainId 1337 OK)
+      // Create/get sub-account (signs with chainId 1337 → switches chain automatically)
       const subAddr = await getOrCreateSubAccount(directClient);
 
-      // Switch to Arbitrum for USDC deposit
+      // Switch Privy wallet to Arbitrum for USDC deposit
       await wallet.switchChain(ARBITRUM_CHAIN_ID);
       const provider = await getProvider();
       const signer = provider.getSigner();
@@ -232,18 +338,26 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
       const result = await depositToHyperliquid(signer, amount);
       setTxHash(result.hash || null);
 
-      // Wait for HL credit (~30s), then transfer to sub-account
+      // Wait for HL credit with polling instead of fixed timeout
       setStep("transferring");
-      await new Promise(r => setTimeout(r, 30_000));
+      const actualWithdrawable = await waitForHLCredit(parsedAmount);
 
       if (subAddr) {
         try {
-          // Re-create direct client (signer context may have changed after switchChain)
-          const directClient2 = await createDirectSignExchClient(wallet.address);
-          await (directClient2 || directClient).subAccountTransfer({
+          // Calculate actual transfer amount (bridge may deduct fees)
+          const startW = hlWithdrawable ?? 0;
+          const credited = actualWithdrawable - startW;
+          const transferAmount = Math.max(0, Math.floor(credited * 1e6));
+
+          if (transferAmount <= 0) {
+            throw new Error("No funds credited to HL yet");
+          }
+
+          console.log(`[SubAccount] Transferring ${transferAmount / 1e6} USDC to sub-account`);
+          await directClient.subAccountTransfer({
             subAccountUser: subAddr as `0x${string}`,
             isDeposit: true,
-            usd: Math.floor(parsedAmount * 1e6),
+            usd: transferAmount,
           });
           console.log("[SubAccount] Transfer succeeded");
         } catch (e) {
@@ -404,7 +518,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                 <p className="text-[11px] text-gray-400 max-w-[240px]">
                   {step === "switching" && "Sign the sub-account creation request in your wallet"}
                   {step === "approving" && "Approve USDC spending, then confirm the deposit"}
-                  {step === "transferring" && "Isolating your funds into your HyperCopy sub-account. ~30s."}
+                  {step === "transferring" && "Waiting for funds to land on HyperLiquid, then isolating into your sub-account..."}
                 </p>
                 <div className="flex items-center gap-2 mt-6">
                   {["Setup", "Deposit", "Isolate"].map((s, i) => {
