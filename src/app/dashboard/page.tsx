@@ -169,7 +169,7 @@ const Home = () => {
   }, [summary]);
 
   // ── 4. Chart data ──
-  const getChartData = async (tr: TimeRange = "M") => {
+  const getChartData = useCallback(async (tr: TimeRange = "M") => {
     if (!authReady) { setChartData([]); return; }
     try {
       const data = await balanceHistory(tr === "Y" ? "YTD" : tr);
@@ -180,9 +180,32 @@ const Home = () => {
     } catch {
       setChartData([]);
     }
-  };
+  }, [authReady]);
 
-  useEffect(() => { getChartData(timeRange); }, [timeRange, authReady]);
+  useEffect(() => { getChartData(timeRange); }, [timeRange, getChartData]);
+
+  // ── 5. Sync chart last point with current balance ──
+  useEffect(() => {
+    if (!summary || chartData.length === 0) return;
+    const last = chartData[chartData.length - 1];
+    if (Math.abs(last.value - summary.total_balance) > 0.005) {
+      setChartData(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = {
+          ...updated[updated.length - 1],
+          value: summary.total_balance,
+        };
+        return updated;
+      });
+    }
+  }, [summary?.total_balance, chartData.length]);
+
+  // ── 6. Refresh all data after deposit/withdraw sheets close ──
+  const handleSheetClose = useCallback((setter: (v: boolean) => void) => {
+    setter(false);
+    fetchDashboard();
+    getChartData(timeRange);
+  }, [fetchDashboard, getChartData, timeRange]);
 
   // ── Derived values ──
   const pnlPct = summary?.total_pnl_pct ?? 0;
@@ -496,14 +519,14 @@ const Home = () => {
       {selectedPos && <PositionDetail pos={selectedPos} onClose={() => setSelectedPos(null)} />}
       <DepositSheet
         isOpen={showDeposit}
-        onClose={() => setShowDeposit(false)}
-        onSuccess={() => fetchDashboard()}
+        onClose={() => handleSheetClose(setShowDeposit)}
+        onSuccess={() => { fetchDashboard(); getChartData(timeRange); }}
       />
       <WithdrawSheet
         isOpen={showWithdraw}
-        onClose={() => setShowWithdraw(false)}
+        onClose={() => handleSheetClose(setShowWithdraw)}
         availableBalance={balance}
-        onSuccess={() => fetchDashboard()}
+        onSuccess={() => { fetchDashboard(); getChartData(timeRange); }}
       />
     </div>
   );

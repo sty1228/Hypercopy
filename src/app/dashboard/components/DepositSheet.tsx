@@ -100,10 +100,12 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
         }}
       >
         <div className="rounded-t-3xl overflow-hidden" style={{ background: "linear-gradient(180deg, #111820 0%, #0a0f14 100%)", border: "1px solid rgba(255,255,255,0.1)", borderBottom: "none" }}>
+          {/* Drag handle */}
           <div className="flex justify-center pt-3 pb-1">
             <div className="w-10 h-1 rounded-full bg-white/20" />
           </div>
 
+          {/* Header */}
           <div className="flex items-center justify-between px-5 pt-1 pb-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(45,212,191,0.15)" }}>
@@ -111,12 +113,34 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
               </div>
               <div>
                 <h2 className="text-sm font-bold text-white">Deposit USDC</h2>
-                <span className="text-[10px] text-gray-500">Send USDC on Arbitrum</span>
+                <span className="text-[10px] text-gray-500">Fund your copy-trading wallet</span>
               </div>
             </div>
             <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.06)" }}>
               <X size={16} className="text-gray-400" />
             </button>
+          </div>
+
+          {/* ── Network badge ── */}
+          <div className="mx-5 mb-4 rounded-xl p-2.5 flex items-center gap-2.5" style={{ background: "rgba(45,130,246,0.06)", border: "1px solid rgba(45,130,246,0.18)" }}>
+            {/* Arbitrum logo */}
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(45,130,246,0.12)" }}>
+              <svg width="18" height="18" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M151.8 133.3L128 180.5l-23.8-47.2L128 110l23.8 23.3z" fill="#2D9CDB"/>
+                <path d="M128 20L40 128l88 108 88-108L128 20z" fill="none" stroke="#2D9CDB" strokeWidth="12" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-white">Arbitrum Network Only</span>
+                <span className="px-1.5 py-[1px] rounded text-[8px] font-bold uppercase tracking-wider" style={{ background: "rgba(45,130,246,0.2)", color: "#5BA8F5" }}>
+                  Required
+                </span>
+              </div>
+              <p className="text-[9.5px] text-gray-500 mt-0.5">
+                Only send <strong className="text-white">USDC</strong> on <strong className="text-white">Arbitrum (ARB)</strong>. Other tokens or networks will result in permanent loss.
+              </p>
+            </div>
           </div>
 
           <div className="px-5 pb-6">
@@ -153,9 +177,14 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                   </div>
                 </div>
 
-                {/* Deposit Address */}
+                {/* Step 1: Copy address */}
                 <div>
-                  <p className="text-[10px] text-gray-400 mb-2 ml-1">Send USDC (Arbitrum) to this address:</p>
+                  <div className="flex items-center gap-2 mb-2 ml-1">
+                    <div className="w-[18px] h-[18px] rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(45,212,191,0.15)", border: "1px solid rgba(45,212,191,0.3)" }}>
+                      <span className="text-[9px] font-bold text-teal-400">1</span>
+                    </div>
+                    <p className="text-[11px] text-gray-300 font-medium">Copy your deposit address</p>
+                  </div>
                   <button
                     onClick={copyAddress}
                     className="w-full rounded-xl px-4 py-3.5 flex items-center justify-between gap-3 transition-all active:scale-[0.98]"
@@ -165,36 +194,79 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                     }}
                   >
                     <code className="text-[11px] text-white font-mono truncate">{wallet.address}</code>
-                    <div className="shrink-0">
-                      {copied ? <CheckCircle size={16} className="text-teal-400" /> : <Copy size={16} className="text-gray-400" />}
+                    <div className="shrink-0 flex items-center gap-1.5">
+                      {copied ? (
+                        <>
+                          <span className="text-[9px] text-teal-400 font-medium">Copied</span>
+                          <CheckCircle size={14} className="text-teal-400" />
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-[9px] text-gray-500">Tap to copy</span>
+                          <Copy size={14} className="text-gray-400" />
+                        </>
+                      )}
                     </div>
                   </button>
                 </div>
 
-                {/* Min deposit warning */}
-                <div className="rounded-xl p-3 flex items-start gap-2" style={{ background: "rgba(234,179,8,0.06)", border: "1px solid rgba(234,179,8,0.15)" }}>
-                  <AlertTriangle size={12} className="text-yellow-400 shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-yellow-300/80 leading-relaxed">
-                    Minimum deposit is <strong>5 USDC</strong>. Amounts below 5 USDC will be lost permanently.
-                  </p>
+                {/* Step 2: Send USDC instruction */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2 ml-1">
+                    <div className="w-[18px] h-[18px] rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(45,212,191,0.15)", border: "1px solid rgba(45,212,191,0.3)" }}>
+                      <span className="text-[9px] font-bold text-teal-400">2</span>
+                    </div>
+                    <p className="text-[11px] text-gray-300 font-medium">Send USDC on Arbitrum to this address</p>
+                  </div>
+                  <div className="rounded-xl p-3 space-y-2.5" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div className="flex items-start gap-2.5">
+                      <span className="text-[10px] text-gray-500 shrink-0 w-[52px]">Token</span>
+                      <span className="text-[10px] text-white font-semibold">USDC</span>
+                    </div>
+                    <div className="h-px" style={{ background: "rgba(255,255,255,0.04)" }} />
+                    <div className="flex items-start gap-2.5">
+                      <span className="text-[10px] text-gray-500 shrink-0 w-[52px]">Network</span>
+                      <span className="text-[10px] text-white font-semibold">Arbitrum One</span>
+                    </div>
+                    <div className="h-px" style={{ background: "rgba(255,255,255,0.04)" }} />
+                    <div className="flex items-start gap-2.5">
+                      <span className="text-[10px] text-gray-500 shrink-0 w-[52px]">Minimum</span>
+                      <span className="text-[10px] text-white font-semibold">5 USDC</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* How it works */}
-                <div className="rounded-xl p-3 space-y-2" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                  <p className="text-[10px] text-gray-500 font-semibold">How it works:</p>
-                  {[
-                    "Send USDC (Arbitrum) to the address above",
-                    "We auto-deposit it to HyperLiquid (~2 min)",
-                    "Copy-trades execute from your dedicated wallet",
-                  ].map((text, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
-                        style={{ background: "rgba(45,212,191,0.1)", border: "1px solid rgba(45,212,191,0.2)" }}>
-                        <span className="text-[8px] font-bold text-teal-400">{i + 1}</span>
-                      </div>
-                      <span className="text-[10px] text-gray-400">{text}</span>
+                {/* Step 3: Auto deposit */}
+                <div>
+                  <div className="flex items-center gap-2 mb-2 ml-1">
+                    <div className="w-[18px] h-[18px] rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(45,212,191,0.15)", border: "1px solid rgba(45,212,191,0.3)" }}>
+                      <span className="text-[9px] font-bold text-teal-400">3</span>
                     </div>
-                  ))}
+                    <p className="text-[11px] text-gray-300 font-medium">Wait for auto-deposit (~2 min)</p>
+                  </div>
+                  <div className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <p className="text-[10px] text-gray-400 leading-relaxed">
+                      Funds are automatically bridged to HyperLiquid once your USDC arrives. Your balance above will update in real-time. Copy-trades will begin executing once funds are active.
+                    </p>
+                  </div>
+                </div>
+
+                {/* ── Warning ── */}
+                <div className="rounded-xl p-3 flex items-start gap-2.5" style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.15)" }}>
+                  <AlertTriangle size={13} className="text-red-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[10px] text-red-300/90 font-semibold mb-0.5">Before you send</p>
+                    <ul className="space-y-1">
+                      <li className="text-[9.5px] text-red-300/70 leading-relaxed flex items-start gap-1.5">
+                        <span className="shrink-0 mt-[3px]">•</span>
+                        <span>Only <strong className="text-red-300/90">USDC on Arbitrum</strong> is accepted. Sending any other token or using a different network will result in <strong className="text-red-300/90">permanent loss</strong>.</span>
+                      </li>
+                      <li className="text-[9.5px] text-red-300/70 leading-relaxed flex items-start gap-1.5">
+                        <span className="shrink-0 mt-[3px]">•</span>
+                        <span>Deposits below <strong className="text-red-300/90">5 USDC</strong> cannot be recovered.</span>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
 
                 {/* Safety note */}

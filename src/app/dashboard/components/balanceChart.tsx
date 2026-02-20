@@ -37,7 +37,6 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-// 自定义发光圆点
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const GlowDot = (props: any) => {
   const { cx, cy, index, payload } = props;
@@ -68,18 +67,15 @@ const GlowDot = (props: any) => {
   );
 };
 
-// 自定义 active 发光圆点
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ActiveGlowDot = (props: any) => {
   const { cx, cy } = props;
   if (cx == null || cy == null) return null;
   return (
     <g>
-      {/* 大 glow 光晕 */}
       <circle cx={cx} cy={cy} r={12} fill="rgba(45,212,191,0.08)" />
       <circle cx={cx} cy={cy} r={8} fill="rgba(45,212,191,0.15)" />
       <circle cx={cx} cy={cy} r={5} fill="rgba(45,212,191,0.25)" />
-      {/* 实心点 */}
       <circle cx={cx} cy={cy} r={3} fill="#c7fff8" stroke="#2dd4bf" strokeWidth={1.5} />
     </g>
   );
@@ -90,6 +86,9 @@ interface BalanceChartProps {
   chartData: BalanceChartData[];
 }
 
+const TEAL = "#2dd4bf";
+const TEAL_RGBA = "rgba(45,212,191,";
+
 const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
   if (!chartData || chartData.length === 0) {
     return (
@@ -97,40 +96,32 @@ const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
         <svg width="100%" height="100%" viewBox="0 0 100 80" preserveAspectRatio="none">
           <defs>
             <linearGradient id="emptyGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2dd4bf" stopOpacity="0.06" />
-              <stop offset="100%" stopColor="#2dd4bf" stopOpacity="0" />
+              <stop offset="0%" stopColor={TEAL} stopOpacity="0.06" />
+              <stop offset="100%" stopColor={TEAL} stopOpacity="0" />
             </linearGradient>
           </defs>
-          <line x1="0" y1="40" x2="100" y2="40" stroke="#2dd4bf" strokeWidth="0.5" vectorEffect="non-scaling-stroke" opacity="0.3" />
+          <line x1="0" y1="40" x2="100" y2="40" stroke={TEAL} strokeWidth="0.5" vectorEffect="non-scaling-stroke" opacity="0.3" />
           <rect x="0" y="40" width="100" height="40" fill="url(#emptyGrad)" />
-          <circle cx="0" cy="40" r="1.5" fill="#2dd4bf" opacity="0.4" />
-          <circle cx="100" cy="40" r="1.5" fill="#2dd4bf" opacity="0.4" />
+          <circle cx="0" cy="40" r="1.5" fill={TEAL} opacity="0.4" />
+          <circle cx="100" cy="40" r="1.5" fill={TEAL} opacity="0.4" />
         </svg>
       </div>
     );
   }
 
-  // Reference line = first data point (starting balance)
   const refValue = chartData[0]?.value ?? 0;
 
-  // 判断盈亏方向（最后的值 vs 第一个值）
-  const lastValue = chartData[chartData.length - 1]?.value ?? 0;
-  const isPositive = lastValue >= refValue;
-
-  // 计算要显示的刻度：均匀间隔，最多 6-7 个
+  // 计算要显示的刻度
   const visibleLabels = new Set<number>();
   const len = chartData.length;
   if (len <= 7) {
     for (let i = 0; i < len; i++) visibleLabels.add(i);
   } else {
     const step = Math.ceil(len / 6);
-    for (let i = 0; i < len; i += step) {
-      visibleLabels.add(i);
-    }
-    visibleLabels.add(len - 1); // 始终显示最后一个
+    for (let i = 0; i < len; i += step) visibleLabels.add(i);
+    visibleLabels.add(len - 1);
   }
 
-  // 去重相同标签
   const seenLabels = new Set<string>();
   const finalLabels = new Set<number>();
   for (const idx of Array.from(visibleLabels).sort((a, b) => a - b)) {
@@ -140,9 +131,6 @@ const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
       finalLabels.add(idx);
     }
   }
-
-  const lineColor = isPositive ? "#2dd4bf" : "#f87171";
-  const glowColor = isPositive ? "rgba(45,212,191," : "rgba(248,113,113,";
 
   return (
     <div className="w-full h-full chart-container">
@@ -158,10 +146,9 @@ const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={chartData} margin={{ top: 5, right: 25, left: 25, bottom: 0 }}>
           <defs>
-            {/* 线条 glow 滤镜 */}
             <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
               <feGaussianBlur stdDeviation="3" result="blur" />
-              <feFlood floodColor={lineColor} floodOpacity="0.4" result="color" />
+              <feFlood floodColor={TEAL} floodOpacity="0.4" result="color" />
               <feComposite in="color" in2="blur" operator="in" result="glow" />
               <feMerge>
                 <feMergeNode in="glow" />
@@ -169,11 +156,10 @@ const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
               </feMerge>
             </filter>
 
-            {/* 面积填充渐变 */}
             <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={lineColor} stopOpacity={0.2} />
-              <stop offset="40%" stopColor={lineColor} stopOpacity={0.08} />
-              <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
+              <stop offset="0%" stopColor={TEAL} stopOpacity={0.2} />
+              <stop offset="40%" stopColor={TEAL} stopOpacity={0.08} />
+              <stop offset="100%" stopColor={TEAL} stopOpacity={0} />
             </linearGradient>
           </defs>
 
@@ -204,23 +190,24 @@ const BalanceChart = ({ timeRange = "M", chartData }: BalanceChartProps) => {
           <Tooltip
             content={(props) => <CustomTooltip {...props} />}
             cursor={{
-              stroke: `${glowColor}0.25)`,
+              stroke: `${TEAL_RGBA}0.25)`,
               strokeWidth: 1,
               strokeDasharray: "4 4",
             }}
           />
 
+          {/* Reference line — subtle neutral dashed line at starting balance */}
           <ReferenceLine
             y={refValue}
-            stroke="rgba(135,62,62,0.8)"
-            strokeDasharray="8 4"
+            stroke="rgba(255,255,255,0.12)"
+            strokeDasharray="6 4"
             strokeWidth={1}
           />
 
           <Area
             type="monotone"
             dataKey="value"
-            stroke={lineColor}
+            stroke={TEAL}
             strokeWidth={2}
             fill="url(#areaGradient)"
             filter="url(#lineGlow)"
