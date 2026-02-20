@@ -855,7 +855,7 @@ function KOLProfileContent() {
                             <Tooltip
                               contentStyle={{ background: "rgba(15,20,25,0.95)", border: "1px solid rgba(45,212,191,0.2)", borderRadius: 8, fontSize: 10 }}
                               labelStyle={{ color: "rgba(255,255,255,0.5)" }}
-                              formatter={(v: number) => [`${v >= 0 ? "+" : ""}${v.toFixed(2)}%`, "Cumulative"]}
+                              formatter={((v: number | undefined) => [`${(v ?? 0) >= 0 ? "+" : ""}${(v ?? 0).toFixed(2)}%`, "Cumulative"]) as any}
                               labelFormatter={(i) => pnlFiltered[i as number]?.ticker || ""}
                             />
                             <Area type="monotone" dataKey="cumPnl" stroke={totalCumPnl >= 0 ? "#2dd4bf" : "#f43f5e"} strokeWidth={1.5} fill="url(#pnlGrad)" dot={false} />
