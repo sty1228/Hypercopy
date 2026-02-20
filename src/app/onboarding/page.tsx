@@ -9,10 +9,6 @@ import { usePrivy } from "@privy-io/react-auth";
 import { FullScreenLoader } from "@/components/ui/fullscreen-loader";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import { useContext, useEffect, useMemo, useState, Suspense } from "react";
-import { useCurrentWallet } from "@/hooks/usePrivyData";
-import { getPerpsBalance } from "@/helpers/hyperliquid";
-import { getArbUSDCBalance } from "@/helpers/arbitrum";
-import { useArbitrumUSDCDepositWithTransfer } from "@/hooks/hyperliquid";
 import { toast } from "sonner";
 import onBoardBg from "@/assets/icons/onboard-bg.png";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -68,10 +64,6 @@ const StepInfo = ({ step }: { step: string }) => {
   const [open, setOpen] = useState(false);
 
   const info: Record<string, { title: string; desc: string }> = {
-    deposit: {
-      title: "Deposit USDC",
-      desc: "Transfer USDC from your Arbitrum wallet to Hyperliquid L1 for trading. This is a standard cross-chain deposit — your funds stay in your own Hyperliquid account.",
-    },
     enableTrading: {
       title: "Enable Trading",
       desc: "This creates a local agent wallet that can sign trades on your behalf — so you don't have to approve every single order. Your funds can ONLY be withdrawn to your own wallet. This is a standard Hyperliquid security feature.",
@@ -137,16 +129,9 @@ const OnboardingContent = () => {
   const {
     enableTrading,
     tradingEnabled,
-    infoClient,
     builderFeeApproved,
     approveBuilderFee,
-    agentWallet,
   } = useContext(HyperLiquidContext);
-  const currentWallet = useCurrentWallet();
-  const [perpsBalance, setPerpsBalance] = useState<number>(0);
-  const [arbUSDCBalance, setArbUSDCBalance] = useState<number>(0);
-  const [requestLock, setRequestLock] = useState<boolean>(false);
-  const arbitrumUSDCDepositWithTransfer = useArbitrumUSDCDepositWithTransfer();
 
   const from = useSearchParams().get("from") as "orderPlace" | string;
 
@@ -158,82 +143,42 @@ const OnboardingContent = () => {
 
   /* ── auto-redirect when all steps done ── */
   useEffect(() => {
-    if (authenticated && perpsBalance > 0 && tradingEnabled && builderFeeApproved) {
+    if (authenticated && tradingEnabled && builderFeeApproved) {
       const target = from === "orderPlace" || !from ? "/dashboard" : from;
       toast.success("All set! Redirecting...");
       const t = setTimeout(() => router.push(target), 1200);
       return () => clearTimeout(t);
     }
-  }, [authenticated, perpsBalance, tradingEnabled, builderFeeApproved, from, router]);
+  }, [authenticated, tradingEnabled, builderFeeApproved, from, router]);
+
+  /* ── step progress ── */
+  const currentStep = useMemo(() => {
+    if (!authenticated) return 0;
+    if (!tradingEnabled) return 1;
+    if (!builderFeeApproved) return 2;
+    return 3;
+  }, [authenticated, tradingEnabled, builderFeeApproved]);
 
   /* ── step hint text with tooltip key ── */
   const stepHint = useMemo(() => {
     if (!authenticated) return null;
-    if (perpsBalance <= 0) return { text: "Transfer USDC to your Hyperliquid account to start trading.", key: "deposit" };
     if (!tradingEnabled) return { text: "Authorize a local agent wallet so trades execute without signing each one.", key: "enableTrading" };
     if (!builderFeeApproved) return { text: "One-time approval for a small per-trade fee. No funds deducted now.", key: "builderFee" };
     return null;
-  }, [authenticated, perpsBalance, tradingEnabled, builderFeeApproved]);
+  }, [authenticated, tradingEnabled, builderFeeApproved]);
 
   const buttonText = useMemo(() => {
-    console.log(
-      "authenticated", authenticated,
-      "perpsBalance", perpsBalance,
-      "arbUSDCBalance", arbUSDCBalance,
-      "tradingEnabled", tradingEnabled,
-      "builderFeeApproved", builderFeeApproved
-    );
     if (!authenticated) return "GET STARTED";
-    if (perpsBalance <= 0) {
-      return arbUSDCBalance <= 0.1
-        ? "NOT ENOUGH ARBITRUM USDC"
-        : `DEPOSIT 5 USDC TO START`;
-    }
     if (!tradingEnabled) return "ENABLE TRADING";
     if (!builderFeeApproved) return "APPROVE BUILDER FEE";
-    return "START";
-  }, [authenticated, perpsBalance, arbUSDCBalance, tradingEnabled, builderFeeApproved]);
-
-  useEffect(() => {
-    if (!currentWallet || !infoClient || requestLock) return;
-    setRequestLock(true);
-    Promise.all([
-      getPerpsBalance({ exchClient: infoClient!, walletAddress: currentWallet.address! }),
-      getArbUSDCBalance(currentWallet.address!),
-    ])
-      .then(([perpsBalance, arbUSDCBalance]) => {
-        setPerpsBalance(Number(perpsBalance?.marginSummary?.accountValue || 0));
-        setArbUSDCBalance(Number(arbUSDCBalance));
-      })
-      .finally(() => setRequestLock(false));
-  }, [currentWallet, infoClient]);
+    return "GO TO DASHBOARD";
+  }, [authenticated, tradingEnabled, builderFeeApproved]);
 
   const handleClickContinue = async () => {
     if (!authenticated) { login(); return; }
-    if (perpsBalance <= 0) {
-      if (arbUSDCBalance >= 10) {
-        const depositTx = await arbitrumUSDCDepositWithTransfer({ depositAmount: 5 }).catch(() => null);
-        if (!depositTx) return;
-        toast.info("Deposit tx has been sent, waiting for blockchain and hyperliquid confirmation...", { duration: 3_000 });
-        const timer = setInterval(() => {
-          getPerpsBalance({ exchClient: infoClient!, walletAddress: currentWallet!.address }).then((res) => {
-            if (res?.marginSummary?.accountValue && Number(res.marginSummary.accountValue) > 0) {
-              clearInterval(timer);
-              setPerpsBalance(Number(res?.marginSummary?.accountValue || 0));
-              toast.success("Deposit confirmed!");
-            } else {
-              toast.info("Keep checking hyperliquid balance, this may take 1 minute...", { duration: 3_000 });
-            }
-          });
-        }, 5_000);
-      } else {
-        toast.error("NOT ENOUGH ARBITRUM USDC");
-      }
-      return;
-    }
     if (!tradingEnabled) { await enableTrading(); return; }
     if (!builderFeeApproved) { await approveBuilderFee(); return; }
-    router.push("/copyTrading");
+    router.push("/dashboard");
   };
 
   if (!ready) return <FullScreenLoader />;
@@ -484,11 +429,8 @@ const OnboardingContent = () => {
       {/* ── HYPE buyback image with effects ── */}
       <div
         className="relative z-10 mt-[40px]"
-        style={{
-          animation: "scaleIn 0.9s ease-out 0.75s both",
-        }}
+        style={{ animation: "scaleIn 0.9s ease-out 0.75s both" }}
       >
-        {/* outer glow behind image */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
@@ -497,17 +439,9 @@ const OnboardingContent = () => {
             animation: "borderGlow 4s ease-in-out infinite",
           }}
         />
-
-        {/* the image with subtle float */}
         <div style={{ animation: "hypeFloat 5s ease-in-out infinite" }}>
-          <Image
-            src={HyperBuybackProgramIcon}
-            alt="logo"
-            className="w-full relative z-10"
-          />
+          <Image src={HyperBuybackProgramIcon} alt="logo" className="w-full relative z-10" />
         </div>
-
-        {/* scan line sweeping across image */}
         <div
           className="absolute left-0 right-0 h-[2px] pointer-events-none z-20"
           style={{
@@ -517,8 +451,6 @@ const OnboardingContent = () => {
             boxShadow: "0 0 15px rgba(80,210,193,0.3), 0 0 30px rgba(80,210,193,0.15)",
           }}
         />
-
-        {/* corner accents */}
         <div className="absolute top-2 left-4 w-[20px] h-[20px] border-t-[1.5px] border-l-[1.5px] pointer-events-none z-20 rounded-tl-sm"
           style={{ borderColor: "rgba(80,210,193,0.4)", animation: "borderGlow 3s ease-in-out infinite" }} />
         <div className="absolute top-2 right-4 w-[20px] h-[20px] border-t-[1.5px] border-r-[1.5px] pointer-events-none z-20 rounded-tr-sm"
@@ -529,10 +461,70 @@ const OnboardingContent = () => {
           style={{ borderColor: "rgba(80,210,193,0.4)", animation: "borderGlow 3s ease-in-out 1.5s infinite" }} />
       </div>
 
-      {/* ── step hint (only when authenticated and not fully done) ── */}
+      {/* ── step progress indicator ── */}
+      {authenticated && currentStep < 3 && (
+        <div
+          className="mx-[48px] mt-6 relative z-10"
+          style={{ animation: "fadeIn 0.5s ease-out both" }}
+        >
+          <div className="flex items-center justify-center gap-2 mb-3">
+            {["Connect", "Trading", "Builder Fee"].map((label, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className="flex flex-col items-center">
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-500"
+                    style={{
+                      background: i < currentStep
+                        ? "rgba(80,210,193,0.9)"
+                        : i === currentStep
+                        ? "rgba(80,210,193,0.2)"
+                        : "rgba(255,255,255,0.05)",
+                      color: i < currentStep
+                        ? "#0a0f14"
+                        : i === currentStep
+                        ? "rgba(80,210,193,1)"
+                        : "rgba(255,255,255,0.3)",
+                      border: i === currentStep
+                        ? "1.5px solid rgba(80,210,193,0.5)"
+                        : "1.5px solid transparent",
+                      boxShadow: i === currentStep
+                        ? "0 0 12px rgba(80,210,193,0.3)"
+                        : "none",
+                    }}
+                  >
+                    {i < currentStep ? "✓" : i + 1}
+                  </div>
+                  <span
+                    className="text-[9px] mt-1 whitespace-nowrap"
+                    style={{
+                      color: i <= currentStep
+                        ? "rgba(80,210,193,0.8)"
+                        : "rgba(255,255,255,0.3)",
+                    }}
+                  >
+                    {label}
+                  </span>
+                </div>
+                {i < 2 && (
+                  <div
+                    className="w-8 h-[1px] mb-4"
+                    style={{
+                      background: i < currentStep
+                        ? "rgba(80,210,193,0.5)"
+                        : "rgba(255,255,255,0.1)",
+                    }}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── step hint ── */}
       {stepHint && (
         <div
-          className="mx-[48px] mt-4 relative z-10"
+          className="mx-[48px] mt-2 relative z-10"
           style={{ animation: "fadeIn 0.5s ease-out both" }}
         >
           <p className="text-[12px] text-center leading-[1.5]" style={{ color: "rgba(255,255,255,0.55)" }}>
@@ -558,7 +550,6 @@ const OnboardingContent = () => {
         className="relative mx-[48px] mt-6 group cursor-pointer z-10"
         style={{ animation: "slideUp 0.8s ease-out 1s both" }}
       >
-        {/* animated gradient border */}
         <div
           className="absolute inset-0 rounded-[38px]"
           style={{
@@ -574,8 +565,6 @@ const OnboardingContent = () => {
             style={{ backgroundColor: colors.primary }}
           />
         </div>
-
-        {/* shimmer on hover */}
         <div className="absolute inset-0 rounded-[38px] overflow-hidden pointer-events-none">
           <div
             className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
@@ -585,7 +574,6 @@ const OnboardingContent = () => {
             }}
           />
         </div>
-
         <div
           className="absolute inset-0 rounded-[38px] opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-all duration-200 pointer-events-none"
           style={{ backdropFilter: "blur(30px)" }}
@@ -629,13 +617,12 @@ const OnboardingContent = () => {
         </Button>
       </div>
 
-      {/* ── explore top traders button (highlighted) ── */}
+      {/* ── explore top traders button ── */}
       <div
         className="relative mx-[48px] mt-3 z-10 cursor-pointer group"
         style={{ animation: "fadeIn 1s ease-out 1.1s both" }}
         onClick={() => router.push("/copyTrading")}
       >
-        {/* animated gradient border */}
         <div
           className="absolute inset-0 rounded-[28px]"
           style={{
@@ -651,12 +638,9 @@ const OnboardingContent = () => {
             style={{ backgroundColor: "rgba(10, 20, 24, 0.95)" }}
           />
         </div>
-
         <div
           className="h-[52px] rounded-[28px] flex items-center justify-center gap-2 transition-all duration-300 relative"
-          style={{
-            background: "transparent",
-          }}
+          style={{ background: "transparent" }}
         >
           <span
             className="text-[11px] tracking-[2px] uppercase transition-colors duration-300 group-hover:text-[rgba(80,210,193,1)]"

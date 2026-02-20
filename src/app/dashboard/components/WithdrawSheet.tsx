@@ -75,7 +75,7 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
         setStep("success");
         toast.success(`Withdrew ${withdrawAmount.toFixed(2)} USDC`);
         onSuccess?.(amount);
-      } else if (result.status === "pending") {
+      } else if (result.status === "pending" || result.status === "processing") {
         setStep("success");
         toast.info(result.message);
         onSuccess?.(amount);
