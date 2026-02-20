@@ -8,8 +8,7 @@ import profileIcon from "@/assets/icons/profile.png";
 import copyCountIcon from "@/assets/icons/copy-count.png";
 import { Button } from "@/components/ui/button";
 import TimeRangeTab from "./components/TimeRangeTab";
-import BalanceChart from "./components/balanceChart";
-import type { TimeRange } from "./components/balanceChart";
+import BalanceChart, { type TimeRange } from "./components/balanceChart";
 import {
   connectWalletApi,
   getDashboardSummary,
@@ -24,7 +23,7 @@ import { HyperLiquidContext } from "@/providers/hyperliquid";
 import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
 import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Upload } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
-import PositionDetail, { PositionDetailData, positionExtendedData } from "./components/PositionDetail";
+import PositionDetail, { type PositionDetailData, positionExtendedData } from "./components/PositionDetail";
 import CopyingSheet from "./components/CopyingSheet";
 import ActiveTradesSheet from "./components/ActiveTradesSheet";
 import DepositSheet from "./components/DepositSheet";
@@ -65,6 +64,18 @@ const formatLabel = (ts: number, tr: TimeRange): string => {
     case "ALL": return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
     default: return "";
   }
+};
+
+type PositionRow = {
+  id: number;
+  token: string;
+  pair: string;
+  iconUrl: string;
+  size: number;
+  sizeUsd: number;
+  pnl: number;
+  pnlPercent: number;
+  entry: number;
 };
 
 const Home = () => {
@@ -166,6 +177,7 @@ const Home = () => {
       if (step >= steps) clearInterval(timer);
     }, dur / steps);
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summary]);
 
   // ── 4. Chart data ──
@@ -184,17 +196,33 @@ const Home = () => {
 
   useEffect(() => { getChartData(timeRange); }, [timeRange, getChartData]);
 
-  // ── 5. Refresh all data after deposit/withdraw sheets close ──
-  const handleSheetClose = useCallback((setter: (v: boolean) => void) => {
-    setter(false);
+  // ── 5. Refresh all data after deposit sheet closes ──
+  const handleDepositClose = useCallback(() => {
+    setShowDeposit(false);
     fetchDashboard();
     getChartData(timeRange);
   }, [fetchDashboard, getChartData, timeRange]);
 
-  // ── Derived values ──
-  const pnlPct = summary?.total_pnl_pct ?? 0;
+  // ── 6. Optimistic balance update after withdraw ──
+  const handleWithdrawSuccess = useCallback((amount?: string) => {
+    const num = parseFloat(amount || "0");
+    if (num > 0) {
+      setBalance((prev) => Math.max(0, prev - num));
+      setSummary((prev) =>
+        prev ? { ...prev, total_balance: Math.max(0, prev.total_balance - num) } : prev
+      );
+    }
+    getChartData(timeRange);
+  }, [getChartData, timeRange]);
 
-  // Always override chart's last point with live Current Balance
+  const handleWithdrawClose = useCallback(() => {
+    setShowWithdraw(false);
+    getChartData(timeRange);
+    // Delay dashboard refetch so optimistic balance isn't overwritten immediately
+    setTimeout(() => fetchDashboard(), 60_000);
+  }, [fetchDashboard, getChartData, timeRange]);
+
+  // ── Derived: always override chart last point with live balance ──
   const finalChartData = useMemo(() => {
     if (!chartData.length || !summary) return chartData;
     const last = chartData[chartData.length - 1];
@@ -204,13 +232,14 @@ const Home = () => {
       return updated;
     }
     return chartData;
-  }, [chartData, summary?.total_balance]);
+  }, [chartData, summary]);
 
+  const pnlPct = summary?.total_pnl_pct ?? 0;
   const openCount = summary?.open_positions ?? 0;
   const totalTrades = summary?.total_trades ?? 0;
   const copyingCount = profile?.followingCount ?? 0;
 
-  const currentPositions = positions.map((p, idx) => ({
+  const currentPositions: PositionRow[] = positions.map((p, idx) => ({
     id: idx + 1,
     token: p.ticker,
     pair: `${p.ticker}/USDT`,
@@ -230,7 +259,7 @@ const Home = () => {
     router.push("/");
   };
 
-  const handleSelectPosition = (pos: (typeof currentPositions)[0]) => {
+  const handleSelectPosition = (pos: PositionRow) => {
     const ext = positionExtendedData[pos.token];
     if (ext) {
       setSelectedPos({ ...pos, color: ext.color, currentPrice: ext.currentPrice, txs: ext.txs });
@@ -469,7 +498,7 @@ const Home = () => {
                       <div key={pos.id} onClick={() => handleSelectPosition(pos)} className="grid grid-cols-[1fr_70px_80px_60px_16px] gap-1.5 px-3 py-2.5 items-center hover:bg-white/5 transition-all duration-200 cursor-pointer active:bg-white/10 row-animate" style={{ animationDelay: `${index * 0.05}s` }}>
                         <div className="flex items-center gap-1.5">
                           <div className="w-5 h-5 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
-                            <img src={pos.iconUrl} alt={pos.token} className="w-5 h-5 object-cover" onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentElement!.innerHTML = `<span class="text-[9px] font-bold text-white">${pos.token[0]}</span>`; }} />
+                            <img src={pos.iconUrl} alt={pos.token} className="w-5 h-5 object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; (e.target as HTMLImageElement).parentElement!.innerHTML = `<span class="text-[9px] font-bold text-white">${pos.token[0]}</span>`; }} />
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[10px] text-white font-medium">{pos.token}</span>
@@ -510,20 +539,20 @@ const Home = () => {
         <ActiveTradesSheet
           positions={currentPositions}
           onClose={() => setShowActiveTrades(false)}
-          onSelectPosition={(pos) => handleSelectPosition(pos)}
+          onSelectPosition={(pos: PositionRow) => handleSelectPosition(pos)}
         />
       )}
       {selectedPos && <PositionDetail pos={selectedPos} onClose={() => setSelectedPos(null)} />}
       <DepositSheet
         isOpen={showDeposit}
-        onClose={() => handleSheetClose(setShowDeposit)}
+        onClose={handleDepositClose}
         onSuccess={() => { fetchDashboard(); getChartData(timeRange); }}
       />
       <WithdrawSheet
         isOpen={showWithdraw}
-        onClose={() => handleSheetClose(setShowWithdraw)}
+        onClose={handleWithdrawClose}
         availableBalance={balance}
-        onSuccess={() => { fetchDashboard(); getChartData(timeRange); }}
+        onSuccess={handleWithdrawSuccess}
       />
     </div>
   );
