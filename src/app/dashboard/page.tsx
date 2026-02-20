@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useContext } from "react";
+import { useEffect, useState, useCallback, useContext, useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
@@ -184,23 +184,7 @@ const Home = () => {
 
   useEffect(() => { getChartData(timeRange); }, [timeRange, getChartData]);
 
-  // ── 5. Sync chart last point with current balance ──
-  useEffect(() => {
-    if (!summary || chartData.length === 0) return;
-    const last = chartData[chartData.length - 1];
-    if (Math.abs(last.value - summary.total_balance) > 0.005) {
-      setChartData(prev => {
-        const updated = [...prev];
-        updated[updated.length - 1] = {
-          ...updated[updated.length - 1],
-          value: summary.total_balance,
-        };
-        return updated;
-      });
-    }
-  }, [summary?.total_balance, chartData.length]);
-
-  // ── 6. Refresh all data after deposit/withdraw sheets close ──
+  // ── 5. Refresh all data after deposit/withdraw sheets close ──
   const handleSheetClose = useCallback((setter: (v: boolean) => void) => {
     setter(false);
     fetchDashboard();
@@ -209,6 +193,19 @@ const Home = () => {
 
   // ── Derived values ──
   const pnlPct = summary?.total_pnl_pct ?? 0;
+
+  // Always override chart's last point with live Current Balance
+  const finalChartData = useMemo(() => {
+    if (!chartData.length || !summary) return chartData;
+    const last = chartData[chartData.length - 1];
+    if (Math.abs(last.value - summary.total_balance) > 0.005) {
+      const updated = [...chartData];
+      updated[updated.length - 1] = { ...last, value: summary.total_balance };
+      return updated;
+    }
+    return chartData;
+  }, [chartData, summary?.total_balance]);
+
   const openCount = summary?.open_positions ?? 0;
   const totalTrades = summary?.total_trades ?? 0;
   const copyingCount = profile?.followingCount ?? 0;
@@ -323,7 +320,7 @@ const Home = () => {
             </div>
 
             <div className="relative h-24 mb-1.5 mt-3">
-              <BalanceChart timeRange={timeRange} chartData={chartData} />
+              <BalanceChart timeRange={timeRange} chartData={finalChartData} />
             </div>
 
             <div className="h-px bg-white/10 mb-3 rounded-full" />
