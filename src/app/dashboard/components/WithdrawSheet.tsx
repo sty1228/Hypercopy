@@ -1,18 +1,15 @@
 "use client";
 
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   X, Upload, Loader2, CheckCircle, AlertCircle,
-  Wallet, ArrowRight, Shield,
+  Wallet, Shield,
 } from "lucide-react";
-import { useWallets } from "@privy-io/react-auth";
-import * as hl from "@nktkas/hyperliquid";
 import { toast } from "sonner";
-import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { recordWithdraw, getSubAccount } from "@/service";
+import { getWalletBalance, withdrawFromWallet } from "@/service";
 
-type WithdrawStep = "input" | "signing" | "processing" | "success" | "error";
+type WithdrawStep = "input" | "processing" | "success" | "error";
 
 interface WithdrawSheetProps {
   isOpen: boolean;
@@ -21,73 +18,13 @@ interface WithdrawSheetProps {
   onSuccess?: (amount?: string) => void;
 }
 
-// ── Same direct-sign approach as DepositSheet ──
-
-function getRawExtensionProvider(): any {
-  const win = window as any;
-  if (win.ethereum?.providers?.length) {
-    const rabby = win.ethereum.providers.find((p: any) => p.isRabby);
-    if (rabby) return rabby;
-    const mm = win.ethereum.providers.find((p: any) => p.isMetaMask);
-    if (mm) return mm;
-    return win.ethereum.providers[0];
-  }
-  if (win.rabby) return win.rabby;
-  return win.ethereum;
-}
-
-async function createDirectSignExchClient(walletAddress: string): Promise<hl.ExchangeClient | null> {
-  const rawProvider = getRawExtensionProvider();
-  if (!rawProvider) return null;
-
-  const customWallet = {
-    address: walletAddress as `0x${string}`,
-    getAddresses: async () => [walletAddress as `0x${string}`],
-    signTypedData: async (args: {
-      domain: any; types: any; primaryType: string; message: any;
-    }) => {
-      const { domain, types, primaryType, message } = args;
-      const payload = JSON.stringify({
-        types, primaryType, message,
-        domain: {
-          ...domain,
-          chainId: typeof domain.chainId === "bigint"
-            ? Number(domain.chainId) : domain.chainId,
-        },
-      });
-      const sig = await rawProvider.request({
-        method: "eth_signTypedData_v4",
-        params: [walletAddress, payload],
-      });
-      return sig as `0x${string}`;
-    },
-  };
-
-  try {
-    return new hl.ExchangeClient({
-      wallet: customWallet as any,
-      transport: new hl.HttpTransport(),
-    });
-  } catch (e) {
-    console.error("[Withdraw] Failed to create direct ExchangeClient:", e);
-    return null;
-  }
-}
-
-// ────────────────────────────────────────────────────────────────
-
 export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuccess }: WithdrawSheetProps) {
-  const { wallets } = useWallets();
-  const wallet = wallets?.[0];
-  const { mainExchClient, infoClient } = useContext(HyperLiquidContext);
-
   const [mounted, setMounted] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [amount, setAmount] = useState("");
   const [step, setStep] = useState<WithdrawStep>("input");
   const [errorMsg, setErrorMsg] = useState("");
-
-  const [subBalance, setSubBalance] = useState<number | null>(null);
+  const [hlBalance, setHlBalance] = useState<number | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
@@ -95,43 +32,33 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
   useEffect(() => {
     if (isOpen) {
       requestAnimationFrame(() => setSheetVisible(true));
-      loadSubBalance();
+      loadBalance();
     } else {
       setSheetVisible(false);
-      setSubBalance(null);
+      setHlBalance(null);
     }
   }, [isOpen]);
 
-  const loadSubBalance = async () => {
-    if (!infoClient) return;
+  const loadBalance = async () => {
     setLoadingBalance(true);
     try {
-      const res = await getSubAccount();
-      if (!res.sub_account_address) {
-        console.log("[Withdraw] No sub-account, using BalanceSnapshot:", availableBalance);
-        setSubBalance(availableBalance);
-        return;
-      }
-      console.log("[Withdraw] Reading sub-account balance for:", res.sub_account_address);
-      const state = await infoClient.clearinghouseState({ user: res.sub_account_address as `0x${string}` });
-      const bal = parseFloat(state?.marginSummary?.accountValue ?? "0");
-      console.log("[Withdraw] Sub-account balance:", bal);
-      setSubBalance(bal);
+      const data = await getWalletBalance();
+      setHlBalance(data.hl_withdrawable);
     } catch (e) {
-      console.error("[Withdraw] Failed to load sub-account balance:", e);
-      setSubBalance(availableBalance);
+      console.error("[Withdraw] Failed to load balance:", e);
+      setHlBalance(availableBalance);
     } finally {
       setLoadingBalance(false);
     }
   };
 
-  const effectiveMax = subBalance !== null
-    ? Math.min(availableBalance, subBalance)
+  const effectiveMax = hlBalance !== null
+    ? Math.min(availableBalance, hlBalance)
     : availableBalance;
   const effectiveMaxRounded = Math.floor(effectiveMax * 100) / 100;
 
   const handleWithdraw = async () => {
-    if (!wallet || !mainExchClient || !amount || parseFloat(amount) <= 0) return;
+    if (!amount || parseFloat(amount) <= 0) return;
 
     const withdrawAmount = parseFloat(amount);
     if (withdrawAmount > effectiveMaxRounded) {
@@ -140,58 +67,25 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
     }
 
     try {
-      setStep("signing");
-
-      // Create direct-sign ExchangeClient (bypasses Privy chainId check)
-      const directClient = await createDirectSignExchClient(wallet.address);
-      const exchClient = directClient || mainExchClient;
-      console.log("[Withdraw] Using", directClient ? "direct-sign" : "Privy", "ExchangeClient");
-
-      // Step 1: 子账户 → 主账户
-      let subAddr: string | null = null;
-      try {
-        const res = await getSubAccount();
-        subAddr = res.sub_account_address;
-      } catch {}
-
-      if (subAddr) {
-        console.log("[Withdraw] Transferring from sub-account:", subAddr, "amount:", withdrawAmount);
-        await exchClient.subAccountTransfer({
-          subAccountUser: subAddr as `0x${string}`,
-          isDeposit: false,
-          usd: Math.floor(withdrawAmount * 1e6),
-        });
-        console.log("[Withdraw] Sub→Main transfer succeeded");
-        await new Promise(r => setTimeout(r, 1500));
-      } else {
-        console.warn("[Withdraw] No sub-account, withdrawing directly from main account");
-      }
-
       setStep("processing");
 
-      // Step 2: 主账户 → Arbitrum (withdraw3)
-      console.log("[Withdraw] Calling withdraw3 to:", wallet.address);
-      await exchClient.withdraw3({
-        destination: wallet.address as `0x${string}`,
-        amount: withdrawAmount.toFixed(2),
-      });
-      console.log("[Withdraw] withdraw3 succeeded");
+      const result = await withdrawFromWallet(withdrawAmount);
 
-      try { await recordWithdraw(withdrawAmount); } catch (e) {
-        console.error("[Withdraw] Failed to record:", e);
+      if (result.status === "success") {
+        setStep("success");
+        toast.success(`Withdrew ${withdrawAmount.toFixed(2)} USDC`);
+        onSuccess?.(amount);
+      } else if (result.status === "pending") {
+        setStep("success");
+        toast.info(result.message);
+        onSuccess?.(amount);
+      } else {
+        throw new Error(result.message);
       }
-
-      setStep("success");
-      toast.success(`Withdrew ${withdrawAmount.toFixed(2)} USDC`);
-      onSuccess?.(amount);
     } catch (err: any) {
       console.error("[Withdraw] Failed:", err);
       setStep("error");
-      setErrorMsg(
-        err?.code === "ACTION_REJECTED" || err?.code === 4001
-          ? "Transaction rejected by user"
-          : err?.reason || err?.message || "Withdrawal failed. Please try again."
-      );
+      setErrorMsg(err?.message || "Withdrawal failed. Please try again.");
     }
   };
 
@@ -235,7 +129,7 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
               </div>
               <div>
                 <h2 className="text-sm font-bold text-white">Withdraw USDC</h2>
-                <span className="text-[10px] text-gray-500">HyperLiquid → Arbitrum</span>
+                <span className="text-[10px] text-gray-500">HyperLiquid → Your Wallet</span>
               </div>
             </div>
             <button onClick={handleClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.06)" }}>
@@ -254,14 +148,9 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
                   {loadingBalance ? (
                     <Loader2 size={14} className="text-gray-400 animate-spin" />
                   ) : (
-                    <div className="text-right">
-                      <span className="text-sm font-semibold text-white">
-                        {effectiveMaxRounded.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
-                      </span>
-                      {subBalance !== null && subBalance < availableBalance && (
-                        <p className="text-[9px] text-yellow-400 mt-0.5">Adjusted due to trading PnL</p>
-                      )}
-                    </div>
+                    <span className="text-sm font-semibold text-white">
+                      {effectiveMaxRounded.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDC
+                    </span>
                   )}
                 </div>
 
@@ -289,55 +178,32 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
                 <div className="rounded-xl p-3 flex items-start gap-2" style={{ background: "rgba(168,85,247,0.04)", border: "1px solid rgba(168,85,247,0.1)" }}>
                   <Shield size={12} className="text-purple-400 shrink-0 mt-0.5" />
                   <p className="text-[10px] text-gray-400 leading-relaxed">
-                    Funds are withdrawn from your <span className="text-purple-400 font-semibold">dedicated HyperCopy sub-account</span> back to your Arbitrum wallet.
+                    Funds will be withdrawn from your <span className="text-purple-400 font-semibold">dedicated copy-trading wallet</span> and sent directly to your connected Arbitrum wallet. This may take 3–5 minutes.
                   </p>
                 </div>
 
-                <button onClick={handleWithdraw} disabled={!isValid || !wallet || !mainExchClient || loadingBalance}
+                <button onClick={handleWithdraw} disabled={!isValid || loadingBalance}
                   className="w-full py-3.5 rounded-xl text-sm font-bold transition-all cursor-pointer flex items-center justify-center gap-2"
                   style={{
                     background: isValid ? "rgba(168,85,247,1)" : "rgba(168,85,247,0.3)", color: "#ffffff",
                     boxShadow: isValid ? "0 0 25px rgba(168,85,247,0.4)" : "none",
-                    opacity: isValid && wallet ? 1 : 0.5,
+                    opacity: isValid ? 1 : 0.5,
                   }}>
                   <Upload size={16} />
-                  {!wallet ? "Connect Wallet First" : !mainExchClient ? "Enable Trading First"
-                    : loadingBalance ? "Loading balance..." : `Withdraw $${parsedAmount.toFixed(2)}`}
+                  {loadingBalance ? "Loading balance..." : `Withdraw $${parsedAmount.toFixed(2)}`}
                 </button>
               </div>
             )}
 
-            {(step === "signing" || step === "processing") && (
+            {step === "processing" && (
               <div className="py-8 flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: "rgba(168,85,247,0.08)", border: "1.5px solid rgba(168,85,247,0.2)" }}>
                   <Loader2 size={28} className="text-purple-400 animate-spin" />
                 </div>
-                <h3 className="text-sm font-bold text-white mb-1">
-                  {step === "signing" ? "Moving from sub-account..." : "Sending to your wallet..."}
-                </h3>
+                <h3 className="text-sm font-bold text-white mb-1">Processing Withdrawal...</h3>
                 <p className="text-[11px] text-gray-400 max-w-[240px]">
-                  {step === "signing" ? "Transferring from your HyperCopy sub-account" : "Initiating withdrawal to your Arbitrum wallet"}
+                  Withdrawing from HyperLiquid and sending USDC to your Arbitrum wallet. This may take a few minutes.
                 </p>
-                <div className="flex items-center gap-2 mt-6">
-                  {["Sub→Main", "Withdraw"].map((s, i) => {
-                    const stepIdx = step === "signing" ? 0 : 1;
-                    const done = i < stepIdx; const active = i === stepIdx;
-                    return (
-                      <div key={s} className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold"
-                          style={{
-                            background: done ? "rgba(168,85,247,0.2)" : active ? "rgba(168,85,247,0.1)" : "rgba(255,255,255,0.04)",
-                            border: `1px solid ${done ? "rgba(168,85,247,0.4)" : active ? "rgba(168,85,247,0.3)" : "rgba(255,255,255,0.08)"}`,
-                            color: done || active ? "#a855f7" : "rgba(255,255,255,0.3)",
-                          }}>
-                          {done ? <CheckCircle size={12} /> : i + 1}
-                        </div>
-                        <span className="text-[9px]" style={{ color: done || active ? "#a855f7" : "rgba(255,255,255,0.3)" }}>{s}</span>
-                        {i < 1 && <ArrowRight size={10} style={{ color: "rgba(255,255,255,0.15)" }} />}
-                      </div>
-                    );
-                  })}
-                </div>
               </div>
             )}
 
@@ -347,11 +213,11 @@ export default function WithdrawSheet({ isOpen, onClose, availableBalance, onSuc
                   <CheckCircle size={28} className="text-purple-400" />
                 </div>
                 <h3 className="text-sm font-bold text-white mb-1">Withdrawal Submitted!</h3>
-                <p className="text-[11px] text-gray-400 mb-1">${parsedAmount.toFixed(2)} USDC on its way to your Arbitrum wallet</p>
+                <p className="text-[11px] text-gray-400 mb-1">${parsedAmount.toFixed(2)} USDC on its way to your wallet</p>
                 <div className="rounded-lg px-3 py-2 mt-2 mb-5 flex items-start gap-2" style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.15)" }}>
                   <Loader2 size={12} className="text-purple-400 animate-spin shrink-0 mt-0.5" />
                   <p className="text-[10px] text-purple-300/90 leading-relaxed">
-                    Funds heading to Arbitrum. Typically arrives within <strong>3–4 minutes</strong>.
+                    USDC heading to your Arbitrum wallet. Typically arrives within <strong>3–5 minutes</strong>.
                   </p>
                 </div>
                 <button onClick={handleClose} className="px-8 py-2.5 rounded-xl text-[11px] font-bold cursor-pointer transition-all active:scale-95" style={{ background: "rgba(168,85,247,1)", color: "#ffffff" }}>

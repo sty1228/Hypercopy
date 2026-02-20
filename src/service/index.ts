@@ -78,6 +78,37 @@ export const recordWithdraw = async (amount: number) => {
   return await post("/api/portfolio/record-withdraw", { amount });
 };
 
+// ─── Dedicated Wallet ───────────────────────────────────
+
+export interface WalletInfo {
+  address: string;
+  withdraw_address: string;
+}
+
+export interface WalletBalance {
+  address: string;
+  arb_usdc: number;
+  hl_equity: number;
+  hl_withdrawable: number;
+  hl_positions: number;
+}
+
+export const createOrGetWallet = async (): Promise<WalletInfo> => {
+  return await post("/api/wallet/create", {});
+};
+
+export const getWalletBalance = async (): Promise<WalletBalance> => {
+  return await get("/api/wallet/balance");
+};
+
+export const getWalletDeposits = async (): Promise<any[]> => {
+  return await get("/api/wallet/deposits");
+};
+
+export const withdrawFromWallet = async (amount: number): Promise<{ status: string; message: string }> => {
+  return await post("/api/wallet/withdraw", { amount });
+};
+
 // ─── Leaderboard ────────────────────────────────────────
 
 export interface LeaderboardItem {
