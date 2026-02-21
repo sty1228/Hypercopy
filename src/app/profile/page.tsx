@@ -501,7 +501,7 @@ function KOLProfileContent() {
   if (error || !trader) return <ProfileError message={error || "Trader not found"} onBack={() => router.push("/copyTrading")} />;
 
   /* ── Derived data from API response ── */
-  const radarData = trader.radar;
+  const radarData = trader.radar ?? { accuracy: 0, winRate: 0, riskReward: 0, consistency: 0, timing: 0, transparency: 0, engagement: 0, trackRecord: 0 };
   const radarAvg = Object.values(radarData).reduce((a, b) => a + b, 0) / 8;
   const kolGrade = getGradeFromString(trader.profit_grade, radarAvg);
   const displayName = trader.display_name || trader.username;
