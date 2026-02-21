@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import profileIcon from "@/assets/icons/profile.png";
 import copyCountIcon from "@/assets/icons/copy-count.png";
+import copyRankIcon from "@/assets/icons/copy-rank.png";
 import {
   Search, TrendingUp, TrendingDown, Flame, Target, Users,
   Zap, ChevronRight, Loader2, Trophy, Star,
@@ -45,14 +47,23 @@ const cardBorder = "1px solid rgba(255,255,255,0.08)";
 
 /* ─────────────── Small Components ────────── */
 
-const IconTooltip = ({ tooltip, children }: { tooltip: string; children: React.ReactNode }) => {
+const IconWithTooltip = ({ tooltip, children }: { tooltip: string; children: React.ReactNode }) => {
   const [show, setShow] = useState(false);
   useEffect(() => { if (show) { const t = setTimeout(() => setShow(false), 2000); return () => clearTimeout(t); } }, [show]);
   return (
     <div className="relative" onClick={() => setShow(p => !p)}>
       {children}
-      <div className="absolute top-full right-0 mt-1.5 px-2.5 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-medium pointer-events-none transition-all duration-200 z-50"
-        style={{ background: "rgba(15,20,25,0.95)", border: "1px solid rgba(45,212,191,0.3)", color: "rgba(255,255,255,0.9)", boxShadow: "0 4px 12px rgba(0,0,0,0.4)", opacity: show ? 1 : 0, transform: show ? "translateY(0)" : "translateY(-4px)" }}>
+      <div
+        className="absolute top-full right-0 mt-1.5 px-2.5 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-medium pointer-events-none transition-all duration-200 z-50"
+        style={{
+          background: "rgba(15,20,25,0.95)",
+          border: "1px solid rgba(45,212,191,0.3)",
+          color: "rgba(255,255,255,0.9)",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+          opacity: show ? 1 : 0,
+          transform: show ? "translateY(0)" : "translateY(-4px)",
+        }}
+      >
         {tooltip}
       </div>
     </div>
@@ -165,8 +176,24 @@ export default function ExplorePage() {
   return (
     <div className="min-h-screen text-white relative overflow-hidden" style={{ background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)" }}>
       <style jsx global>{`
+        @keyframes float {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(10px, -15px) scale(1.05); }
+        }
+        @keyframes float-slow {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-8px, 10px) scale(1.03); }
+        }
+        @keyframes pulse-glow {
+          0%, 100% { opacity: 0.6; }
+          50% { opacity: 1; }
+        }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes shimmerSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+        @keyframes fade-in-up {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .fade-in { animation: fadeInUp 0.4s ease both; }
@@ -174,30 +201,61 @@ export default function ExplorePage() {
         .fade-in-2 { animation-delay: 0.1s; }
         .fade-in-3 { animation-delay: 0.15s; }
         .fade-in-4 { animation-delay: 0.2s; }
+        .animate-float { animation: float 8s ease-in-out infinite; }
+        .animate-float-slow { animation: float-slow 10s ease-in-out infinite; }
+        .animate-pulse-glow { animation: pulse-glow 4s ease-in-out infinite; }
+        .animate-fade-in-up { animation: fade-in-up 0.3s ease-out forwards; }
       `}</style>
 
       {/* Ambient glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-20 left-1/3 w-[300px] h-[300px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.08) 0%, transparent 60%)", filter: "blur(60px)" }} />
-        <div className="absolute bottom-1/3 -right-20 w-[200px] h-[200px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)", filter: "blur(40px)" }} />
+        <div
+          className="absolute -top-20 left-1/3 w-[300px] h-[300px] rounded-full animate-float animate-pulse-glow"
+          style={{ background: "radial-gradient(circle, rgba(45,212,191,0.08) 0%, transparent 60%)", filter: "blur(60px)" }}
+        />
+        <div
+          className="absolute bottom-1/3 -right-20 w-[200px] h-[200px] rounded-full animate-float-slow animate-pulse-glow"
+          style={{ background: "radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)", filter: "blur(40px)", animationDelay: "2s" }}
+        />
       </div>
 
-      {/* ── Header ── */}
-      <div className="relative z-10 mt-3 mb-2 flex items-center justify-between px-4">
-        <h1 className="text-lg font-extrabold text-white">Explore</h1>
-        <div className="flex items-center gap-2">
-          <IconTooltip tooltip="Active Trades">
-            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all hover:bg-white/10" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-              <Image src={copyCountIcon} alt="trades" width={13} height={13} />
-              <span className="text-[11px] font-semibold text-teal-400">0</span>
+      {/* ── Header (matches Settings page) ── */}
+      <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
+        <div
+          className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+        >
+          <Image src={profileIcon} alt="profile" width={12} height={12} />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <IconWithTooltip tooltip="Active Trades">
+            <div
+              className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+            >
+              <Image src={copyCountIcon} alt="active-trades" width={11} height={11} />
+              <span className="text-[10px] font-semibold text-teal-400">0</span>
             </div>
-          </IconTooltip>
+          </IconWithTooltip>
+          <IconWithTooltip tooltip="Your Rank">
+            <div
+              className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10"
+              style={{
+                background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)",
+                border: "1px solid rgba(45,212,191,0.25)",
+                boxShadow: "0 0 15px rgba(45,212,191,0.2)",
+              }}
+            >
+              <Image src={copyRankIcon} alt="your-rank" width={11} height={11} />
+              <span className="text-[10px] font-semibold text-teal-400">#—</span>
+            </div>
+          </IconWithTooltip>
           <UserMenu />
         </div>
       </div>
 
       {/* ── Search ── */}
-      <div className="relative z-10 px-4 mb-2">
+      <div className="relative z-10 px-3 mb-2">
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-300"
           style={{ background: searchFocused ? "rgba(45,212,191,0.06)" : "rgba(255,255,255,0.04)", border: searchFocused ? "1px solid rgba(45,212,191,0.25)" : "1px solid rgba(255,255,255,0.08)" }}>
           <Search size={14} className="text-gray-500 shrink-0" />
@@ -215,7 +273,7 @@ export default function ExplorePage() {
       </div>
 
       {/* ── Main Tabs ── */}
-      <div className="relative z-10 px-4 mb-3">
+      <div className="relative z-10 px-3 mb-3">
         <div className="flex p-0.5 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
           {([
             { key: "discover" as const, label: "Discover", icon: <Flame size={13} /> },
@@ -243,7 +301,7 @@ export default function ExplorePage() {
         <div className="relative z-10 pb-24">
 
           {/* ── Token Sentiment ── */}
-          <div className="px-4 mb-4 fade-in fade-in-1">
+          <div className="px-3 mb-4 fade-in fade-in-1">
             <SectionHeader
               icon={<BarChart3 size={14} className="text-teal-400" />}
               title="Token Sentiment"
@@ -282,7 +340,7 @@ export default function ExplorePage() {
           </div>
 
           {/* ── Top Traders ── */}
-          <div className="px-4 mb-4 fade-in fade-in-2">
+          <div className="px-3 mb-4 fade-in fade-in-2">
             <SectionHeader
               icon={<Trophy size={14} className="text-yellow-400" />}
               title="Top Traders"
@@ -334,7 +392,7 @@ export default function ExplorePage() {
           </div>
 
           {/* ── Rising This Week ── */}
-          <div className="px-4 mb-4 fade-in fade-in-3">
+          <div className="px-3 mb-4 fade-in fade-in-3">
             <SectionHeader icon={<ArrowUpRight size={14} className="text-green-400" />} title="Rising This Week" />
             {risingLoading ? <LoadingBlock /> : rising.length === 0 ? <EmptyBlock text="Not enough data yet" /> : (
               <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -382,7 +440,7 @@ export default function ExplorePage() {
           </div>
 
           {/* ── Browse by Style ── */}
-          <div className="px-4 mb-4 fade-in fade-in-4">
+          <div className="px-3 mb-4 fade-in fade-in-4">
             <SectionHeader icon={<Grid3X3 size={14} className="text-purple-400" />} title="Browse by Style" />
             <div className="grid grid-cols-3 gap-1.5">
               {categories.map((c, i) => (
@@ -403,7 +461,7 @@ export default function ExplorePage() {
 
       {/* ══════════ MY TRADERS TAB ══════════ */}
       {tab === "mytraders" && (
-        <div className="relative z-10 px-4 pb-24">
+        <div className="relative z-10 px-3 pb-24">
 
           {/* Sub tabs */}
           <div className="flex gap-2 mb-3">
