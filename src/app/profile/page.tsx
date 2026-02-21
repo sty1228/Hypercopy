@@ -405,7 +405,7 @@ function KOLProfileContent() {
 
   /* ── Fetch trader profile ── */
   useEffect(() => {
-    if (!handle) { router.replace("/dashboard"); return; }
+    if (!handle) { router.replace("/copyTrading"); return; }
     let cancelled = false;
     const fetchProfile = async () => {
       try {
@@ -634,7 +634,11 @@ function KOLProfileContent() {
               {/* Avatar + Name + Grade */}
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold transition-transform duration-300 hover:scale-110" style={{ backgroundColor: avatarBg, animation: "avatarPulse 3s ease-in-out infinite" }}>{avatarLetter}</div>
+                  {trader.avatar_url ? (
+                    <img src={trader.avatar_url} alt={displayName} className="w-12 h-12 rounded-xl object-cover transition-transform duration-300 hover:scale-110" style={{ animation: "avatarPulse 3s ease-in-out infinite" }} />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-bold transition-transform duration-300 hover:scale-110" style={{ backgroundColor: avatarBg, animation: "avatarPulse 3s ease-in-out infinite" }}>{avatarLetter}</div>
+                  )}
                   <div>
                     <div className="flex items-center gap-1.5">
                       <h1 className="text-[15px] font-bold text-white tracking-tight">{displayName}</h1>
@@ -671,7 +675,7 @@ function KOLProfileContent() {
               <div className="flex items-center gap-2 mb-3">
                 <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "rgba(45,212,191,0.06)", border: "1px solid rgba(45,212,191,0.12)" }}>
                   <Target size={9} className="text-teal-400" />
-                  <span className="text-[9px] text-teal-400 font-semibold">{(trader.win_rate * 100).toFixed(0)}% WR</span>
+                  <span className="text-[9px] text-teal-400 font-semibold">{(trader.win_rate > 1 ? trader.win_rate : trader.win_rate * 100).toFixed(0)}% WR</span>
                 </div>
                 <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: cumulative >= 0 ? "rgba(45,212,191,0.06)" : "rgba(244,63,94,0.06)", border: `1px solid ${cumulative >= 0 ? "rgba(45,212,191,0.12)" : "rgba(244,63,94,0.12)"}` }}>
                   {cumulative >= 0 ? <TrendingUp size={9} className="text-teal-400" /> : <TrendingDown size={9} className="text-rose-400" />}

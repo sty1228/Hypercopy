@@ -229,9 +229,10 @@ export interface LeaderboardItem {
   copiers?: number;
 }
 
-export const leaderboard = async (window: string = "30d") => {
+export const leaderboard = async (window: string = "30d"): Promise<LeaderboardItem[]> => {
   return await get(`/api/leaderboard?window=${window}`);
 };
+
 
 // ─── User Signals ───────────────────────────────────────
 
@@ -343,4 +344,37 @@ export const updateDefaultFollowSettings = async (
     "https://mock.apidog.com/m1/1147892-1140449-default/api/defaultFollowSetting?apidogToken=PbNG_tQ6mXqOpxO8CvYsp",
     settings
   );
+};
+
+
+// ─── Explore ────────────────────────────────────────────
+
+export interface TokenSentimentItem {
+  ticker: string;
+  total_signals: number;
+  bull_count: number;
+  bear_count: number;
+  bull_pct: number;
+  avg_pnl: number;
+  latest_price: number | null;
+}
+
+export interface RisingTraderItem {
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  profit_grade: string | null;
+  win_rate: number;
+  avg_return_pct: number;
+  total_signals: number;
+  streak: number;
+  points_change: number;
+}
+
+export const getTokenSentiment = async (days = 30): Promise<TokenSentimentItem[]> => {
+  return await get(`/api/explore/sentiment?days=${days}`);
+};
+
+export const getRisingTraders = async (limit = 6): Promise<RisingTraderItem[]> => {
+  return await get(`/api/explore/rising?limit=${limit}`);
 };

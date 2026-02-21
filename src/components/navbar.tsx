@@ -18,7 +18,7 @@ import { MAX_WIDTH } from "@/app/layout";
 const navItems = [
   { href: "/dashboard", label: "Home", icon: homeIcon, activeIcon: homeActiveIcon },
   { href: "/copyTrading", label: "Copy", icon: copyTradingIcon, activeIcon: copyTradingActiveIcon },
-  { href: "/profile", label: "Profile", icon: portfolioIcon, activeIcon: portfolioActiveIcon },
+  { href: "/explore", label: "Explore", icon: portfolioIcon, activeIcon: portfolioActiveIcon },
   { href: "/notification", label: "Alerts", icon: notificationIcon, activeIcon: notificationActiveIcon },
   { href: "/settings", label: "Settings", icon: settingsIcon, activeIcon: settingsActiveIcon },
 ];
@@ -46,7 +46,13 @@ const Navbar = () => {
     >
       <ul className="h-full flex justify-around items-center px-2">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          /* /dashboard exact match (prevent /d… prefix collisions),
+             everything else uses startsWith so /profile?handle=xxx works */
+          const isActive =
+            item.href === "/dashboard"
+              ? pathname === "/dashboard"
+              : pathname.startsWith(item.href);
+
           return (
             <li key={item.href}>
               <Link
