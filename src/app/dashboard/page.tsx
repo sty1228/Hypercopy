@@ -443,7 +443,7 @@ const Home = () => {
                             </div>
                           </div>
                           <span className={`text-[10px] text-right font-medium ${trader.avg_return_pct >= 0 ? "text-teal-400" : "text-rose-400"}`}>
-                            {trader.avg_return_pct >= 0 ? "+" : ""}{trader.avg_return_pct.toFixed(1)}%
+                            {(trader.avg_return_pct ?? 0) >= 0 ? "+" : ""}{(trader.avg_return_pct ?? 0).toFixed(1)}%
                           </span>
                           <span className={`text-[10px] text-right font-medium ${trader.total_profit_usd >= 0 ? "text-white" : "text-rose-400"}`}>
                             {trader.total_profit_usd >= 0 ? "" : "-"}${Math.abs(trader.total_profit_usd).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
