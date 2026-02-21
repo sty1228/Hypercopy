@@ -18,7 +18,6 @@ import { MAX_WIDTH } from "@/app/layout";
 const navItems = [
   { href: "/dashboard", label: "Home", icon: homeIcon, activeIcon: homeActiveIcon },
   { href: "/copyTrading", label: "Copy", icon: copyTradingIcon, activeIcon: copyTradingActiveIcon },
-  { href: "/profile", label: "Profile", icon: portfolioIcon, activeIcon: portfolioActiveIcon },
   { href: "/notification", label: "Alerts", icon: notificationIcon, activeIcon: notificationActiveIcon },
   { href: "/settings", label: "Settings", icon: settingsIcon, activeIcon: settingsActiveIcon },
 ];

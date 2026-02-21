@@ -405,7 +405,7 @@ function KOLProfileContent() {
 
   /* ── Fetch trader profile ── */
   useEffect(() => {
-    if (!handle) { setError("No trader handle provided"); setLoading(false); return; }
+    if (!handle) { router.replace("/dashboard"); return; }
     let cancelled = false;
     const fetchProfile = async () => {
       try {
