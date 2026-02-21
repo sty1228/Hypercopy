@@ -460,12 +460,17 @@ function KOLProfileContent() {
         await followTrader(trader.username);
         setIsFollowing(true);
       }
-    } catch (err) {
+    } catch (err: any) {
+      // 400 = already following/already unfollowed — sync state
+      if (err?.response?.status === 400) {
+        setIsFollowing(!isFollowing);
+      }
       console.error("Follow toggle failed:", err);
     } finally {
       setFollowLoading(false);
     }
   }, [isFollowing, followLoading, trader]);
+
 
   /* ── Copy Trading toggle ── */
   const handleCopyToggle = useCallback(async () => {
@@ -481,7 +486,11 @@ function KOLProfileContent() {
         setIsCopying(true);
         setIsFollowing(true);
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.response?.status === 400) {
+        setIsCopying(!isCopying);
+        setIsFollowing(true);
+      }
       console.error("Copy toggle failed:", err);
     } finally {
       setCopyLoading(false);
