@@ -448,7 +448,7 @@ function KOLProfileContent() {
     return () => { cancelled = true; };
   }, [handle, isXConnected]);
 
-  /* ── Follow / Unfollow ── */
+  /* ── Follow / Unfollow (FIXED: 400 no longer sticks loading) ── */
   const handleFollow = useCallback(async () => {
     if (followLoading || !trader) return;
     setFollowLoading(true);
@@ -457,22 +457,31 @@ function KOLProfileContent() {
         await unfollowTrader(trader.username);
         setIsFollowing(false);
       } else {
-        await followTrader(trader.username);
+        try {
+          await followTrader(trader.username);
+        } catch (err: any) {
+          // Already following — just sync state
+          if (err?.response?.status === 400) {
+            setIsFollowing(true);
+            return;
+          }
+          throw err;
+        }
         setIsFollowing(true);
       }
     } catch (err: any) {
-      // 400 = already following/already unfollowed — sync state
-      if (err?.response?.status === 400) {
-        setIsFollowing(!isFollowing);
+      // Not following (404 on unfollow) — sync state
+      if (err?.response?.status === 404) {
+        setIsFollowing(false);
+      } else {
+        console.error("Follow toggle failed:", err);
       }
-      console.error("Follow toggle failed:", err);
     } finally {
       setFollowLoading(false);
     }
   }, [isFollowing, followLoading, trader]);
 
-
-  /* ── Copy Trading toggle ── */
+  /* ── Copy Trading toggle (FIXED: 400 no longer sticks loading) ── */
   const handleCopyToggle = useCallback(async () => {
     if (copyLoading || !trader) return;
     setCopyLoading(true);
@@ -482,16 +491,30 @@ function KOLProfileContent() {
         setIsCopying(false);
         setIsFollowing(false);
       } else {
-        await followTrader(trader.username, true);
+        try {
+          await followTrader(trader.username, true);
+        } catch (err: any) {
+          if (err?.response?.status === 400) {
+            // Already following — just enable copy trading
+            try {
+              await toggleCopyTrading(trader.username);
+            } catch { /* ignore */ }
+            setIsCopying(true);
+            setIsFollowing(true);
+            return;
+          }
+          throw err;
+        }
         setIsCopying(true);
         setIsFollowing(true);
       }
     } catch (err: any) {
-      if (err?.response?.status === 400) {
-        setIsCopying(!isCopying);
-        setIsFollowing(true);
+      if (err?.response?.status === 404) {
+        setIsCopying(false);
+        setIsFollowing(false);
+      } else {
+        console.error("Copy toggle failed:", err);
       }
-      console.error("Copy toggle failed:", err);
     } finally {
       setCopyLoading(false);
     }
