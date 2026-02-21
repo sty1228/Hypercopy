@@ -149,33 +149,42 @@ export default function CopyTrading() {
       </div>
 
       {/* Header */}
-      <div className="relative z-10 mt-3 mb-2 flex items-center justify-between px-4">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all hover:bg-white/10" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-          <Image src={profileIcon} alt="profile" width={14} height={14} />
+      <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
+        <div
+          className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+        >
+          <Image src={profileIcon} alt="profile" width={12} height={12} />
         </div>
-        <div className="flex items-center gap-2">
-          {/* Active Trades */}
+        <div className="flex items-center gap-1.5">
           <IconWithTooltip tooltip="Active Trades">
-            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all hover:bg-white/10" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-              <Image src={copyCountIcon} alt="active-trades" width={13} height={13} />
-              <span className="text-[11px] font-semibold text-teal-400">4</span>
+            <div
+              className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+            >
+              <Image src={copyCountIcon} alt="active-trades" width={11} height={11} />
+              <span className="text-[10px] font-semibold text-teal-400">4</span>
             </div>
           </IconWithTooltip>
-
-          {/* Your Rank */}
           <IconWithTooltip tooltip="Your Rank">
-            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg cursor-pointer transition-all hover:bg-white/10" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)", border: "1px solid rgba(45,212,191,0.25)", boxShadow: "0 0 15px rgba(45,212,191,0.2)" }}>
-              <Image src={copyRankIcon} alt="your-rank" width={13} height={13} />
-              <span className="text-[11px] font-semibold text-teal-400">#64</span>
+            <div
+              className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10"
+              style={{
+                background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)",
+                border: "1px solid rgba(45,212,191,0.25)",
+                boxShadow: "0 0 15px rgba(45,212,191,0.2)",
+              }}
+            >
+              <Image src={copyRankIcon} alt="your-rank" width={11} height={11} />
+              <span className="text-[10px] font-semibold text-teal-400">#64</span>
             </div>
           </IconWithTooltip>
-
           <UserMenu />
         </div>
       </div>
 
       {/* Page Title */}
-      <div className="relative z-10 px-4 pt-1 pb-2">
+      <div className="relative z-10 px-3 pt-1 pb-2">
         <h1 className="text-base font-bold text-white">Leaderboard</h1>
       </div>
 
@@ -188,7 +197,7 @@ export default function CopyTrading() {
       </div>
 
       {/* Filter Tags */}
-      <div className="relative z-10 px-4 mb-2">
+      <div className="relative z-10 px-3 mb-2">
         <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
           {filters.map((filter) => (
             <button
@@ -208,7 +217,7 @@ export default function CopyTrading() {
       </div>
 
       {/* Section Header */}
-      <div className="relative z-10 px-4 mb-1.5 flex items-center justify-between">
+      <div className="relative z-10 px-3 mb-1.5 flex items-center justify-between">
         <span className="text-white text-xs font-semibold">Top Traders</span>
         <div className="flex gap-0.5">
           {["24h", "7d", "30d"].map((t) => (
@@ -224,7 +233,7 @@ export default function CopyTrading() {
       </div>
 
       {/* Content area: loading / error / list */}
-      <div className="relative z-10 flex-1 overflow-y-auto px-4 pb-20">
+      <div className="relative z-10 flex-1 overflow-y-auto px-3 pb-20">
         {loading ? (
           <div className="flex flex-col items-center justify-center pt-20 gap-3">
             <div
