@@ -1,68 +1,107 @@
+// ================================================================
+// FILE: dashboard/components/KOLRewardsCard.tsx
+// ================================================================
 
 "use client";
 
-import { Gift, ArrowRight } from "lucide-react";
+import { Sparkles, ChevronRight, Zap, Star } from "lucide-react";
+
+const PHASES = {
+  beta: {
+    label: "BETA",
+    accent: "#2dd4bf",
+    multiplier: "2-5x",
+    revShare: "50%",
+    refCommission: "75%",
+    tagline: "EARLY ACCESS",
+  },
+  season1: {
+    label: "S1",
+    accent: "#c4a35a",
+    multiplier: "1-2x",
+    revShare: "25%",
+    refCommission: "30%",
+    tagline: "MAIN EVENT",
+  },
+} as const;
+
+type Phase = keyof typeof PHASES;
 
 interface KOLRewardsCardProps {
   onOpen: () => void;
-  phase?: "beta" | "season1";
+  phase?: Phase;
 }
 
-const PHASE_META = {
-  beta: {
-    label: "BETA PHASE",
-    accent: "#00F0FF",
-    sub: "2-5x points multiplier · 50% rev share",
-  },
-  season1: {
-    label: "SEASON 1",
-    accent: "#F5A623",
-    sub: "Up to 2x multiplier · 40-50% airdrop pool",
-  },
-};
-
 export function KOLRewardsCard({ onOpen, phase = "beta" }: KOLRewardsCardProps) {
-  const m = PHASE_META[phase];
+  const p = PHASES[phase];
 
   return (
     <div
       onClick={onOpen}
-      className="relative overflow-hidden rounded-xl px-3.5 py-3 flex items-center gap-3 cursor-pointer transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
+      className="rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] relative overflow-hidden"
       style={{
-        background: `linear-gradient(135deg, ${m.accent}12 0%, ${m.accent}04 100%)`,
-        border: `1px solid ${m.accent}25`,
+        background: `linear-gradient(135deg, ${p.accent}0a 0%, ${p.accent}03 100%)`,
+        border: `1px solid ${p.accent}20`,
       }}
     >
+      {/* top accent line */}
       <div
         className="absolute top-0 left-0 right-0 h-px"
-        style={{ background: `linear-gradient(90deg, transparent, ${m.accent}80, transparent)` }}
-      />
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
         style={{
-          background: `linear-gradient(135deg, ${m.accent}22, ${m.accent}08)`,
-          border: `1px solid ${m.accent}25`,
+          background: `linear-gradient(90deg, transparent, ${p.accent}50, transparent)`,
         }}
-      >
-        <Gift size={20} color={m.accent} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-[13px] font-bold text-white/90">KOL Rewards</span>
-          <span
-            className="text-[8px] font-bold tracking-wider px-1.5 py-0.5 rounded"
-            style={{
-              color: m.accent,
-              background: `${m.accent}15`,
-              border: `1px solid ${m.accent}25`,
-            }}
+      />
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: `${p.accent}12` }}
           >
-            {m.label}
-          </span>
+            <Sparkles size={14} color={p.accent} />
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span
+                className="text-[10px] font-bold"
+                style={{ color: "rgba(255,255,255,0.85)" }}
+              >
+                KOL Rewards
+              </span>
+              <span
+                className="text-[7px] font-bold tracking-wider rounded px-1 py-px"
+                style={{
+                  color: p.accent,
+                  background: `${p.accent}15`,
+                  border: `1px solid ${p.accent}25`,
+                }}
+              >
+                {p.tagline}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-0.5 text-[9px] text-white/40">
+                <Zap size={8} color={p.accent} />
+                <span style={{ color: p.accent }} className="font-semibold">
+                  {p.multiplier}
+                </span>{" "}
+                mult
+              </span>
+              <span className="text-white/10">·</span>
+              <span className="flex items-center gap-0.5 text-[9px] text-white/40">
+                <Star size={8} color={p.accent} />
+                <span style={{ color: p.accent }} className="font-semibold">
+                  {p.revShare}
+                </span>{" "}
+                rev share
+              </span>
+            </div>
+          </div>
         </div>
-        <p className="text-[11px] text-gray-500 truncate">{m.sub}</p>
+
+        <ChevronRight size={14} color="rgba(255,255,255,0.2)" />
       </div>
-      <ArrowRight size={16} className="text-white/25 flex-shrink-0" />
     </div>
   );
 }

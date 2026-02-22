@@ -88,7 +88,6 @@ function AnimatedBg({ phase }: { phase: Phase }) {
       const W = w(), H = h();
       ctx.clearRect(0, 0, W, H);
 
-      // orbs
       s.orbs.forEach((o: any) => {
         o.x += o.vx; o.y += o.vy; o.ph += 0.003;
         if (o.x < -100) o.x = W + 100; if (o.x > W + 100) o.x = -100;
@@ -99,7 +98,6 @@ function AnimatedBg({ phase }: { phase: Phase }) {
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.fill();
       });
 
-      // candles
       s.candles.forEach((c: any) => {
         c.dr += c.ds; c.pp += c.ps;
         c.x += c.vx + Math.sin(c.dr) * c.da; c.y += c.vy;
@@ -119,7 +117,6 @@ function AnimatedBg({ phase }: { phase: Phase }) {
         }
       });
 
-      // floating particles
       s.particles.forEach((pt: any) => {
         pt.pp += pt.ps; pt.x += pt.vx; pt.y += pt.vy;
         if (pt.y < -5) { pt.y = H + 5; pt.x = Math.random() * W; }
@@ -276,7 +273,7 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain"
+    <div className="fixed inset-0 z-50 overflow-y-auto overscroll-contain flex justify-center"
       style={{
         background: p.bg, transition: "background 0.6s ease, opacity 0.4s ease, transform 0.4s cubic-bezier(0.16,1,0.3,1)",
         opacity: mounted ? 1 : 0, transform: mounted ? "none" : "translateY(8px)",
@@ -301,7 +298,7 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
         }
       `}</style>
 
-      <div className="relative min-h-screen overflow-hidden">
+      <div className="relative min-h-screen overflow-hidden w-full max-w-md">
         <AnimatedBg phase={phase} />
 
         {/* top glow */}
