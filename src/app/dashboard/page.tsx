@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback, useContext, useMemo } from "react";
@@ -31,6 +32,8 @@ import CopyingSheet from "./components/CopyingSheet";
 import ActiveTradesSheet from "./components/ActiveTradesSheet";
 import DepositSheet from "./components/DepositSheet";
 import WithdrawSheet from "./components/WithdrawSheet";
+import { KOLRewardsCard } from "./components/KOLRewardsCard";
+import { KOLRewardsScreen } from "./components/KOLRewardsScreen";
 
 export interface BalanceChartData {
   label: string;
@@ -98,6 +101,7 @@ const Home = () => {
   const [showActiveTrades, setShowActiveTrades] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showRewards, setShowRewards] = useState(false); // ← NEW
 
   // ── 1. Privy → Backend JWT sync ──
   useEffect(() => {
@@ -307,6 +311,13 @@ const Home = () => {
           <UserMenu />
         </div>
       </div>
+
+      {/* ── KOL Rewards Entry Card ── */}
+      {authenticated && (                                                    /* ← NEW */
+        <div className="relative z-10 px-3 mb-2">                           {/* ← NEW */}
+          <KOLRewardsCard onOpen={() => setShowRewards(true)} phase="beta" />{/* ← NEW */}
+        </div>                                                               /* ← NEW */
+      )}                                                                     {/* ← NEW */}
 
       <div className="relative z-10 px-3">
         <div className="rounded-xl p-4 mb-3 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(45,212,191,0.2)", boxShadow: "0 0 30px rgba(45,212,191,0.1), inset 0 0 40px rgba(45,212,191,0.03)" }}>
@@ -525,6 +536,8 @@ const Home = () => {
         </div>
       </div>
 
+      {/* ── Overlays & Sheets ── */}
+      {showRewards && <KOLRewardsScreen onClose={() => setShowRewards(false)} />}  {/* ← NEW */}
       {showCopying && <CopyingSheet mode="copying" onClose={() => setShowCopying(false)} />}
       {showCopiers && <CopyingSheet mode="copiers" onClose={() => setShowCopiers(false)} />}
       {showActiveTrades && (
