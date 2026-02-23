@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -24,15 +23,14 @@ export default function CopyCongratsSheet() {
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-[60] transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}
+        className={`absolute inset-0 z-[60] transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`}
         style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
         onClick={dismissCongrats}
       />
 
       {/* Sheet */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-[61] transition-transform duration-400 ease-out ${visible ? "translate-y-0" : "translate-y-full"}`}
-        style={{ maxWidth: "393px", margin: "0 auto" }}
+        className={`absolute bottom-0 left-0 right-0 z-[61] transition-transform duration-400 ease-out ${visible ? "translate-y-0" : "translate-y-full"}`}
       >
         <div
           className="rounded-t-2xl px-6 pt-6 pb-8 relative overflow-hidden"
