@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRewards } from "@/providers/RewardsContext";
 
 export default function CopyCongratsSheet() {
   const { showCongrats, congratsTrigger, dismissCongrats, viewRewardsFromPrompt } = useRewards();
   const [visible, setVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Ensure we only use portal after hydration (SSR safety)
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (showCongrats) {
@@ -16,14 +21,17 @@ export default function CopyCongratsSheet() {
     }
   }, [showCongrats]);
 
-  if (!showCongrats) return null;
+  if (!showCongrats || !mounted) return null;
 
   const isFirstCopy = congratsTrigger === "first_copy_trade";
 
-  return (
+  const content = (
     <div
-      className="absolute inset-0 z-[60] flex items-end justify-center"
-      style={{ background: visible ? "rgba(0,0,0,0.6)" : "transparent", transition: "background 0.3s ease" }}
+      className="fixed inset-0 z-[9999] flex items-end justify-center"
+      style={{
+        background: visible ? "rgba(0,0,0,0.6)" : "transparent",
+        transition: "background 0.3s ease",
+      }}
       onClick={dismissCongrats}
     >
       <div
@@ -35,8 +43,10 @@ export default function CopyCongratsSheet() {
           border: "1px solid rgba(45,212,191,0.2)",
           borderBottom: "none",
           boxShadow: "0 -8px 40px rgba(0,0,0,0.5), 0 0 30px rgba(45,212,191,0.08)",
+          maxWidth: "393px",
+          width: "100%",
         }}
-        className="w-full rounded-t-2xl px-6 pt-6 pb-8 relative overflow-hidden"
+        className="rounded-t-2xl px-6 pt-6 pb-8 relative overflow-hidden"
       >
         {/* Glow accent */}
         <div
@@ -102,4 +112,7 @@ export default function CopyCongratsSheet() {
       </div>
     </div>
   );
+
+  // Portal: render to document.body, escaping all transform/scroll/overflow issues
+  return createPortal(content, document.body);
 }
