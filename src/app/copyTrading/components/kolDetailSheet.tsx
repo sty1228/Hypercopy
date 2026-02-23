@@ -1,11 +1,3 @@
-// ================================================================
-// FILE: copyTrading/components/kolDetailSheet.tsx
-// ================================================================
-// Changes:
-//   - ADDED: useRewards() import + triggerFirstCopyTrade call
-//   - When copy/counter trade executes successfully, rewards screen
-//     auto-opens if it's the user's first copy trade (§8 Primary Trigger)
-// ================================================================
 
 "use client";
 
@@ -15,6 +7,7 @@ import { LeaderboardItem, UserSignalResponse, userSignals } from "@/service";
 import BigNumber from "bignumber.js";
 import SignalItem from "./signalItem";
 import { useRewards } from "@/providers/RewardsContext";
+import CopyCongratsSheet from "@/components/CopyCongratsSheet";
 
 export default function KolDetailSheet({
   data,
@@ -53,13 +46,11 @@ export default function KolDetailSheet({
     }
 
     // TODO: Replace with actual copy/counter trade execution via wallet_manager.execute_copy_trade()
-    // When the trade executes successfully, the trigger below fires.
     console.log(`${action} action for`, data.x_handle);
 
-    // §8 PRIMARY TRIGGER: After first successful copy trade
-    // "You just earned your first points — here's how your rewards grow"
-    // This only fires ONCE (localStorage guard inside triggerFirstCopyTrade).
-    // Move this call to AFTER the actual trade confirmation when copy trading engine is implemented.
+    // §8 PRIMARY TRIGGER: Now shows congrats prompt in-place (not full rewards screen)
+    // The congrats prompt appears right here on this sheet.
+    // User can then choose "View Rewards" to see the full program.
     triggerFirstCopyTrade();
   };
 
@@ -152,7 +143,7 @@ export default function KolDetailSheet({
                     <div className="text-[10px] text-gray-500 uppercase mt-1">Result</div>
                   </div>
                   <div className="text-center py-3 rounded-xl" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                    <div className="text-sm font-bold text-white">🔥{data.streak || 0}</div>
+                    <div className="text-sm font-bold text-white">{data.streak || 0}</div>
                     <div className="text-[10px] text-gray-500 uppercase mt-1">Streak</div>
                   </div>
                   <div className="text-center py-3 rounded-xl" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }}>
@@ -219,6 +210,9 @@ export default function KolDetailSheet({
             ))}
           </div>
         </div>
+
+        {/* Congrats prompt renders IN this sheet (in-place, not on dashboard) */}
+        <CopyCongratsSheet />
       </div>
     </>
   );

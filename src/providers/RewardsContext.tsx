@@ -1,26 +1,36 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
-// ── Trigger types (for analytics / future backend logging) ──
 export type RewardsTrigger =
-  | "first_copy_trade"      // §8 Primary: after first successful copy trade
-  | "first_time_copied"     // §8 Secondary: first time another user copies you
-  | "weekly_summary"        // §8 Tertiary: weekly points notification
-  | "smart_follower_milestone" // §8 Tertiary: SF threshold crossed (25/50/100/250/500)
-  | "phase_transition"      // §8 Tertiary: Beta → Season 1 transition
-  | "referral_share";       // §8 Tertiary: before sharing referral link
+  | "first_copy_trade"
+  | "first_time_copied"
+  | "weekly_summary"
+  | "smart_follower_milestone"
+  | "phase_transition"
+  | "referral_share";
 
 interface RewardsContextType {
-  // State
+  // Full rewards screen
   showRewards: boolean;
   lastTrigger: RewardsTrigger | null;
-
-  // Direct open/close (for edge cases)
   openRewards: (trigger?: RewardsTrigger) => void;
   closeRewards: () => void;
 
-  // Event-based triggers (call these from other components)
+  // Intermediate congrats prompt (in-place, after copy action)
+  showCongrats: boolean;
+  congratsTrigger: RewardsTrigger | null;
+  dismissCongrats: () => void;
+
+  // Dashboard banner (non-intrusive, for "first time copied" etc.)
+  showBanner: boolean;
+  bannerTrigger: RewardsTrigger | null;
+  dismissBanner: () => void;
+
+  // Transition: congrats/banner → full rewards screen
+  viewRewardsFromPrompt: () => void;
+
+  // Event triggers
   triggerFirstCopyTrade: () => void;
   triggerFirstTimeCopied: () => void;
   triggerWeeklySummary: () => void;
@@ -34,6 +44,13 @@ const RewardsContext = createContext<RewardsContextType>({
   lastTrigger: null,
   openRewards: () => {},
   closeRewards: () => {},
+  showCongrats: false,
+  congratsTrigger: null,
+  dismissCongrats: () => {},
+  showBanner: false,
+  bannerTrigger: null,
+  dismissBanner: () => {},
+  viewRewardsFromPrompt: () => {},
   triggerFirstCopyTrade: () => {},
   triggerFirstTimeCopied: () => {},
   triggerWeeklySummary: () => {},
@@ -42,14 +59,12 @@ const RewardsContext = createContext<RewardsContextType>({
   triggerReferralShare: () => {},
 });
 
-// ── localStorage keys for one-time triggers ──
 const KEYS = {
   firstCopyTrade: "hc_rewards_first_copy_trade_shown",
   firstTimeCopied: "hc_rewards_first_time_copied_shown",
   phaseTransitionSeen: "hc_rewards_phase_transition_seen",
 } as const;
 
-// ── Helper: check if a one-time trigger has already fired ──
 function hasShown(key: string): boolean {
   if (typeof window === "undefined") return true;
   return localStorage.getItem(key) === "1";
@@ -60,11 +75,17 @@ function markShown(key: string): void {
   localStorage.setItem(key, "1");
 }
 
-// ── Provider ──
 export function RewardsProvider({ children }: { children: ReactNode }) {
   const [showRewards, setShowRewards] = useState(false);
   const [lastTrigger, setLastTrigger] = useState<RewardsTrigger | null>(null);
 
+  const [showCongrats, setShowCongrats] = useState(false);
+  const [congratsTrigger, setCongratsT] = useState<RewardsTrigger | null>(null);
+
+  const [showBanner, setShowBanner] = useState(false);
+  const [bannerTrigger, setBannerT] = useState<RewardsTrigger | null>(null);
+
+  // ── Direct open (for menu links, settings, etc.) ──
   const openRewards = useCallback((trigger?: RewardsTrigger) => {
     if (trigger) setLastTrigger(trigger);
     setShowRewards(true);
@@ -74,34 +95,56 @@ export function RewardsProvider({ children }: { children: ReactNode }) {
     setShowRewards(false);
   }, []);
 
+  // ── Dismiss intermediate UI ──
+  const dismissCongrats = useCallback(() => {
+    setShowCongrats(false);
+    setCongratsT(null);
+  }, []);
+
+  const dismissBanner = useCallback(() => {
+    setShowBanner(false);
+    setBannerT(null);
+  }, []);
+
+  // ── User taps "View Rewards" from congrats or banner ──
+  const viewRewardsFromPrompt = useCallback(() => {
+    const trigger = congratsTrigger || bannerTrigger;
+    setShowCongrats(false);
+    setCongratsT(null);
+    setShowBanner(false);
+    setBannerT(null);
+    if (trigger) setLastTrigger(trigger);
+    setShowRewards(true);
+  }, [congratsTrigger, bannerTrigger]);
+
   // ── §8 Primary: After first successful copy trade ──
-  // "The single highest-conversion moment"
-  // Call this after a copy/counter trade executes successfully.
-  // Only fires ONCE per user (persisted in localStorage).
+  // NOW: shows in-place congrats prompt instead of full-screen rewards
   const triggerFirstCopyTrade = useCallback(() => {
     if (hasShown(KEYS.firstCopyTrade)) return;
     markShown(KEYS.firstCopyTrade);
-    // Small delay so user sees the trade confirmation first
-    setTimeout(() => openRewards("first_copy_trade"), 1500);
-  }, [openRewards]);
+    setTimeout(() => {
+      setCongratsT("first_copy_trade");
+      setShowCongrats(true);
+    }, 800);
+  }, []);
 
   // ── §8 Secondary: First time being copied ──
-  // "Someone just copied your trade — you earned 30% of their trade points"
-  // Only fires ONCE per user.
+  // NOW: shows dashboard banner instead of full-screen rewards
   const triggerFirstTimeCopied = useCallback(() => {
     if (hasShown(KEYS.firstTimeCopied)) return;
     markShown(KEYS.firstTimeCopied);
-    setTimeout(() => openRewards("first_time_copied"), 1000);
-  }, [openRewards]);
+    setTimeout(() => {
+      setBannerT("first_time_copied");
+      setShowBanner(true);
+    }, 1000);
+  }, []);
 
-  // ── §8 Tertiary: Weekly points summary ──
-  // Triggered by push notification or polling. Can fire multiple times.
+  // ── Tertiary triggers: these use banners too ──
   const triggerWeeklySummary = useCallback(() => {
-    openRewards("weekly_summary");
-  }, [openRewards]);
+    setBannerT("weekly_summary");
+    setShowBanner(true);
+  }, []);
 
-  // ── §8 Tertiary: Smart Follower milestone ──
-  // Thresholds: 25, 50, 100, 250, 500
   const triggerSmartFollowerMilestone = useCallback((count: number) => {
     const thresholds = [25, 50, 100, 250, 500];
     const lastSeenStr = localStorage.getItem("hc_rewards_sf_milestone") || "0";
@@ -109,21 +152,17 @@ export function RewardsProvider({ children }: { children: ReactNode }) {
     const crossed = thresholds.find((t) => count >= t && lastSeen < t);
     if (!crossed) return;
     localStorage.setItem("hc_rewards_sf_milestone", String(crossed));
-    openRewards("smart_follower_milestone");
-  }, [openRewards]);
+    setBannerT("smart_follower_milestone");
+    setShowBanner(true);
+  }, []);
 
-  // ── §8 Tertiary: Phase transition (Beta → S1) ──
-  // "Every user should see the updated rewards screen on their next app open"
-  // Only fires once per phase transition.
   const triggerPhaseTransition = useCallback(() => {
     if (hasShown(KEYS.phaseTransitionSeen)) return;
     markShown(KEYS.phaseTransitionSeen);
-    openRewards("phase_transition");
-  }, [openRewards]);
+    setBannerT("phase_transition");
+    setShowBanner(true);
+  }, []);
 
-  // ── §8 Tertiary: Before sharing referral link ──
-  // "Show condensed Fee Share mechanics so they can speak to the value prop"
-  // Can fire every time (not one-shot).
   const triggerReferralShare = useCallback(() => {
     openRewards("referral_share");
   }, [openRewards]);
@@ -131,16 +170,13 @@ export function RewardsProvider({ children }: { children: ReactNode }) {
   return (
     <RewardsContext.Provider
       value={{
-        showRewards,
-        lastTrigger,
-        openRewards,
-        closeRewards,
-        triggerFirstCopyTrade,
-        triggerFirstTimeCopied,
-        triggerWeeklySummary,
-        triggerSmartFollowerMilestone,
-        triggerPhaseTransition,
-        triggerReferralShare,
+        showRewards, lastTrigger, openRewards, closeRewards,
+        showCongrats, congratsTrigger, dismissCongrats,
+        showBanner, bannerTrigger, dismissBanner,
+        viewRewardsFromPrompt,
+        triggerFirstCopyTrade, triggerFirstTimeCopied,
+        triggerWeeklySummary, triggerSmartFollowerMilestone,
+        triggerPhaseTransition, triggerReferralShare,
       }}
     >
       {children}

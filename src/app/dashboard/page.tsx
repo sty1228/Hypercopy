@@ -1,14 +1,3 @@
-// ================================================================
-// FILE: dashboard/page.tsx
-// ================================================================
-// Changes from previous version:
-//   - REMOVED: KOLRewardsCard import and static card in dashboard
-//   - REMOVED: showRewards local state
-//   - ADDED: useRewards() from RewardsContext
-//   - KOLRewardsScreen now controlled by RewardsContext triggers
-//   - The rewards screen ONLY appears via event triggers (see §8)
-// ================================================================
-
 "use client";
 
 import { useEffect, useState, useCallback, useContext, useMemo } from "react";
@@ -44,6 +33,7 @@ import DepositSheet from "./components/DepositSheet";
 import WithdrawSheet from "./components/WithdrawSheet";
 import { KOLRewardsScreen } from "./components/KOLRewardsScreen";
 import { useRewards } from "@/providers/RewardsContext";
+import RewardsBanner from "@/components/RewardsBanner";
 
 export interface BalanceChartData {
   label: string;
@@ -307,6 +297,9 @@ const Home = () => {
         <BuilderApprovalBanner onApproved={() => setBuilderDismissed(true)} onDismiss={() => setBuilderDismissed(true)} />
       )}
 
+      {/* Rewards banner — non-intrusive, for "first time copied", milestones, etc. */}
+      <RewardsBanner />
+
       <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
         <div className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }} onClick={handleLogout}>
           <Image src={profileIcon} alt="profile" width={12} height={12} />
@@ -321,8 +314,6 @@ const Home = () => {
           <UserMenu />
         </div>
       </div>
-
-      {/* KOLRewardsCard REMOVED — rewards screen now triggered by events only (see §8) */}
 
       <div className="relative z-10 px-3">
         <div className="rounded-xl p-4 mb-3 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(45,212,191,0.2)", boxShadow: "0 0 30px rgba(45,212,191,0.1), inset 0 0 40px rgba(45,212,191,0.03)" }}>
