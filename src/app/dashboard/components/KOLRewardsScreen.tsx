@@ -1,6 +1,14 @@
 // ================================================================
 // FILE: dashboard/components/KOLRewardsScreen.tsx
 // ================================================================
+// CHANGED: All mock data replaced with real API calls
+//   - getRewards() → points, rank, fee share, smart followers, boost, phase config
+//   - getDistributions() → weekly distribution history + breakdowns
+//   - claimFeeShare() → Claim button
+//   - logShare() → Share PnL / Leaderboard buttons
+//   - Loading skeleton while fetching
+//   - Error-safe: falls back to zeros on API failure
+// ================================================================
 
 "use client";
 
@@ -9,21 +17,24 @@ import {
   X, TrendingUp, Wallet, Target, Link2, Star, Zap, ChevronDown,
   BarChart3, Trophy, Check, Clock, ArrowRightLeft, Coins, Crown,
   RefreshCw, Flame, Users, Shield, ExternalLink, CircleDollarSign,
+  Loader2,
 } from "lucide-react";
+import {
+  getRewards, getDistributions, claimFeeShare, logShare,
+  type RewardsData, type DistributionItem,
+} from "@/service";
 
-/* ── Phase Config ── */
+/* ── Phase Config (visual only — real numbers come from API) ── */
 
 const PHASES = {
   beta: {
-    label: "BETA", duration: "3 Mo", totalWeeks: 12, multiplier: "2-5x",
-    feeShare: "60%", copyShare: "30%", airdropPool: "8-10%", kolRefBonus: "5x", twapShare: "40%",
+    label: "BETA", duration: "3 Mo",
     accent: "#00F0FF", accentRgb: "0,240,255",
     greenCandle: "#00E5A0", redCandle: "#00899A", wickColor: "#00F0FF",
     bg: "#0B0B10", cardBg: "rgba(0,240,255,0.025)",
   },
   season1: {
-    label: "S1", duration: "8 Mo", totalWeeks: 32, multiplier: "1x → 2x",
-    feeShare: "30%", copyShare: "30%", airdropPool: "40-50%", kolRefBonus: "3x", twapShare: "70%",
+    label: "S1", duration: "8 Mo",
     accent: "#F5A623", accentRgb: "245,166,35",
     greenCandle: "#22C55E", redCandle: "#EF4444", wickColor: "rgba(255,255,255,0.2)",
     bg: "#0C0A08", cardBg: "rgba(245,166,35,0.025)",
@@ -32,17 +43,6 @@ const PHASES = {
 
 type Phase = keyof typeof PHASES;
 type Tab = "earn" | "multiply" | "distributions";
-
-/* ── Mock Data ── */
-
-const DISTRIBUTIONS = [
-  { week: 8, date: "Feb 17", points: 14820, feeShare: 47.30 },
-  { week: 7, date: "Feb 10", points: 12340, feeShare: 38.90 },
-  { week: 6, date: "Feb 3", points: 11580, feeShare: 31.20 },
-  { week: 5, date: "Jan 27", points: 9870, feeShare: 28.50 },
-  { week: 4, date: "Jan 20", points: 8420, feeShare: 22.10 },
-  { week: 3, date: "Jan 13", points: 6210, feeShare: 14.80 },
-];
 
 /* ── Candlestick Background ── */
 
@@ -62,10 +62,8 @@ function CandlestickBg({ phase }: { phase: Phase }) {
     const W = 393, H = 2600;
     cv.width = W * 2; cv.height = H * 2;
     ctx.scale(2, 2);
-
     cRef.current = [];
     oRef.current = [];
-
     for (let i = 0; i < 22; i++) {
       const bH = Math.random() * 16 + 5;
       cRef.current.push({
@@ -87,29 +85,26 @@ function CandlestickBg({ phase }: { phase: Phase }) {
         o: Math.random() * 0.035 + 0.01, p: Math.random() * 6.28,
       });
     }
-
     function draw() {
-      const p = PHASES[pRef.current];
+      const ph = PHASES[pRef.current];
       ctx.clearRect(0, 0, W, H);
-
       oRef.current.forEach((ob) => {
         ob.x += ob.vx; ob.y += ob.vy; ob.p += 0.003;
         if (ob.x < -100) ob.x = W + 100; if (ob.x > W + 100) ob.x = -100;
         if (ob.y < -100) ob.y = H + 100; if (ob.y > H + 100) ob.y = -100;
         const g = ctx.createRadialGradient(ob.x, ob.y, 0, ob.x, ob.y, ob.r);
-        g.addColorStop(0, p.accent + "10"); g.addColorStop(1, "transparent");
+        g.addColorStop(0, ph.accent + "10"); g.addColorStop(1, "transparent");
         ctx.globalAlpha = Math.max(0, ob.o + Math.sin(ob.p) * 0.01);
         ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ob.x, ob.y, ob.r, 0, 6.28); ctx.fill();
       });
-
       cRef.current.forEach((c) => {
         c.d += c.ds; c.pp += c.ps;
         c.x += c.vx + Math.sin(c.d) * c.da; c.y += c.vy;
         if (c.y < -40) { c.y = H + 20; c.x = Math.random() * W; c.g = Math.random() > 0.4; }
         if (c.x < -20) c.x = W + 20; if (c.x > W + 20) c.x = -20;
         const a = c.o * (1 + Math.sin(c.pp) * 0.12);
-        const cl = c.g ? p.greenCandle : p.redCandle;
-        ctx.globalAlpha = a * 0.5; ctx.strokeStyle = p.wickColor; ctx.lineWidth = 0.7;
+        const cl = c.g ? ph.greenCandle : ph.redCandle;
+        ctx.globalAlpha = a * 0.5; ctx.strokeStyle = ph.wickColor; ctx.lineWidth = 0.7;
         ctx.beginPath(); ctx.moveTo(c.x, c.y - c.wT); ctx.lineTo(c.x, c.y); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(c.x, c.y + c.bH); ctx.lineTo(c.x, c.y + c.bH + c.wB); ctx.stroke();
         ctx.globalAlpha = a; ctx.fillStyle = cl;
@@ -120,7 +115,6 @@ function CandlestickBg({ phase }: { phase: Phase }) {
           ctx.fillRect(c.x - hw, c.y, c.bW, c.bH); ctx.shadowBlur = 0;
         }
       });
-
       ctx.globalAlpha = 1;
       aRef.current = requestAnimationFrame(draw);
     }
@@ -155,6 +149,14 @@ const IconBox = ({ children, accentRgb, active }: { children: React.ReactNode; a
   </div>
 );
 
+const Skeleton = ({ w, h }: { w: number | string; h: number }) => (
+  <div style={{
+    width: w, height: h, borderRadius: 6,
+    background: "rgba(255,255,255,.04)",
+    animation: "shimmer 1.5s ease infinite",
+  }} />
+);
+
 /* ── Main Component ── */
 
 interface Props {
@@ -167,16 +169,88 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
   const [tab, setTab] = useState<Tab>("earn");
   const [mounted, setMounted] = useState(false);
 
+  // API data
+  const [rewards, setRewards] = useState<RewardsData | null>(null);
+  const [distributions, setDistributions] = useState<DistributionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [claiming, setClaiming] = useState(false);
+  const [claimMsg, setClaimMsg] = useState<string | null>(null);
+  const [sharing, setSharing] = useState<string | null>(null);
+
   const p = PHASES[phase];
   const s1 = phase === "season1";
 
-  // Mock data — replace with GET /api/kol/rewards
-  const currentWeek = 8;
-  const totalPoints = 57030;
-  const totalFeeShare = 168.00;
-  const currentWeekPts = 3240;
+  // Derived from API (with safe defaults)
+  const currentWeek = rewards?.currentWeek ?? 0;
+  const totalWeeks = rewards?.totalWeeks ?? 12;
+  const totalPoints = rewards?.totalPoints ?? 0;
+  const currentWeekPts = rewards?.currentWeekPoints ?? 0;
+  const rank = rewards?.rank ?? null;
+  const totalFeeShare = rewards?.totalFeeShare ?? 0;
+  const claimable = rewards?.claimableFeeShare ?? 0;
+  const smartFollowers = rewards?.smartFollowerCount ?? 0;
+  const boost = rewards?.boostMultiplier ?? 1;
+  const xLinked = rewards?.xAccountLinked ?? false;
+  const cfg = rewards?.phaseConfig;
+  const feeShare = cfg?.feeShare ?? (s1 ? "30%" : "60%");
+  const twapShare = cfg?.twapShare ?? (s1 ? "70%" : "40%");
+  const airdropPool = cfg?.airdropPool ?? (s1 ? "40-50%" : "8-10%");
+  const copyShare = cfg?.copyShare ?? "30%";
+  const multiplierRange = cfg?.multiplierRange ?? (s1 ? "1x → 2x" : "2-5x");
+  const kolRefBonus = cfg?.kolRefBonus ?? (s1 ? "3x" : "5x");
 
-  useEffect(() => { requestAnimationFrame(() => setMounted(true)); }, []);
+  // Fetch data
+  useEffect(() => {
+    requestAnimationFrame(() => setMounted(true));
+    (async () => {
+      setLoading(true);
+      try {
+        const [r, d] = await Promise.allSettled([getRewards(), getDistributions(6)]);
+        if (r.status === "fulfilled") setRewards(r.value);
+        if (d.status === "fulfilled") setDistributions(d.value.distributions);
+      } catch (e) {
+        console.error("Rewards fetch failed:", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // Claim handler
+  const handleClaim = useCallback(async () => {
+    if (claiming || claimable <= 0) return;
+    setClaiming(true);
+    setClaimMsg(null);
+    try {
+      const res = await claimFeeShare(claimable);
+      setClaimMsg(res.message);
+      // Optimistic: zero out claimable
+      if (res.status === "processing" && rewards) {
+        setRewards({
+          ...rewards,
+          claimableFeeShare: 0,
+        });
+      }
+    } catch (e) {
+      setClaimMsg("Claim failed. Please try again.");
+    } finally {
+      setClaiming(false);
+    }
+  }, [claiming, claimable, rewards]);
+
+  // Share handler
+  const handleShare = useCallback(async (type: "pnl_card" | "leaderboard") => {
+    if (sharing) return;
+    setSharing(type);
+    try {
+      await logShare(type);
+      // TODO: Open X share dialog with pre-filled text
+    } catch (e) {
+      console.error("Share failed:", e);
+    } finally {
+      setSharing(null);
+    }
+  }, [sharing]);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "earn", label: "Earn" },
@@ -203,7 +277,6 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
       <div style={{ position: "relative", width: "100%", maxWidth: 393, minHeight: "100vh" }}>
         <CandlestickBg phase={phase} />
 
-        {/* Top radial glow */}
         <div style={{
           position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)",
           width: 420, height: 420, borderRadius: "50%", pointerEvents: "none", zIndex: 1,
@@ -288,8 +361,14 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
                 <div style={{ fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,.32)", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 4 }}>Total Points</div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: "rgba(255,255,255,.95)", fontFamily: "'DM Mono',monospace", letterSpacing: "-.02em", lineHeight: 1, marginBottom: 3 }}>{totalPoints.toLocaleString()}</div>
-                <div style={{ fontSize: 9.5, color: "rgba(255,255,255,.25)" }}>+{currentWeekPts.toLocaleString()} this week</div>
+                {loading ? <Skeleton w={120} h={24} /> : (
+                  <div style={{ fontSize: 24, fontWeight: 700, color: "rgba(255,255,255,.95)", fontFamily: "'DM Mono',monospace", letterSpacing: "-.02em", lineHeight: 1, marginBottom: 3 }}>
+                    {totalPoints.toLocaleString()}
+                  </div>
+                )}
+                <div style={{ fontSize: 9.5, color: "rgba(255,255,255,.25)" }}>
+                  +{currentWeekPts.toLocaleString()} this week
+                </div>
               </div>
               <div style={{
                 display: "flex", flexDirection: "column", alignItems: "center",
@@ -297,18 +376,23 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                 border: `1px solid rgba(${p.accentRgb},.14)`, borderRadius: 10,
               }}>
                 <Trophy size={14} color={p.accent} strokeWidth={2} style={{ marginBottom: 2 }} />
-                <div style={{ fontSize: 15, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>#142</div>
+                {loading ? <Skeleton w={40} h={16} /> : (
+                  <div style={{ fontSize: 15, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>
+                    {rank ? `#${rank}` : "—"}
+                  </div>
+                )}
                 <div style={{ fontSize: 7, fontWeight: 600, color: "rgba(255,255,255,.22)", letterSpacing: ".04em", marginTop: 2 }}>RANK</div>
               </div>
             </div>
             <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 3, height: 3, overflow: "hidden", marginTop: 10 }}>
               <div style={{
-                width: `${(currentWeek / p.totalWeeks) * 100}%`, height: "100%", borderRadius: 3,
+                width: totalWeeks > 0 ? `${(currentWeek / totalWeeks) * 100}%` : "0%",
+                height: "100%", borderRadius: 3,
                 background: `linear-gradient(90deg,${p.accent},rgba(${p.accentRgb},.6))`, transition: "width .6s ease",
               }} />
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
-              <span style={{ fontSize: 8.5, color: "rgba(255,255,255,.18)" }}>Week {currentWeek} of {p.totalWeeks}</span>
+              <span style={{ fontSize: 8.5, color: "rgba(255,255,255,.18)" }}>Week {currentWeek} of {totalWeeks}</span>
               <span style={{ fontSize: 8.5, color: "rgba(255,255,255,.18)" }}>Distributes Monday</span>
             </div>
           </div>
@@ -317,20 +401,39 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
             background: "rgba(16,185,129,.04)", border: "1px solid rgba(16,185,129,.12)",
-            borderRadius: 10, padding: "9px 12px", marginBottom: 8,
+            borderRadius: 10, padding: "9px 12px", marginBottom: claimMsg ? 4 : 8,
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <CircleDollarSign size={14} color="#10B981" strokeWidth={2} />
               <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
-                <span style={{ fontSize: 17, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>${totalFeeShare.toFixed(2)}</span>
+                {loading ? <Skeleton w={80} h={17} /> : (
+                  <span style={{ fontSize: 17, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>
+                    ${totalFeeShare.toFixed(2)}
+                  </span>
+                )}
                 <span style={{ fontSize: 8, color: "#10B981", opacity: .5, fontFamily: "'DM Mono',monospace" }}>USDC · Arbitrum</span>
               </div>
             </div>
-            <button style={{
-              background: "#10B981", color: "#080D0B", border: "none", borderRadius: 6,
-              padding: "5px 10px", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif",
-            }}>Claim</button>
+            <button
+              onClick={handleClaim}
+              disabled={claiming || claimable <= 0}
+              style={{
+                background: claimable > 0 ? "#10B981" : "rgba(16,185,129,.3)",
+                color: "#080D0B", border: "none", borderRadius: 6,
+                padding: "5px 10px", fontSize: 9, fontWeight: 700,
+                cursor: claimable > 0 ? "pointer" : "default",
+                fontFamily: "'DM Sans',sans-serif",
+                opacity: claiming ? 0.6 : 1,
+                display: "flex", alignItems: "center", gap: 4,
+              }}
+            >
+              {claiming && <Loader2 size={10} style={{ animation: "spin 1s linear infinite" }} />}
+              {claiming ? "..." : "Claim"}
+            </button>
           </div>
+          {claimMsg && (
+            <div style={{ fontSize: 8.5, color: "#10B981", padding: "0 12px 8px", opacity: 0.7 }}>{claimMsg}</div>
+          )}
 
           {/* ── SMART FOLLOWER BAR ── */}
           <div style={{
@@ -340,13 +443,17 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
               <Star size={12} color={p.accent} strokeWidth={2} fill={p.accent} opacity={0.8} />
-              <span style={{ fontSize: 10, fontWeight: 600, color: p.accent }}>847 Smart Followers</span>
+              {loading ? <Skeleton w={120} h={12} /> : (
+                <span style={{ fontSize: 10, fontWeight: 600, color: p.accent }}>
+                  {smartFollowers.toLocaleString()} Smart Followers
+                </span>
+              )}
             </div>
             <div style={{
               fontSize: 9.5, fontWeight: 600, color: p.accent,
               background: `rgba(${p.accentRgb},.08)`, border: `1px solid rgba(${p.accentRgb},.15)`,
               borderRadius: 5, padding: "2px 6px",
-            }}>4.2x</div>
+            }}>{boost}x</div>
           </div>
 
           {/* ── TABS ── */}
@@ -362,12 +469,9 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
             ))}
           </div>
 
-          {/* ════════════════════════════════════════════ */}
-          {/* TAB: EARN                                    */}
-          {/* ════════════════════════════════════════════ */}
+          {/* ═══════════ TAB: EARN ═══════════ */}
           {tab === "earn" && (
             <div className="fade-in">
-
               {/* Farm Points */}
               <div style={{ marginBottom: 18 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
@@ -375,7 +479,6 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                   <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.85)", fontFamily: "'Outfit',sans-serif" }}>Farm Points</span>
                 </div>
 
-                {/* SF inline context */}
                 <div style={{
                   display: "flex", alignItems: "center", gap: 8, padding: "8px 10px",
                   background: `rgba(${p.accentRgb},.04)`, border: `1px solid rgba(${p.accentRgb},.1)`,
@@ -383,14 +486,14 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                 }}>
                   <Star size={11} color={p.accent} strokeWidth={2} fill={p.accent} />
                   <span style={{ fontSize: 9, color: "rgba(255,255,255,.35)" }}>
-                    Your <span style={{ color: p.accent, fontWeight: 600 }}>847 Smart Followers</span> apply a <span style={{ color: p.accent, fontWeight: 600 }}>4.2x</span> boost to all points below
+                    Your <span style={{ color: p.accent, fontWeight: 600 }}>{smartFollowers.toLocaleString()} Smart Followers</span> apply a <span style={{ color: p.accent, fontWeight: 600 }}>{boost}x</span> boost to all points below
                   </span>
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   {[
-                    { title: "Copy Volume Earned", sub: "Points when users copy your trades", val: p.copyShare, unit: `of pts · ${p.multiplier}`, Icon: TrendingUp, hi: true },
-                    { title: "Your Own Trading", sub: "Copy or counter with your own capital", val: "70%", unit: `of pts · ${p.multiplier}`, Icon: Wallet, hi: true },
+                    { title: "Copy Volume Earned", sub: "Points when users copy your trades", val: copyShare, unit: `of pts · ${multiplierRange}`, Icon: TrendingUp, hi: true },
+                    { title: "Your Own Trading", sub: "Copy or counter with your own capital", val: "70%", unit: `of pts · ${multiplierRange}`, Icon: Wallet, hi: true },
                     { title: "Signal Quality", sub: "Tweets our LLM classifies as tradeable signal vs noise", val: "Bonus", unit: "per signal", Icon: Target, hi: false },
                     { title: "Connected X Account", sub: "Link X for a permanent boost on all earnings", val: "Boost", unit: "on all pts", Icon: Link2, hi: false },
                   ].map((t, i) => (
@@ -424,8 +527,6 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                   <CircleDollarSign size={13} color={p.accent} strokeWidth={2} />
                   <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.8)", fontFamily: "'Outfit',sans-serif" }}>Earn Fees</span>
                 </div>
-
-                {/* Step 1 */}
                 <div style={{
                   background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)",
                   borderRadius: 9, padding: "9px 11px", display: "flex", alignItems: "center", gap: 9,
@@ -437,8 +538,6 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                   </div>
                 </div>
                 <FlowArrow color={p.accent} />
-
-                {/* Step 2 */}
                 <div style={{
                   background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)",
                   borderRadius: 9, padding: "9px 11px", display: "flex", alignItems: "center", gap: 9,
@@ -450,15 +549,13 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                   </div>
                 </div>
                 <FlowArrow color={p.accent} />
-
-                {/* Fee/TWAP Split */}
                 <div style={{ display: "flex", gap: 6 }}>
                   <div style={{
                     flex: 1, background: `rgba(${p.accentRgb},.06)`, border: `1px solid rgba(${p.accentRgb},.15)`,
                     borderRadius: 9, padding: "10px 9px", textAlign: "center",
                   }}>
                     <Wallet size={14} color={p.accent} strokeWidth={2} style={{ margin: "0 auto 4px" }} />
-                    <div style={{ fontSize: 16, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{p.feeShare}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{feeShare}</div>
                     <div style={{ fontSize: 8.5, fontWeight: 600, color: p.accent, marginTop: 3, opacity: .7 }}>Fee Share</div>
                     <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.2)", marginTop: 3, lineHeight: 1.3 }}>Paid weekly in USDC on Arbitrum</div>
                   </div>
@@ -467,22 +564,20 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                     borderRadius: 9, padding: "10px 9px", textAlign: "center",
                   }}>
                     <ArrowRightLeft size={14} color="#10B981" strokeWidth={2} style={{ margin: "0 auto 4px" }} />
-                    <div style={{ fontSize: 16, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{p.twapShare}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{twapShare}</div>
                     <div style={{ fontSize: 8.5, fontWeight: 600, color: "#10B981", marginTop: 3, opacity: .7 }}>TWAP Buyback</div>
                     <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.2)", marginTop: 3, lineHeight: 1.3 }}>Buys HYPE off open market</div>
                   </div>
                 </div>
                 <FlowArrow color={p.accent} />
-
-                {/* Points earned */}
                 <div style={{
                   background: `rgba(${p.accentRgb},.06)`, border: `1px solid rgba(${p.accentRgb},.15)`,
                   borderRadius: 9, padding: "9px 11px", display: "flex", alignItems: "center", gap: 9,
                 }}>
                   <IconBox accentRgb={p.accentRgb} active><Coins size={13} color={p.accent} strokeWidth={2} /></IconBox>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: p.accent }}>+ {p.copyShare} of trade points to you</div>
-                    <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.22)" }}>At {p.multiplier} multiplier</div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: p.accent }}>+ {copyShare} of trade points to you</div>
+                    <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.22)" }}>At {multiplierRange} multiplier</div>
                   </div>
                 </div>
               </div>
@@ -496,12 +591,12 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                 <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
                   <div style={{ flex: 1, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)", borderRadius: 10, padding: "11px 10px" }}>
                     <div style={{ fontSize: 8.5, fontWeight: 600, color: "rgba(255,255,255,.28)", letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 4 }}>Fee Share</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{p.feeShare}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{feeShare}</div>
                     <div style={{ fontSize: 8, color: "rgba(255,255,255,.2)", marginTop: 4, lineHeight: 1.3 }}>of 0.1% fee → paid weekly USDC</div>
                   </div>
                   <div style={{ flex: 1, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)", borderRadius: 10, padding: "11px 10px" }}>
                     <div style={{ fontSize: 8.5, fontWeight: 600, color: "rgba(255,255,255,.28)", letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 4 }}>TWAP Buyback</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{p.twapShare}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{twapShare}</div>
                     <div style={{ fontSize: 8, color: "rgba(255,255,255,.2)", marginTop: 4, lineHeight: 1.3 }}>remaining fee → buys HYPE</div>
                   </div>
                 </div>
@@ -509,7 +604,7 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
                       <div style={{ fontSize: 8.5, fontWeight: 600, color: "rgba(255,255,255,.28)", letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 4 }}>Airdrop Pool</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{p.airdropPool}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{airdropPool}</div>
                     </div>
                     <div style={{ fontSize: 7.5, fontWeight: 700, color: p.accent, background: `rgba(${p.accentRgb},.08)`, borderRadius: 4, padding: "2px 5px" }}>
                       {s1 ? "S1 ONLY" : "BETA ONLY"}
@@ -534,9 +629,9 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                 </div>
                 <div style={{ display: "flex", gap: 5 }}>
                   {[
-                    { val: p.feeShare, label: "Fee Share", sub: "to referrer", color: p.accent, rgb: p.accentRgb },
-                    { val: p.kolRefBonus, label: "KOL Bonus", sub: "for KOL refs", color: "#F59E0B", rgb: "245,158,11" },
-                    { val: p.twapShare, label: "TWAP", sub: "buys HYPE", color: "#10B981", rgb: "16,185,129" },
+                    { val: feeShare, label: "Fee Share", sub: "to referrer", color: p.accent, rgb: p.accentRgb },
+                    { val: kolRefBonus, label: "KOL Bonus", sub: "for KOL refs", color: "#F59E0B", rgb: "245,158,11" },
+                    { val: twapShare, label: "TWAP", sub: "buys HYPE", color: "#10B981", rgb: "16,185,129" },
                   ].map((c, i) => (
                     <div key={i} style={{
                       flex: 1, background: `rgba(${c.rgb},.05)`, borderRadius: 8,
@@ -580,43 +675,39 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
             </div>
           )}
 
-          {/* ════════════════════════════════════════════ */}
-          {/* TAB: MULTIPLY                                */}
-          {/* ════════════════════════════════════════════ */}
+          {/* ═══════════ TAB: MULTIPLY ═══════════ */}
           {tab === "multiply" && (
             <div className="fade-in">
-
-              {/* Active Multipliers */}
               <div style={{ marginBottom: 18 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
                   <Zap size={13} color={p.accent} strokeWidth={2} />
                   <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.85)", fontFamily: "'Outfit',sans-serif" }}>Your Active Multipliers</span>
                 </div>
                 <div style={{ fontSize: 9, color: "rgba(255,255,255,.25)", marginBottom: 10 }}>These boost all point earnings automatically</div>
-
                 <div style={{ display: "flex", gap: 6 }}>
                   <div style={{
                     flex: 1, background: `rgba(${p.accentRgb},.05)`, border: `1px solid rgba(${p.accentRgb},.14)`,
                     borderRadius: 11, padding: "12px 10px", textAlign: "center",
                   }}>
                     <Star size={16} color={p.accent} strokeWidth={2} fill={p.accent} style={{ margin: "0 auto 5px", display: "block", opacity: .8 }} />
-                    <div style={{ fontSize: 18, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>4.2x</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{boost}x</div>
                     <div style={{ fontSize: 8.5, fontWeight: 600, color: p.accent, marginTop: 4, opacity: .65 }}>Smart Followers</div>
-                    <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.2)", marginTop: 3, lineHeight: 1.3 }}>847 verified from 6K cohort</div>
+                    <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.2)", marginTop: 3, lineHeight: 1.3 }}>
+                      {smartFollowers.toLocaleString()} verified from 6K cohort
+                    </div>
                   </div>
                   <div style={{
                     flex: 1, background: `rgba(${p.accentRgb},.04)`, border: `1px solid rgba(${p.accentRgb},.12)`,
                     borderRadius: 11, padding: "12px 10px", textAlign: "center",
                   }}>
                     <Zap size={16} color={p.accent} strokeWidth={2} style={{ margin: "0 auto 5px", display: "block" }} />
-                    <div style={{ fontSize: 18, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{p.multiplier}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{multiplierRange}</div>
                     <div style={{ fontSize: 8.5, fontWeight: 600, color: p.accent, marginTop: 4, opacity: .65 }}>{s1 ? "Consistency" : "Beta"} Mult</div>
                     <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.2)", marginTop: 3, lineHeight: 1.3 }}>{s1 ? "Maintain weekly quality" : "Elevated rate during Beta"}</div>
                   </div>
                 </div>
               </div>
 
-              {/* Increase Your Multiplier */}
               <div style={{ marginBottom: 18 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
                   <TrendingUp size={13} color="rgba(255,255,255,.5)" strokeWidth={2} />
@@ -634,13 +725,19 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                         <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.28)", marginTop: 1 }}>Earns points + grows multiplier</div>
                       </div>
                     </div>
-                    <button style={{
-                      background: `rgba(${p.accentRgb},.12)`, color: p.accent,
-                      border: `1px solid rgba(${p.accentRgb},.25)`, borderRadius: 7,
-                      padding: "5px 9px", fontSize: 8.5, fontWeight: 700, cursor: "pointer",
-                      fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 3,
-                    }}>
-                      <ExternalLink size={10} color={p.accent} strokeWidth={2.5} />Share
+                    <button
+                      onClick={() => handleShare("pnl_card")}
+                      disabled={sharing === "pnl_card"}
+                      style={{
+                        background: `rgba(${p.accentRgb},.12)`, color: p.accent,
+                        border: `1px solid rgba(${p.accentRgb},.25)`, borderRadius: 7,
+                        padding: "5px 9px", fontSize: 8.5, fontWeight: 700, cursor: "pointer",
+                        fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 3,
+                        opacity: sharing === "pnl_card" ? 0.5 : 1,
+                      }}
+                    >
+                      {sharing === "pnl_card" ? <Loader2 size={10} style={{ animation: "spin 1s linear infinite" }} /> : <ExternalLink size={10} color={p.accent} strokeWidth={2.5} />}
+                      Share
                     </button>
                   </div>
                 </div>
@@ -655,13 +752,19 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                         <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.28)", marginTop: 1 }}>Your rank or any KOL's result</div>
                       </div>
                     </div>
-                    <button style={{
-                      background: "rgba(245,158,11,.1)", color: "#F59E0B",
-                      border: "1px solid rgba(245,158,11,.22)", borderRadius: 7,
-                      padding: "5px 9px", fontSize: 8.5, fontWeight: 700, cursor: "pointer",
-                      fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 3,
-                    }}>
-                      <ExternalLink size={10} color="#F59E0B" strokeWidth={2.5} />Share
+                    <button
+                      onClick={() => handleShare("leaderboard")}
+                      disabled={sharing === "leaderboard"}
+                      style={{
+                        background: "rgba(245,158,11,.1)", color: "#F59E0B",
+                        border: "1px solid rgba(245,158,11,.22)", borderRadius: 7,
+                        padding: "5px 9px", fontSize: 8.5, fontWeight: 700, cursor: "pointer",
+                        fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 3,
+                        opacity: sharing === "leaderboard" ? 0.5 : 1,
+                      }}
+                    >
+                      {sharing === "leaderboard" ? <Loader2 size={10} style={{ animation: "spin 1s linear infinite" }} /> : <ExternalLink size={10} color="#F59E0B" strokeWidth={2.5} />}
+                      Share
                     </button>
                   </div>
                 </div>
@@ -676,12 +779,23 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                         <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.28)", marginTop: 1 }}>Permanent boost on all earnings</div>
                       </div>
                     </div>
-                    <div style={{
-                      fontSize: 8, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,.1)",
-                      borderRadius: 5, padding: "3px 7px", display: "flex", alignItems: "center", gap: 3,
-                    }}>
-                      <Check size={9} color="#10B981" strokeWidth={3} /> LINKED
-                    </div>
+                    {xLinked ? (
+                      <div style={{
+                        fontSize: 8, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,.1)",
+                        borderRadius: 5, padding: "3px 7px", display: "flex", alignItems: "center", gap: 3,
+                      }}>
+                        <Check size={9} color="#10B981" strokeWidth={3} /> LINKED
+                      </div>
+                    ) : (
+                      <button style={{
+                        background: `rgba(${p.accentRgb},.12)`, color: p.accent,
+                        border: `1px solid rgba(${p.accentRgb},.25)`, borderRadius: 7,
+                        padding: "5px 9px", fontSize: 8.5, fontWeight: 700, cursor: "pointer",
+                        fontFamily: "'DM Sans',sans-serif",
+                      }}>
+                        Link
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -708,14 +822,14 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
                     flex: 1, background: `rgba(${p.accentRgb},.05)`, borderRadius: 8,
                     padding: "8px 7px", border: `1px solid rgba(${p.accentRgb},.08)`, textAlign: "center",
                   }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace" }}>{p.feeShare}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace" }}>{feeShare}</div>
                     <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.25)", marginTop: 2 }}>Fee Share → you</div>
                   </div>
                   <div style={{
                     flex: 1, background: "rgba(16,185,129,.04)", borderRadius: 8,
                     padding: "8px 7px", border: "1px solid rgba(16,185,129,.08)", textAlign: "center",
                   }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace" }}>{p.twapShare}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace" }}>{twapShare}</div>
                     <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.25)", marginTop: 2 }}>TWAP → buys HYPE</div>
                   </div>
                 </div>
@@ -723,80 +837,105 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
             </div>
           )}
 
-          {/* ════════════════════════════════════════════ */}
-          {/* TAB: DISTRIBUTIONS                          */}
-          {/* ════════════════════════════════════════════ */}
+          {/* ═══════════ TAB: DISTRIBUTIONS ═══════════ */}
           {tab === "distributions" && (
             <div className="fade-in">
               <div style={{ fontSize: 9, color: "rgba(255,255,255,.28)", marginBottom: 14 }}>Points and Fee Share distributed every Monday. Fee Share in USDC on Arbitrum.</div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 14 }}>
-                {DISTRIBUTIONS.map((d, i) => (
-                  <div key={i} style={{
-                    display: "flex", alignItems: "center", gap: 10, padding: "10px 11px",
-                    background: i === 0 ? `rgba(${p.accentRgb},.04)` : "rgba(255,255,255,.015)",
-                    borderRadius: 10, border: i === 0 ? `1px solid rgba(${p.accentRgb},.14)` : "1px solid rgba(255,255,255,.04)",
-                  }}>
-                    <div style={{
-                      width: 32, height: 32, borderRadius: 7, flexShrink: 0,
-                      background: i === 0 ? `rgba(${p.accentRgb},.08)` : "rgba(255,255,255,.03)",
-                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                    }}>
-                      <div style={{ fontSize: 7, fontWeight: 700, color: i === 0 ? p.accent : "rgba(255,255,255,.22)", fontFamily: "'DM Mono',monospace" }}>WK</div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? p.accent : "rgba(255,255,255,.4)", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{d.week}</div>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,.8)" }}>+{d.points.toLocaleString()} pts</span>
-                        {i === 0 && <span style={{ fontSize: 7, fontWeight: 700, color: p.accent, background: `rgba(${p.accentRgb},.12)`, borderRadius: 3, padding: "1px 4px" }}>LATEST</span>}
+              {loading ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  {[1,2,3].map(i => <Skeleton key={i} w="100%" h={52} />)}
+                </div>
+              ) : distributions.length === 0 ? (
+                <div style={{
+                  textAlign: "center", padding: "32px 16px",
+                  background: "rgba(255,255,255,.02)", borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,.04)",
+                }}>
+                  <Clock size={20} color="rgba(255,255,255,.15)" strokeWidth={2} style={{ margin: "0 auto 8px" }} />
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,.35)", fontWeight: 500 }}>No distributions yet</div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,.2)", marginTop: 4 }}>Your first weekly distribution will appear here</div>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 14 }}>
+                    {distributions.map((d, i) => (
+                      <div key={i} style={{
+                        display: "flex", alignItems: "center", gap: 10, padding: "10px 11px",
+                        background: i === 0 ? `rgba(${p.accentRgb},.04)` : "rgba(255,255,255,.015)",
+                        borderRadius: 10, border: i === 0 ? `1px solid rgba(${p.accentRgb},.14)` : "1px solid rgba(255,255,255,.04)",
+                      }}>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: 7, flexShrink: 0,
+                          background: i === 0 ? `rgba(${p.accentRgb},.08)` : "rgba(255,255,255,.03)",
+                          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                        }}>
+                          <div style={{ fontSize: 7, fontWeight: 700, color: i === 0 ? p.accent : "rgba(255,255,255,.22)", fontFamily: "'DM Mono',monospace" }}>WK</div>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? p.accent : "rgba(255,255,255,.4)", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{d.week}</div>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,.8)" }}>+{d.points.toLocaleString()} pts</span>
+                            {i === 0 && <span style={{ fontSize: 7, fontWeight: 700, color: p.accent, background: `rgba(${p.accentRgb},.12)`, borderRadius: 3, padding: "1px 4px" }}>LATEST</span>}
+                          </div>
+                          <div style={{ fontSize: 9, color: "rgba(255,255,255,.22)", marginTop: 1.5 }}>{d.date}</div>
+                        </div>
+                        <div style={{ textAlign: "right", flexShrink: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>+${d.feeShareUsdc.toFixed(2)}</div>
+                          <div style={{ fontSize: 7.5, color: "#10B981", opacity: .4, marginTop: 1.5, fontFamily: "'DM Mono',monospace" }}>USDC</div>
+                        </div>
+                        <div style={{
+                          width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                          background: d.status === "paid" ? "rgba(16,185,129,.08)" : "rgba(255,255,255,.04)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}>
+                          {d.status === "paid" ? (
+                            <Check size={9} color="#10B981" strokeWidth={3} />
+                          ) : (
+                            <Clock size={9} color="rgba(255,255,255,.2)" strokeWidth={2} />
+                          )}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 9, color: "rgba(255,255,255,.22)", marginTop: 1.5 }}>{d.date}</div>
-                    </div>
-                    <div style={{ textAlign: "right", flexShrink: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>+${d.feeShare.toFixed(2)}</div>
-                      <div style={{ fontSize: 7.5, color: "#10B981", opacity: .4, marginTop: 1.5, fontFamily: "'DM Mono',monospace" }}>USDC</div>
-                    </div>
-                    <div style={{
-                      width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-                      background: "rgba(16,185,129,.08)", display: "flex", alignItems: "center", justifyContent: "center",
-                    }}>
-                      <Check size={9} color="#10B981" strokeWidth={3} />
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
 
-              {/* Total */}
-              <div style={{
-                padding: "9px 11px", background: "rgba(16,185,129,.03)", border: "1px solid rgba(16,185,129,.08)",
-                borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14,
-              }}>
-                <span style={{ fontSize: 9.5, color: "rgba(255,255,255,.32)" }}>Total distributed ({DISTRIBUTIONS.length} wk)</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace" }}>
-                  ${DISTRIBUTIONS.reduce((s, d) => s + d.feeShare, 0).toFixed(2)} USDC
-                </span>
-              </div>
-
-              {/* Week Breakdown */}
-              <div style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.04)", borderRadius: 10, padding: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.75)", marginBottom: 10, fontFamily: "'Outfit',sans-serif" }}>Week 8 Breakdown</div>
-                {[
-                  { label: "Copy volume (from followers)", val: "+9,120 pts", color: "rgba(255,255,255,.75)" },
-                  { label: "Own trading volume", val: "+3,840 pts", color: "rgba(255,255,255,.75)" },
-                  { label: "Signal quality bonus", val: "+1,280 pts", color: "rgba(255,255,255,.75)" },
-                  { label: "X account boost", val: "1.3x", color: p.accent },
-                  { label: "Smart Follower boost", val: "4.2x", color: p.accent },
-                  { label: "Fee Share earned", val: "$47.30", color: "#10B981" },
-                ].map((r, i) => (
-                  <div key={i} style={{
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                    padding: "5px 0", borderBottom: i < 5 ? "1px solid rgba(255,255,255,.03)" : "none",
+                  {/* Total */}
+                  <div style={{
+                    padding: "9px 11px", background: "rgba(16,185,129,.03)", border: "1px solid rgba(16,185,129,.08)",
+                    borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14,
                   }}>
-                    <span style={{ fontSize: 9, color: "rgba(255,255,255,.32)" }}>{r.label}</span>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: r.color, fontFamily: "'DM Mono',monospace" }}>{r.val}</span>
+                    <span style={{ fontSize: 9.5, color: "rgba(255,255,255,.32)" }}>Total distributed ({distributions.length} wk)</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace" }}>
+                      ${distributions.reduce((s, d) => s + d.feeShareUsdc, 0).toFixed(2)} USDC
+                    </span>
                   </div>
-                ))}
-              </div>
+
+                  {/* Week Breakdown (latest) */}
+                  {distributions[0]?.breakdown && (
+                    <div style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.04)", borderRadius: 10, padding: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.75)", marginBottom: 10, fontFamily: "'Outfit',sans-serif" }}>
+                        Week {distributions[0].week} Breakdown
+                      </div>
+                      {[
+                        { label: "Copy volume (from followers)", val: `+${distributions[0].breakdown.copyVolumePoints.toLocaleString()} pts`, color: "rgba(255,255,255,.75)" },
+                        { label: "Own trading volume", val: `+${distributions[0].breakdown.ownTradingPoints.toLocaleString()} pts`, color: "rgba(255,255,255,.75)" },
+                        { label: "Signal quality bonus", val: `+${distributions[0].breakdown.signalQualityBonus.toLocaleString()} pts`, color: "rgba(255,255,255,.75)" },
+                        { label: "X account boost", val: `${distributions[0].breakdown.xAccountBoost}x`, color: p.accent },
+                        { label: "Smart Follower boost", val: `${distributions[0].breakdown.smartFollowerBoost}x`, color: p.accent },
+                        { label: "Fee Share earned", val: `$${distributions[0].breakdown.feeShareEarned.toFixed(2)}`, color: "#10B981" },
+                      ].map((r, i) => (
+                        <div key={i} style={{
+                          display: "flex", justifyContent: "space-between", alignItems: "center",
+                          padding: "5px 0", borderBottom: i < 5 ? "1px solid rgba(255,255,255,.03)" : "none",
+                        }}>
+                          <span style={{ fontSize: 9, color: "rgba(255,255,255,.32)" }}>{r.label}</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: r.color, fontFamily: "'DM Mono',monospace" }}>{r.val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
