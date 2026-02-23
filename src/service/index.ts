@@ -378,3 +378,98 @@ export const getTokenSentiment = async (days = 30): Promise<TokenSentimentItem[]
 export const getRisingTraders = async (limit = 6): Promise<RisingTraderItem[]> => {
   return await get(`/api/explore/rising?limit=${limit}`);
 };
+
+// ─── KOL Rewards ────────────────────────────────────────
+
+export interface PhaseConfig {
+  feeShare: string;
+  twapShare: string;
+  airdropPool: string;
+  copyShare: string;
+  multiplierRange: string;
+  kolRefBonus: string;
+  totalWeeks: number;
+}
+
+export interface RewardsData {
+  phase: string;
+  currentWeek: number;
+  totalWeeks: number;
+  totalPoints: number;
+  currentWeekPoints: number;
+  rank: number | null;
+  totalFeeShare: number;
+  claimableFeeShare: number;
+  smartFollowerCount: number;
+  boostMultiplier: number;
+  xAccountLinked: boolean;
+  phaseConfig: PhaseConfig;
+}
+
+export interface DistributionBreakdown {
+  copyVolumePoints: number;
+  ownTradingPoints: number;
+  signalQualityBonus: number;
+  xAccountBoost: number;
+  smartFollowerBoost: number;
+  feeShareEarned: number;
+}
+
+export interface DistributionItem {
+  week: number;
+  date: string;
+  points: number;
+  feeShareUsdc: number;
+  status: string;
+  breakdown: DistributionBreakdown;
+}
+
+export interface DistributionsResponse {
+  distributions: DistributionItem[];
+}
+
+export interface ShareResponse {
+  success: boolean;
+  shareId: string;
+  message: string;
+}
+
+export interface ClaimResponse {
+  status: string;
+  amount: number;
+  message: string;
+}
+
+export interface FollowStatus {
+  is_following: boolean;
+  is_copy_trading: boolean;
+}
+
+export const getRewards = async (): Promise<RewardsData> => {
+  return await get("/api/kol/rewards");
+};
+
+export const getDistributions = async (limit = 6): Promise<DistributionsResponse> => {
+  return await get(`/api/kol/distributions?limit=${limit}`);
+};
+
+export const logShare = async (
+  type: "pnl_card" | "leaderboard",
+  referenceId?: string
+): Promise<ShareResponse> => {
+  return await post("/api/kol/share", {
+    type,
+    targetPlatform: "x",
+    referenceId: referenceId || null,
+  });
+};
+
+export const claimFeeShare = async (amount?: number): Promise<ClaimResponse> => {
+  return await post("/api/kol/claim-fee-share", {
+    amount: amount || null,
+  });
+};
+
+export const checkFollowStatus = async (traderUsername: string): Promise<FollowStatus> => {
+  return await get(`/api/follow/check/${traderUsername}`);
+};
