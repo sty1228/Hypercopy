@@ -1,3 +1,12 @@
+// ================================================================
+// FILE: copyTrading/components/kolDetailSheet.tsx
+// ================================================================
+// Changes:
+//   - ADDED: useRewards() import + triggerFirstCopyTrade call
+//   - When copy/counter trade executes successfully, rewards screen
+//     auto-opens if it's the user's first copy trade (§8 Primary Trigger)
+// ================================================================
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -5,6 +14,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { LeaderboardItem, UserSignalResponse, userSignals } from "@/service";
 import BigNumber from "bignumber.js";
 import SignalItem from "./signalItem";
+import { useRewards } from "@/providers/RewardsContext";
 
 export default function KolDetailSheet({
   data,
@@ -18,6 +28,7 @@ export default function KolDetailSheet({
   const [userSignalsData, setUserSignalsData] = useState<UserSignalResponse | null>(null);
   const [currentClickItemId, setCurrentClickItemId] = useState<number | null>(null);
   const { authenticated, login } = usePrivy();
+  const { triggerFirstCopyTrade } = useRewards();
 
   useEffect(() => {
     if (isOpen) {
@@ -40,8 +51,16 @@ export default function KolDetailSheet({
       login();
       return;
     }
-    // TODO: actual copy/counter logic
+
+    // TODO: Replace with actual copy/counter trade execution via wallet_manager.execute_copy_trade()
+    // When the trade executes successfully, the trigger below fires.
     console.log(`${action} action for`, data.x_handle);
+
+    // §8 PRIMARY TRIGGER: After first successful copy trade
+    // "You just earned your first points — here's how your rewards grow"
+    // This only fires ONCE (localStorage guard inside triggerFirstCopyTrade).
+    // Move this call to AFTER the actual trade confirmation when copy trading engine is implemented.
+    triggerFirstCopyTrade();
   };
 
   const profit = data?.results_pct || 0;
@@ -151,7 +170,7 @@ export default function KolDetailSheet({
                   </div>
                 </div>
 
-                {/* Action Buttons - login check added */}
+                {/* Action Buttons */}
                 <div className="flex gap-3">
                   <button
                     onClick={() => handleCopyAction("counter")}

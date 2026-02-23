@@ -6,696 +6,819 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  X, TrendingUp, Wallet, BarChart3, Link2, Target,
-  User, Settings, Diamond, Sparkles, Crown, RefreshCw,
-  Flame, Clock, Star, Zap, ArrowRight,
+  X, TrendingUp, Wallet, Target, Link2, Star, Zap, ChevronDown,
+  BarChart3, Trophy, Check, Clock, ArrowRightLeft, Coins, Crown,
+  RefreshCw, Flame, Users, Shield, ExternalLink, CircleDollarSign,
 } from "lucide-react";
+
+/* ── Phase Config ── */
 
 const PHASES = {
   beta: {
-    label: "BETA PHASE", duration: "3 Months", multiplier: "2-5x",
-    refCommission: "75%", revShare: "50%", socialMultiplier: "3x",
-    copyShare: "30%", airdropPool: "8-10%", kolRefBonus: "5x",
-    accent: "#00F0FF", accentAlt: "#00C4D4", accent2: "#a78bfa",
-    glowA: "rgba(0,240,255,0.12)", glowB: "rgba(0,180,220,0.04)",
-    greenCandle: "#00E5A0", redCandle: "#00899A", wickColor: "rgba(0,240,255,0.35)",
-    bg: "#08080D",
-    cardBg: "rgba(0,240,255,0.03)", tagline: "EARLY ACCESS",
+    label: "BETA", duration: "3 Mo", totalWeeks: 12, multiplier: "2-5x",
+    feeShare: "60%", copyShare: "30%", airdropPool: "8-10%", kolRefBonus: "5x", twapShare: "40%",
+    accent: "#00F0FF", accentRgb: "0,240,255",
+    greenCandle: "#00E5A0", redCandle: "#00899A", wickColor: "#00F0FF",
+    bg: "#0B0B10", cardBg: "rgba(0,240,255,0.025)",
   },
   season1: {
-    label: "SEASON 1", duration: "8 Months", multiplier: "1x → 2x",
-    refCommission: "30%", revShare: "25%", socialMultiplier: "1x",
-    copyShare: "30%", airdropPool: "40-50%", kolRefBonus: "3x",
-    accent: "#F5A623", accentAlt: "#E8913A", accent2: "#a78bfa",
-    glowA: "rgba(245,166,35,0.14)", glowB: "rgba(200,120,20,0.06)",
-    greenCandle: "#22C55E", redCandle: "#EF4444", wickColor: "rgba(255,255,255,0.25)",
-    bg: "#0A0908",
-    cardBg: "rgba(245,166,35,0.03)", tagline: "THE MAIN EVENT",
+    label: "S1", duration: "8 Mo", totalWeeks: 32, multiplier: "1x → 2x",
+    feeShare: "30%", copyShare: "30%", airdropPool: "40-50%", kolRefBonus: "3x", twapShare: "70%",
+    accent: "#F5A623", accentRgb: "245,166,35",
+    greenCandle: "#22C55E", redCandle: "#EF4444", wickColor: "rgba(255,255,255,0.2)",
+    bg: "#0C0A08", cardBg: "rgba(245,166,35,0.025)",
   },
 } as const;
 
 type Phase = keyof typeof PHASES;
+type Tab = "earn" | "multiply" | "distributions";
 
-// ── Animated Background ──
+/* ── Mock Data ── */
 
-function AnimatedBg({ phase }: { phase: Phase }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  const st = useRef({ candles: [] as any[], orbs: [] as any[], particles: [] as any[], anim: 0, phase });
+const DISTRIBUTIONS = [
+  { week: 8, date: "Feb 17", points: 14820, feeShare: 47.30 },
+  { week: 7, date: "Feb 10", points: 12340, feeShare: 38.90 },
+  { week: 6, date: "Feb 3", points: 11580, feeShare: 31.20 },
+  { week: 5, date: "Jan 27", points: 9870, feeShare: 28.50 },
+  { week: 4, date: "Jan 20", points: 8420, feeShare: 22.10 },
+  { week: 3, date: "Jan 13", points: 6210, feeShare: 14.80 },
+];
 
-  useEffect(() => { st.current.phase = phase; }, [phase]);
+/* ── Candlestick Background ── */
+
+function CandlestickBg({ phase }: { phase: Phase }) {
+  const cvRef = useRef<HTMLCanvasElement>(null);
+  const cRef = useRef<any[]>([]);
+  const oRef = useRef<any[]>([]);
+  const aRef = useRef(0);
+  const pRef = useRef(phase);
+
+  useEffect(() => { pRef.current = phase; }, [phase]);
 
   useEffect(() => {
-    const cv = ref.current;
+    const cv = cvRef.current;
     if (!cv) return;
     const ctx = cv.getContext("2d")!;
-    const W = 393, H = 1800;
+    const W = 393, H = 2600;
     cv.width = W * 2; cv.height = H * 2;
     ctx.scale(2, 2);
 
-    const s = st.current;
-    s.candles = Array.from({ length: 28 }, () => {
-      const bH = Math.random() * 18 + 6, wT = Math.random() * 12 + 3, wB = Math.random() * 8 + 2;
-      return {
+    cRef.current = [];
+    oRef.current = [];
+
+    for (let i = 0; i < 22; i++) {
+      const bH = Math.random() * 16 + 5;
+      cRef.current.push({
         x: Math.random() * W, y: Math.random() * H,
-        bw: Math.random() * 4 + 2.5, bH, wT, wB, tH: wT + bH + wB,
-        g: Math.random() > 0.4, op: Math.random() * 0.3 + 0.06,
-        vy: -Math.random() * 0.25 - 0.08, vx: (Math.random() - 0.5) * 0.12,
-        dr: Math.random() * Math.PI * 2, ds: Math.random() * 0.008 + 0.003,
-        da: Math.random() * 0.4 + 0.1,
-        pp: Math.random() * Math.PI * 2, ps: Math.random() * 0.015 + 0.008,
-      };
-    });
-    s.orbs = Array.from({ length: 4 }, () => ({
-      x: Math.random() * W, y: Math.random() * H,
-      r: Math.random() * 100 + 50,
-      vx: (Math.random() - 0.5) * 0.12, vy: (Math.random() - 0.5) * 0.12,
-      op: Math.random() * 0.06 + 0.02, ph: Math.random() * Math.PI * 2,
-    }));
-    s.particles = Array.from({ length: 35 }, () => ({
-      x: Math.random() * W, y: Math.random() * H,
-      r: Math.random() * 1.4 + 0.3, op: Math.random() * 0.4 + 0.05,
-      vy: -Math.random() * 0.35 - 0.05, vx: (Math.random() - 0.5) * 0.2,
-      pp: Math.random() * Math.PI * 2, ps: Math.random() * 0.02 + 0.005,
-    }));
+        bW: Math.random() * 3.5 + 2, bH,
+        wT: Math.random() * 10 + 3, wB: Math.random() * 7 + 2,
+        g: Math.random() > 0.4, o: Math.random() * 0.2 + 0.04,
+        vy: -Math.random() * 0.18 - 0.05, vx: (Math.random() - 0.5) * 0.1,
+        d: Math.random() * 6.28, ds: Math.random() * 0.006 + 0.002,
+        da: Math.random() * 0.3 + 0.08,
+        pp: Math.random() * 6.28, ps: Math.random() * 0.012 + 0.005,
+      });
+    }
+    for (let i = 0; i < 3; i++) {
+      oRef.current.push({
+        x: Math.random() * W, y: Math.random() * H,
+        r: Math.random() * 80 + 40,
+        vx: (Math.random() - 0.5) * 0.08, vy: (Math.random() - 0.5) * 0.08,
+        o: Math.random() * 0.035 + 0.01, p: Math.random() * 6.28,
+      });
+    }
 
     function draw() {
-      const p = PHASES[s.phase as Phase];
+      const p = PHASES[pRef.current];
       ctx.clearRect(0, 0, W, H);
 
-      s.orbs.forEach((o: any) => {
-        o.x += o.vx; o.y += o.vy; o.ph += 0.004;
-        if (o.x < -120) o.x = W + 120; if (o.x > W + 120) o.x = -120;
-        if (o.y < -120) o.y = H + 120; if (o.y > H + 120) o.y = -120;
-        const g = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, o.r);
-        g.addColorStop(0, p.accent + "18"); g.addColorStop(0.5, p.accent + "08"); g.addColorStop(1, "transparent");
-        ctx.globalAlpha = Math.max(0, o.op + Math.sin(o.ph) * 0.02);
-        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2); ctx.fill();
+      oRef.current.forEach((ob) => {
+        ob.x += ob.vx; ob.y += ob.vy; ob.p += 0.003;
+        if (ob.x < -100) ob.x = W + 100; if (ob.x > W + 100) ob.x = -100;
+        if (ob.y < -100) ob.y = H + 100; if (ob.y > H + 100) ob.y = -100;
+        const g = ctx.createRadialGradient(ob.x, ob.y, 0, ob.x, ob.y, ob.r);
+        g.addColorStop(0, p.accent + "10"); g.addColorStop(1, "transparent");
+        ctx.globalAlpha = Math.max(0, ob.o + Math.sin(ob.p) * 0.01);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ob.x, ob.y, ob.r, 0, 6.28); ctx.fill();
       });
 
-      s.candles.forEach((c: any) => {
-        c.dr += c.ds; c.pp += c.ps;
-        c.x += c.vx + Math.sin(c.dr) * c.da; c.y += c.vy;
-        if (c.y < -c.tH - 20) { c.y = H + 20; c.x = Math.random() * W; c.g = Math.random() > 0.4; }
+      cRef.current.forEach((c) => {
+        c.d += c.ds; c.pp += c.ps;
+        c.x += c.vx + Math.sin(c.d) * c.da; c.y += c.vy;
+        if (c.y < -40) { c.y = H + 20; c.x = Math.random() * W; c.g = Math.random() > 0.4; }
         if (c.x < -20) c.x = W + 20; if (c.x > W + 20) c.x = -20;
-        const al = c.op * (1 + Math.sin(c.pp) * 0.15);
-        const bc = c.g ? p.greenCandle : p.redCandle;
-        const t = c.y, b = c.y + c.bH, cx = c.x, hw = c.bw / 2;
-        ctx.globalAlpha = al * 0.6; ctx.strokeStyle = p.wickColor; ctx.lineWidth = 0.8;
-        ctx.beginPath(); ctx.moveTo(cx, t - c.wT); ctx.lineTo(cx, t); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(cx, b); ctx.lineTo(cx, b + c.wB); ctx.stroke();
-        ctx.globalAlpha = al; ctx.fillStyle = bc;
-        const r = Math.min(1.5, hw * 0.3);
-        ctx.beginPath();
-        ctx.moveTo(cx - hw + r, t); ctx.lineTo(cx + hw - r, t);
-        ctx.quadraticCurveTo(cx + hw, t, cx + hw, t + r);
-        ctx.lineTo(cx + hw, b - r);
-        ctx.quadraticCurveTo(cx + hw, b, cx + hw - r, b);
-        ctx.lineTo(cx - hw + r, b);
-        ctx.quadraticCurveTo(cx - hw, b, cx - hw, b - r);
-        ctx.lineTo(cx - hw, t + r);
-        ctx.quadraticCurveTo(cx - hw, t, cx - hw + r, t);
-        ctx.fill();
-        if (c.g && al > 0.12) {
-          ctx.globalAlpha = al * 0.3; ctx.shadowColor = bc; ctx.shadowBlur = 8;
-          ctx.fillRect(cx - hw, t, c.bw, c.bH); ctx.shadowBlur = 0;
+        const a = c.o * (1 + Math.sin(c.pp) * 0.12);
+        const cl = c.g ? p.greenCandle : p.redCandle;
+        ctx.globalAlpha = a * 0.5; ctx.strokeStyle = p.wickColor; ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.moveTo(c.x, c.y - c.wT); ctx.lineTo(c.x, c.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(c.x, c.y + c.bH); ctx.lineTo(c.x, c.y + c.bH + c.wB); ctx.stroke();
+        ctx.globalAlpha = a; ctx.fillStyle = cl;
+        const hw = c.bW / 2;
+        ctx.beginPath(); ctx.roundRect(c.x - hw, c.y, c.bW, c.bH, 1); ctx.fill();
+        if (c.g && a > 0.1) {
+          ctx.globalAlpha = a * 0.2; ctx.shadowColor = cl; ctx.shadowBlur = 6;
+          ctx.fillRect(c.x - hw, c.y, c.bW, c.bH); ctx.shadowBlur = 0;
         }
       });
 
-      s.particles.forEach((pt: any) => {
-        pt.pp += pt.ps; pt.x += pt.vx; pt.y += pt.vy;
-        if (pt.y < -5) { pt.y = H + 5; pt.x = Math.random() * W; }
-        if (pt.x < -5) pt.x = W + 5; if (pt.x > W + 5) pt.x = -5;
-        const a = pt.op * (0.6 + Math.sin(pt.pp) * 0.4);
-        ctx.globalAlpha = a; ctx.fillStyle = p.accent;
-        ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2); ctx.fill();
-      });
-
       ctx.globalAlpha = 1;
-      s.anim = requestAnimationFrame(draw);
+      aRef.current = requestAnimationFrame(draw);
     }
     draw();
-    return () => cancelAnimationFrame(s.anim);
+    return () => cancelAnimationFrame(aRef.current);
   }, []);
 
   return (
-    <canvas ref={ref} style={{
-      position: "absolute", top: 0, left: 0,
-      width: "100%", height: 1800,
+    <canvas ref={cvRef} style={{
+      position: "absolute", top: 0, left: 0, width: 393, height: 2600,
       pointerEvents: "none", zIndex: 0,
     }} />
   );
 }
 
-// ── Sub-components ──
+/* ── Small Components ── */
 
-function SFBadge({ count, accent }: { count: number; accent: string }) {
-  return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: 5,
-      background: `linear-gradient(135deg, ${accent}18, ${accent}08)`,
-      border: `1px solid ${accent}30`, borderRadius: 20,
-      padding: "3px 10px 3px 7px", fontSize: 10, fontWeight: 600, color: accent,
-    }}>
-      <Star size={10} fill={accent} color={accent} />
-      {count.toLocaleString()} Smart Followers
-    </div>
-  );
+const FlowArrow = ({ color }: { color: string }) => (
+  <div style={{ display: "flex", justifyContent: "center", padding: "3px 0" }}>
+    <ChevronDown size={16} color={color} opacity={0.35} strokeWidth={2} />
+  </div>
+);
+
+const IconBox = ({ children, accentRgb, active }: { children: React.ReactNode; accentRgb: string; active?: boolean }) => (
+  <div style={{
+    width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+    background: active ? `rgba(${accentRgb},.12)` : "rgba(255,255,255,.03)",
+    border: `1px solid ${active ? `rgba(${accentRgb},.2)` : "rgba(255,255,255,.05)"}`,
+    display: "flex", alignItems: "center", justifyContent: "center",
+  }}>
+    {children}
+  </div>
+);
+
+/* ── Main Component ── */
+
+interface Props {
+  onClose: () => void;
+  initialPhase?: Phase;
 }
-
-function BoostBar({ value, accent }: { value: number; accent: string }) {
-  const pct = Math.min((value / 10) * 100, 100);
-  return (
-    <div style={{ marginTop: 10, width: "100%" }}>
-      <div style={{ height: 3, borderRadius: 3, background: "rgba(255,255,255,0.04)", overflow: "hidden", position: "relative" }}>
-        <div style={{
-          height: "100%", borderRadius: 3, width: `${pct}%`,
-          background: `linear-gradient(90deg, ${accent}50, ${accent})`,
-          transition: "width 1s ease-out", position: "relative",
-        }}>
-          <div style={{
-            position: "absolute", right: -1, top: "50%", transform: "translateY(-50%)",
-            width: 5, height: 5, borderRadius: "50%",
-            background: accent, boxShadow: `0 0 8px ${accent}90, 0 0 16px ${accent}40`,
-          }} />
-        </div>
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
-        <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)" }}>1x</span>
-        <span style={{ fontSize: 8, color: "rgba(255,255,255,0.2)" }}>10x</span>
-      </div>
-    </div>
-  );
-}
-
-const TIER_ICONS = [TrendingUp, Wallet, BarChart3, Link2, Target];
-
-function Tier({
-  rank, title, subtitle, value, unit, accent, accent2, boost, cardBg, idx,
-}: {
-  rank: number; title: string; subtitle: string; value: string;
-  unit: string; accent: string; accent2: string; boost?: string; cardBg: string; idx: number;
-}) {
-  const Ic = TIER_ICONS[rank - 1];
-  const isTop = rank === 1;
-  return (
-    <div className="rw-tier rw-scanline" style={{
-      display: "flex", alignItems: "center", gap: 12,
-      padding: "12px 14px", borderRadius: 14, position: "relative", overflow: "hidden",
-      background: isTop ? `linear-gradient(135deg, ${accent}12, ${accent2}06)` : cardBg,
-      border: isTop ? `1px solid ${accent}30` : "1px solid rgba(255,255,255,0.05)",
-      animationDelay: `${idx * 70}ms`,
-      transition: "transform 0.2s ease, box-shadow 0.3s ease",
-    }}>
-      {isTop && (
-        <div style={{
-          position: "absolute", top: 0, left: 0, right: 0, height: 1,
-          background: `linear-gradient(90deg, transparent, ${accent}90, transparent)`,
-        }} />
-      )}
-      <div style={{
-        width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-        background: rank <= 2 ? `linear-gradient(135deg, ${accent}22, ${accent}0c)` : "rgba(255,255,255,0.035)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        boxShadow: rank === 1 ? `0 0 12px ${accent}15` : "none",
-      }}>
-        <Ic size={15} color={rank <= 2 ? accent : "rgba(255,255,255,0.28)"} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 1 }}>
-          <span style={{
-            fontSize: 8, fontWeight: 700, letterSpacing: "0.1em",
-            color: rank <= 2 ? accent : "rgba(255,255,255,0.3)",
-            fontFamily: "monospace",
-          }}>#{rank}</span>
-          <span style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,0.88)" }}>{title}</span>
-        </div>
-        <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", lineHeight: 1.3, margin: 0 }}>{subtitle}</p>
-      </div>
-      <div style={{ textAlign: "right", flexShrink: 0 }}>
-        <div style={{
-          fontSize: 15, fontWeight: 700, color: accent,
-          fontFamily: "monospace", lineHeight: 1,
-          textShadow: rank === 1 ? `0 0 10px ${accent}50` : "none",
-        }}>{value}</div>
-        <p style={{ fontSize: 8.5, color: "rgba(255,255,255,0.3)", marginTop: 2, margin: "2px 0 0" }}>{unit}</p>
-      </div>
-      {boost && (
-        <div style={{
-          position: "absolute", top: 6, right: 6,
-          fontSize: 7, fontWeight: 700, color: "#0D0D12",
-          background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-          borderRadius: 5, padding: "2px 5px",
-          boxShadow: `0 0 8px ${accent}40`,
-        }}>{boost}</div>
-      )}
-    </div>
-  );
-}
-
-function Stat({ label, value, sub, accent }: { label: string; value: string; sub?: string; accent: string }) {
-  return (
-    <div className="rw-stat" style={{
-      flex: 1, background: "rgba(255,255,255,0.025)",
-      border: "1px solid rgba(255,255,255,0.05)", borderRadius: 12,
-      padding: "12px 10px", textAlign: "center",
-      transition: "transform 0.2s ease, box-shadow 0.3s ease",
-    }}>
-      <p style={{
-        fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,0.3)",
-        letterSpacing: "0.08em", textTransform: "uppercase", margin: "0 0 5px",
-      }}>{label}</p>
-      <p style={{
-        fontSize: 18, fontWeight: 700, color: accent,
-        fontFamily: "monospace", lineHeight: 1, margin: 0,
-        textShadow: `0 0 12px ${accent}30`,
-      }}>{value}</p>
-      {sub && <p style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", margin: "3px 0 0" }}>{sub}</p>}
-    </div>
-  );
-}
-
-// ── Main ──
-
-interface Props { onClose: () => void; initialPhase?: Phase; }
 
 export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
   const [phase, setPhase] = useState<Phase>(initialPhase);
-  const [trans, setTrans] = useState(false);
+  const [tab, setTab] = useState<Tab>("earn");
   const [mounted, setMounted] = useState(false);
-  const sfCount = 847, boostMult = 4.2;
 
   const p = PHASES[phase];
   const s1 = phase === "season1";
 
+  // Mock data — replace with GET /api/kol/rewards
+  const currentWeek = 8;
+  const totalPoints = 57030;
+  const totalFeeShare = 168.00;
+  const currentWeekPts = 3240;
+
   useEffect(() => { requestAnimationFrame(() => setMounted(true)); }, []);
 
-  const sw = useCallback((np: Phase) => {
-    if (np === phase) return;
-    setTrans(true);
-    setTimeout(() => { setPhase(np); setTimeout(() => setTrans(false), 50); }, 250);
-  }, [phase]);
-
-  const tiers = [
-    { rank: 1, title: "Copy Volume Earned", subtitle: "Points from users copying your trades", value: p.copyShare, unit: `of pts · ${p.multiplier} mult`, boost: "HIGHEST" },
-    { rank: 2, title: "Your Own Trading", subtitle: "Volume from your own copy/counter trades", value: "70%", unit: `of your pts · ${p.multiplier} mult` },
-    { rank: 3, title: "PnL & Leaderboard Shares", subtitle: "Share PnL cards or leaderboard results", value: p.socialMultiplier, unit: "boosted by Smart Followers", boost: "SF BOOST" },
-    { rank: 4, title: "Link X & Share Signals", subtitle: "Connect your account, post signals", value: p.socialMultiplier, unit: "boosted by Smart Followers", boost: "SF BOOST" },
-    { rank: 5, title: "Signal Quality Bonus", subtitle: "LLM-qualified tradeable signal tweets", value: p.socialMultiplier, unit: "boosted by Smart Followers", boost: "SF BOOST" },
-  ];
-
-  const flow = [
-    { label: "User copies your signal", Icon: User, desc: "Trades executed on your calls", hl: false },
-    { label: "0.1% builder code fee", Icon: Settings, desc: "Collected on every trade", hl: false },
-    { label: `You earn ${p.revShare} of fee`, Icon: Diamond, desc: "Paid in USDC on Arbitrum", hl: true },
-    { label: `+ ${p.copyShare} of trade points`, Icon: Sparkles, desc: `At ${p.multiplier} multiplier`, hl: true },
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "earn", label: "Earn" },
+    { id: "multiply", label: "Multiply" },
+    { id: "distributions", label: "Distributions" },
   ];
 
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 50,
-      overflowY: "auto", overscrollBehavior: "contain",
-      WebkitOverflowScrolling: "touch",
-      background: p.bg,
-      transition: "background 0.5s ease, opacity 0.4s ease, transform 0.4s cubic-bezier(0.16,1,0.3,1)",
+      overflowY: "auto", overscrollBehavior: "contain", WebkitOverflowScrolling: "touch",
+      background: p.bg, transition: "background .4s ease, opacity .4s ease, transform .4s cubic-bezier(.16,1,.3,1)",
       opacity: mounted ? 1 : 0, transform: mounted ? "none" : "translateY(8px)",
       display: "flex", justifyContent: "center",
     }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       <style>{`
-        @keyframes rw-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes rw-pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.9; } }
-        @keyframes rw-shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
-        @keyframes rw-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-        @keyframes rw-glow { 0%,100% { opacity: 0.15; } 50% { opacity: 0.6; } }
-        @keyframes rw-scan { 0% { left: -30%; } 100% { left: 130%; } }
-        @keyframes rw-breathe { 0%,100% { box-shadow: 0 0 0px transparent; } 50% { box-shadow: 0 0 20px var(--glow-color, rgba(0,240,255,0.08)); } }
-        @keyframes rw-border-glow { 0%,100% { border-color: rgba(255,255,255,0.05); } 50% { border-color: var(--glow-color, rgba(0,240,255,0.15)); } }
-        @keyframes rw-number-pop { 0% { transform: scale(0.8); opacity: 0; } 60% { transform: scale(1.05); } 100% { transform: scale(1); opacity: 1; } }
-        .rw-s { animation: rw-up 0.5s cubic-bezier(0.16,1,0.3,1) both; }
-        .d1{animation-delay:.06s} .d2{animation-delay:.12s} .d3{animation-delay:.18s}
-        .d4{animation-delay:.24s} .d5{animation-delay:.30s} .d6{animation-delay:.36s} .d7{animation-delay:.42s}
-        .rw-t .rw-s { opacity:0!important; transform:translateY(8px)!important; transition:all .25s ease; animation:none; }
-        .rw-tier { animation: rw-up 0.5s cubic-bezier(0.16,1,0.3,1) both; }
-        .rw-scanline { position: relative; overflow: hidden; }
-        .rw-scanline::after {
-          content: ''; position: absolute; top: 0; width: 30%; height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
-          animation: rw-scan 4s ease-in-out infinite;
-          pointer-events: none;
-        }
-        .rw-stat { animation: rw-breathe 4s ease-in-out infinite; }
-        .rw-stat:nth-child(2) { animation-delay: 1.3s; }
-        .rw-stat:nth-child(3) { animation-delay: 2.6s; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
+        @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+        .fade-in { animation: fadeIn .3s ease both; }
       `}</style>
 
-      <div style={{
-        position: "relative", width: "100%", maxWidth: 393,
-        minHeight: "100vh", paddingBottom: 1,
-      }}>
-        <AnimatedBg phase={phase} />
+      <div style={{ position: "relative", width: "100%", maxWidth: 393, minHeight: "100vh" }}>
+        <CandlestickBg phase={phase} />
 
-        {/* top glow */}
+        {/* Top radial glow */}
         <div style={{
-          position: "absolute", top: -120, left: "50%", transform: "translateX(-50%)",
-          width: 500, height: 500, borderRadius: "50%", pointerEvents: "none", zIndex: 1,
-          background: `radial-gradient(circle, ${p.glowA}, ${p.glowB} 50%, transparent 70%)`,
-          transition: "background 0.8s ease",
+          position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)",
+          width: 420, height: 420, borderRadius: "50%", pointerEvents: "none", zIndex: 1,
+          background: `radial-gradient(circle,rgba(${p.accentRgb},.06),transparent 70%)`,
         }} />
 
-        {/* season1 crown glow */}
-        {s1 && (
-          <div style={{
-            position: "absolute", top: 30, left: "50%", transform: "translateX(-50%)",
-            width: 200, height: 200, borderRadius: "50%", pointerEvents: "none", zIndex: 1,
-            background: "radial-gradient(circle, rgba(245,166,35,0.2), transparent 70%)",
-            animation: "rw-pulse 3s ease-in-out infinite",
-          }} />
-        )}
+        <div style={{ position: "relative", zIndex: 2, padding: "0 16px 32px" }}>
 
-        {/* side accents */}
-        <div style={{ position: "absolute", top: 0, left: 0, width: 1, height: "100%", pointerEvents: "none", zIndex: 3 }}>
-          <div style={{ width: "100%", height: "33%", marginTop: 80, background: `linear-gradient(180deg, ${p.accent}18, transparent)` }} />
-        </div>
-        <div style={{ position: "absolute", top: 0, right: 0, width: 1, height: "100%", pointerEvents: "none", zIndex: 3 }}>
-          <div style={{ width: "100%", height: "25%", marginTop: 120, background: `linear-gradient(180deg, ${p.accent}12, transparent)` }} />
-        </div>
-
-        {/* top accent line */}
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, pointerEvents: "none", zIndex: 3 }}>
-          <div style={{
-            height: "100%", width: "50%", margin: "0 auto",
-            background: `linear-gradient(90deg, transparent, ${p.accent}60, transparent)`,
-            animation: "rw-glow 3s ease-in-out infinite",
-          }} />
-        </div>
-
-        <div className={trans ? "rw-t" : ""} style={{ position: "relative", zIndex: 2, padding: "0 16px 40px" }}>
-
-          {/* ── Header ── */}
-          <div className="rw-s" style={{ paddingTop: 48, marginBottom: 22 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+          {/* ── HEADER ── */}
+          <div style={{ paddingTop: 52, marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{
-                  fontSize: 8, fontWeight: 700, letterSpacing: "0.14em", color: p.accent,
-                  background: `${p.accent}12`, border: `1px solid ${p.accent}28`,
-                  borderRadius: 5, padding: "2.5px 7px",
-                }}>KOL PROGRAM</span>
-                <span style={{
-                  fontSize: 8, fontWeight: 700, letterSpacing: "0.12em",
-                  color: s1 ? "#FFD700" : "rgba(255,255,255,0.25)",
-                  animation: s1 ? "rw-float 2s ease-in-out infinite" : "none",
-                }}>{p.tagline}</span>
+                  fontSize: 9, fontWeight: 700, letterSpacing: ".12em", color: p.accent,
+                  background: `rgba(${p.accentRgb},.08)`, border: `1px solid rgba(${p.accentRgb},.2)`,
+                  borderRadius: 5, padding: "2px 7px",
+                }}>KOL</span>
+                {s1 ? (
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, letterSpacing: ".12em",
+                    background: "linear-gradient(90deg,#FFD700,#F5A623,#FF8C00,#FFD700)",
+                    backgroundSize: "200% auto", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                    animation: "shimmer 3s linear infinite",
+                  }}>SEASON 1 LIVE</span>
+                ) : (
+                  <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".08em", color: "rgba(255,255,255,.22)" }}>EARLY ACCESS</span>
+                )}
               </div>
               <button onClick={onClose} style={{
                 width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)",
-                background: "rgba(255,255,255,0.04)", backdropFilter: "blur(12px)",
-                display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
-                transition: "background 0.2s ease",
+                background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer",
               }}>
                 <X size={11} color="rgba(255,255,255,0.35)" />
               </button>
             </div>
-
-            {s1 && (
-              <div style={{
-                fontSize: 9.5, fontWeight: 700, letterSpacing: "0.15em", marginBottom: 6,
-                background: "linear-gradient(90deg, #FFD700, #F5A623, #FF8C00, #FFD700)",
-                backgroundSize: "200% auto",
-                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-                animation: "rw-shimmer 3s linear infinite",
-              }}>SEASON 1 IS LIVE</div>
-            )}
-
-            <h1 style={{
-              fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.1,
-              margin: 0, color: "rgba(255,255,255,0.93)",
-            }}>
-              {s1 ? "Your Season 1 Rewards" : "Your Rewards"}
-            </h1>
-            <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.35)", margin: "4px 0 0", lineHeight: 1.4 }}>
-              {s1 ? "The main event — larger pool, compounding multipliers" : "Earn points and revenue from your trading signals"}
-            </p>
+            <h1 style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-.015em", margin: 0, color: "rgba(255,255,255,.93)", fontFamily: "'Outfit',sans-serif" }}>Rewards</h1>
           </div>
 
-          {/* ── Toggle ── */}
-          <div className="rw-s d1" style={{
-            display: "flex", borderRadius: 12, padding: 2.5, marginBottom: 20,
-            background: "rgba(255,255,255,0.035)",
-            border: `1px solid ${s1 ? "rgba(245,166,35,0.1)" : "rgba(255,255,255,0.05)"}`,
-            backdropFilter: "blur(12px)",
-          }}>
-            {(Object.entries(PHASES) as [Phase, (typeof PHASES)[Phase]][]).map(([k, v]) => (
-              <button key={k} onClick={() => sw(k)} style={{
-                flex: 1, padding: "8px 0", borderRadius: 10, border: "none", cursor: "pointer",
-                fontSize: 10, fontWeight: 700, letterSpacing: "0.06em",
-                transition: "all 0.3s ease", fontFamily: "monospace",
-                background: phase === k
-                  ? `linear-gradient(135deg, ${v.accent}1a, ${v.accent}0c)`
-                  : "transparent",
-                color: phase === k ? v.accent : "rgba(255,255,255,0.25)",
-                boxShadow: phase === k
-                  ? `0 0 20px ${v.accent}18, inset 0 0 10px ${v.accent}08`
-                  : "none",
-              }}>
-                {k === "season1" && phase === k && "👑 "}
-                {v.label}
-                <span style={{ display: "block", fontSize: 8, fontWeight: 500, opacity: 0.5, marginTop: 2 }}>{v.duration}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* ── S1 Banners ── */}
-          {s1 && <>
-            <div className="rw-s d1 rw-scanline" style={{
-              background: "linear-gradient(135deg, rgba(245,166,35,0.08), rgba(255,140,0,0.04))",
-              border: "1px solid rgba(245,166,35,0.18)", borderRadius: 14,
-              padding: "12px 14px", marginBottom: 8,
-              display: "flex", alignItems: "center", gap: 10,
-            }}>
-              <div style={{
-                width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-                background: "linear-gradient(135deg, rgba(255,215,0,0.22), rgba(245,166,35,0.12))",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                animation: "rw-pulse 2s ease-in-out infinite",
-                boxShadow: "0 0 12px rgba(255,215,0,0.15)",
-              }}>
-                <Crown size={15} color="#FFD700" />
-              </div>
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 700, color: "#FFD700", margin: 0 }}>Airdrop Pool: 5x Larger</p>
-                <p style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", margin: "2px 0 0" }}>40-50% of total supply distributed this season</p>
-              </div>
-            </div>
-            <div className="rw-s d2 rw-scanline" style={{
-              background: "linear-gradient(135deg, rgba(0,240,255,0.05), rgba(245,166,35,0.03))",
-              border: "1px solid rgba(0,240,255,0.12)", borderRadius: 14,
-              padding: "12px 14px", marginBottom: 18,
-              display: "flex", alignItems: "center", gap: 10,
-            }}>
-              <div style={{
-                width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-                background: "linear-gradient(135deg, rgba(0,240,255,0.15), rgba(0,200,212,0.08))",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                <RefreshCw size={14} color="#00F0FF" />
-              </div>
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 700, color: "#00F0FF", margin: 0 }}>Beta Users Carried Over</p>
-                <p style={{ fontSize: 9.5, color: "rgba(255,255,255,0.35)", margin: "2px 0 0", lineHeight: 1.4 }}>Points, referrals, and Smart Follower count carry forward.</p>
-              </div>
-            </div>
-          </>}
-
-          {/* ── Stats ── */}
-          <div className="rw-s d2" style={{ display: "flex", gap: 7, marginBottom: 20, ["--glow-color" as any]: `${p.accent}12` }}>
-            <Stat label="Rev Share" value={p.revShare} sub="of 0.1% fee" accent={p.accent} />
-            <Stat label="Referral" value={p.refCommission} sub="point commission" accent={p.accent} />
-            <Stat label="Airdrop" value={p.airdropPool} sub="of total supply" accent={p.accent} />
-          </div>
-
-          {/* ── Boost ── */}
-          <div className="rw-s d3 rw-scanline" style={{
-            background: p.cardBg, border: `1px solid ${p.accent}10`, borderRadius: 14,
-            padding: "12px 14px", marginBottom: 20,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.45)", margin: "0 0 5px" }}>Your Boost Multiplier</p>
-                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
-                  <SFBadge count={sfCount} accent={p.accent} />
-                  <div style={{
-                    display: "inline-flex", alignItems: "center", gap: 3,
-                    fontSize: 9, fontWeight: 700, color: p.accent,
-                    background: `${p.accent}10`, border: `1px solid ${p.accent}22`,
-                    borderRadius: 7, padding: "2.5px 7px",
-                    boxShadow: `0 0 8px ${p.accent}15`,
-                  }}>
-                    <Zap size={9} color={p.accent} />
-                    {boostMult}x BOOST
-                  </div>
-                </div>
-              </div>
-              <p style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", textAlign: "right", maxWidth: 70, lineHeight: 1.3, margin: 0 }}>
-                More Smart Followers = Higher Boost
-              </p>
-            </div>
-            <BoostBar value={boostMult} accent={p.accent} />
-          </div>
-
-          {/* ── divider ── */}
+          {/* ── PHASE SELECTOR ── */}
           <div style={{
-            height: 1, margin: "0 20px 20px",
-            background: `linear-gradient(90deg, transparent, ${p.accent}18, transparent)`,
-          }} />
+            display: "flex", background: "rgba(255,255,255,.03)", borderRadius: 10, padding: 2,
+            marginBottom: 12, border: "1px solid rgba(255,255,255,.05)",
+          }}>
+            {(Object.entries(PHASES) as [Phase, (typeof PHASES)[Phase]][]).map(([key, val]) => {
+              const isActive = phase === key;
+              const isCurrent = key === "beta";
+              const isGrey = key === "season1";
+              return (
+                <button key={key} onClick={() => setPhase(key)} style={{
+                  flex: 1, padding: "8px 0", borderRadius: 8, border: "none", cursor: "pointer",
+                  fontSize: 10, fontWeight: 700, letterSpacing: ".04em", fontFamily: "'DM Mono',monospace",
+                  background: isActive ? `rgba(${val.accentRgb},.12)` : "transparent",
+                  color: isActive ? val.accent : isGrey ? "rgba(255,255,255,.15)" : "rgba(255,255,255,.25)",
+                  transition: "all .2s ease",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                }}>
+                  {isCurrent && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                      <span style={{
+                        width: 5, height: 5, borderRadius: "50%",
+                        background: isActive ? "#10B981" : "rgba(16,185,129,.4)",
+                        animation: "livePulse 1.5s ease-in-out infinite", display: "inline-block",
+                      }} />
+                      <span style={{ fontSize: 7.5, fontWeight: 700, color: isActive ? "#10B981" : "rgba(16,185,129,.5)", letterSpacing: ".06em" }}>LIVE</span>
+                    </span>
+                  )}
+                  {val.label} · {val.duration}
+                  {isGrey && !isActive && <span style={{ fontSize: 7, opacity: .4, marginLeft: 2 }}>SOON</span>}
+                </button>
+              );
+            })}
+          </div>
 
-          {/* ── Tiers ── */}
-          <div className="rw-s d4" style={{ marginBottom: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <h2 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: "rgba(255,255,255,0.85)" }}>How You Earn</h2>
-              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontWeight: 500 }}>Ordered by magnitude</span>
+          {/* ── POINTS BALANCE ── */}
+          <div className="fade-in" style={{
+            background: `linear-gradient(155deg,rgba(${p.accentRgb},.06),rgba(${p.accentRgb},.02),transparent)`,
+            border: `1px solid rgba(${p.accentRgb},.12)`, borderRadius: 14,
+            padding: "14px 14px 10px", marginBottom: 8, position: "relative", overflow: "hidden",
+          }}>
+            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg,transparent,rgba(${p.accentRgb},.35),transparent)` }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 600, color: "rgba(255,255,255,.32)", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 4 }}>Total Points</div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: "rgba(255,255,255,.95)", fontFamily: "'DM Mono',monospace", letterSpacing: "-.02em", lineHeight: 1, marginBottom: 3 }}>{totalPoints.toLocaleString()}</div>
+                <div style={{ fontSize: 9.5, color: "rgba(255,255,255,.25)" }}>+{currentWeekPts.toLocaleString()} this week</div>
+              </div>
+              <div style={{
+                display: "flex", flexDirection: "column", alignItems: "center",
+                padding: "4px 10px", background: `rgba(${p.accentRgb},.06)`,
+                border: `1px solid rgba(${p.accentRgb},.14)`, borderRadius: 10,
+              }}>
+                <Trophy size={14} color={p.accent} strokeWidth={2} style={{ marginBottom: 2 }} />
+                <div style={{ fontSize: 15, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>#142</div>
+                <div style={{ fontSize: 7, fontWeight: 600, color: "rgba(255,255,255,.22)", letterSpacing: ".04em", marginTop: 2 }}>RANK</div>
+              </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {tiers.map((t, i) => (
-                <Tier key={t.rank} {...t} accent={p.accent} accent2={p.accent2} cardBg={p.cardBg} idx={i} />
-              ))}
+            <div style={{ background: "rgba(255,255,255,.05)", borderRadius: 3, height: 3, overflow: "hidden", marginTop: 10 }}>
+              <div style={{
+                width: `${(currentWeek / p.totalWeeks) * 100}%`, height: "100%", borderRadius: 3,
+                background: `linear-gradient(90deg,${p.accent},rgba(${p.accentRgb},.6))`, transition: "width .6s ease",
+              }} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
+              <span style={{ fontSize: 8.5, color: "rgba(255,255,255,.18)" }}>Week {currentWeek} of {p.totalWeeks}</span>
+              <span style={{ fontSize: 8.5, color: "rgba(255,255,255,.18)" }}>Distributes Monday</span>
             </div>
           </div>
 
-          {/* ── Revenue Flow ── */}
-          <div className="rw-s d5" style={{
-            background: `linear-gradient(135deg, ${p.accent}06, ${p.accent2}03)`,
-            border: `1px solid ${p.accent}14`, borderRadius: 16,
-            padding: "16px 14px", marginBottom: 20, position: "relative", overflow: "hidden",
+          {/* ── FEE SHARE CLAIM ── */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            background: "rgba(16,185,129,.04)", border: "1px solid rgba(16,185,129,.12)",
+            borderRadius: 10, padding: "9px 12px", marginBottom: 8,
           }}>
-            <div style={{
-              position: "absolute", top: 0, left: 0, right: 0, height: 1,
-              background: `linear-gradient(90deg, transparent, ${p.accent}50, transparent)`,
-              animation: "rw-glow 4s ease-in-out infinite",
-            }} />
-            <h3 style={{ fontSize: 12, fontWeight: 700, margin: "0 0 12px", color: "rgba(255,255,255,0.75)" }}>Revenue Flow</h3>
-            {flow.map((s, i) => (
-              <div key={i}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
-                  <div style={{
-                    width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                    background: s.hl ? `${p.accent}14` : "rgba(255,255,255,0.03)",
-                    border: s.hl ? `1px solid ${p.accent}28` : "1px solid rgba(255,255,255,0.05)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    boxShadow: s.hl ? `0 0 10px ${p.accent}10` : "none",
-                  }}>
-                    <s.Icon size={12} color={s.hl ? p.accent : "rgba(255,255,255,0.3)"} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{
-                      fontSize: 11, fontWeight: 600, margin: 0,
-                      color: s.hl ? p.accent : "rgba(255,255,255,0.65)",
-                    }}>{s.label}</p>
-                    <p style={{ fontSize: 9, color: "rgba(255,255,255,0.28)", margin: "1px 0 0" }}>{s.desc}</p>
-                  </div>
-                  {s.hl && <ArrowRight size={10} color="rgba(255,255,255,0.12)" />}
-                </div>
-                {i < 3 && (
-                  <div style={{
-                    width: 1, height: 10, marginLeft: 14,
-                    background: `linear-gradient(180deg, ${p.accent}25, transparent)`,
-                  }} />
-                )}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <CircleDollarSign size={14} color="#10B981" strokeWidth={2} />
+              <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
+                <span style={{ fontSize: 17, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>${totalFeeShare.toFixed(2)}</span>
+                <span style={{ fontSize: 8, color: "#10B981", opacity: .5, fontFamily: "'DM Mono',monospace" }}>USDC · Arbitrum</span>
               </div>
+            </div>
+            <button style={{
+              background: "#10B981", color: "#080D0B", border: "none", borderRadius: 6,
+              padding: "5px 10px", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif",
+            }}>Claim</button>
+          </div>
+
+          {/* ── SMART FOLLOWER BAR ── */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            background: `rgba(${p.accentRgb},.025)`, border: `1px solid rgba(${p.accentRgb},.08)`,
+            borderRadius: 10, padding: "8px 12px", marginBottom: 14,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <Star size={12} color={p.accent} strokeWidth={2} fill={p.accent} opacity={0.8} />
+              <span style={{ fontSize: 10, fontWeight: 600, color: p.accent }}>847 Smart Followers</span>
+            </div>
+            <div style={{
+              fontSize: 9.5, fontWeight: 600, color: p.accent,
+              background: `rgba(${p.accentRgb},.08)`, border: `1px solid rgba(${p.accentRgb},.15)`,
+              borderRadius: 5, padding: "2px 6px",
+            }}>4.2x</div>
+          </div>
+
+          {/* ── TABS ── */}
+          <div style={{ display: "flex", gap: 0, marginBottom: 16, borderBottom: "1px solid rgba(255,255,255,.06)" }}>
+            {tabs.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{
+                flex: 1, padding: "9px 0 8px", border: "none", cursor: "pointer",
+                fontSize: 11, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", background: "transparent",
+                color: tab === t.id ? p.accent : "rgba(255,255,255,.28)",
+                borderBottom: tab === t.id ? `2px solid ${p.accent}` : "2px solid transparent",
+                transition: "all .2s ease",
+              }}>{t.label}</button>
             ))}
           </div>
 
-          {/* ── Referral ── */}
-          <div className="rw-s d6" style={{
-            background: p.cardBg, border: "1px solid rgba(255,255,255,0.05)",
-            borderRadius: 14, padding: "14px 14px", marginBottom: 20,
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <Flame size={14} color={p.accent} />
-              <div>
-                <p style={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", margin: 0 }}>Referral Power</p>
-                <p style={{ fontSize: 9.5, color: "rgba(255,255,255,0.3)", margin: 0 }}>Bring high-volume traders, earn more</p>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              {[
-                { v: p.refCommission, l: "Point Commission", c: p.accent },
-                { v: p.kolRefBonus, l: "KOL Ref Bonus", c: "#F59E0B" },
-                { v: p.revShare, l: "Fee Revenue", c: "#10B981" },
-              ].map((d, i) => (
-                <div key={i} className="rw-scanline" style={{
-                  flex: 1, borderRadius: 10, padding: "10px 8px", textAlign: "center",
-                  background: i === 0 ? `${d.c}08` : "rgba(255,255,255,0.025)",
-                  border: i === 0 ? `1px solid ${d.c}14` : "1px solid rgba(255,255,255,0.05)",
-                }}>
-                  <p style={{
-                    fontSize: 16, fontWeight: 700, color: d.c,
-                    fontFamily: "monospace", margin: 0,
-                    textShadow: `0 0 10px ${d.c}30`,
-                  }}>{d.v}</p>
-                  <p style={{ fontSize: 8.5, color: "rgba(255,255,255,0.3)", margin: "2px 0 0" }}>{d.l}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* ════════════════════════════════════════════ */}
+          {/* TAB: EARN                                    */}
+          {/* ════════════════════════════════════════════ */}
+          {tab === "earn" && (
+            <div className="fade-in">
 
-          {/* ── Phase Banner ── */}
-          <div className="rw-s d7">
-            {!s1 ? (
-              <div style={{
-                background: "linear-gradient(135deg, rgba(168,85,247,0.05), transparent)",
-                border: "1px solid rgba(168,85,247,0.12)", borderRadius: 14,
-                padding: 14, textAlign: "center",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 3 }}>
-                  <Clock size={10} color="rgba(255,255,255,0.35)" />
-                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)" }}>Beta ends, Season 1 begins</span>
+              {/* Farm Points */}
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
+                  <Coins size={13} color={p.accent} strokeWidth={2} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.85)", fontFamily: "'Outfit',sans-serif" }}>Farm Points</span>
                 </div>
-                <p style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, margin: 0 }}>
-                  Multipliers drop to 1x · Referrals drop to 30%<br />
-                  <span style={{ color: "#A855F7", fontWeight: 600 }}>But the airdrop pool grows 5x larger</span>
-                </p>
-              </div>
-            ) : (
-              <div style={{
-                background: "linear-gradient(135deg, rgba(245,166,35,0.06), rgba(16,185,129,0.03))",
-                border: "1px solid rgba(245,166,35,0.15)", borderRadius: 14,
-                padding: 14, textAlign: "center", position: "relative", overflow: "hidden",
-              }}>
+
+                {/* SF inline context */}
                 <div style={{
-                  position: "absolute", top: 0, left: 0, right: 0, height: 1,
-                  background: "linear-gradient(90deg, transparent, #FFD700, #F5A623, transparent)",
-                  backgroundSize: "200% auto", animation: "rw-shimmer 4s linear infinite",
-                }} />
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, marginBottom: 3 }}>
-                  <Target size={10} color="rgba(255,255,255,0.35)" />
-                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.35)" }}>Consistency Bonus Active</span>
+                  display: "flex", alignItems: "center", gap: 8, padding: "8px 10px",
+                  background: `rgba(${p.accentRgb},.04)`, border: `1px solid rgba(${p.accentRgb},.1)`,
+                  borderRadius: 8, marginBottom: 8,
+                }}>
+                  <Star size={11} color={p.accent} strokeWidth={2} fill={p.accent} />
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,.35)" }}>
+                    Your <span style={{ color: p.accent, fontWeight: 600 }}>847 Smart Followers</span> apply a <span style={{ color: p.accent, fontWeight: 600 }}>4.2x</span> boost to all points below
+                  </span>
                 </div>
-                <p style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)", lineHeight: 1.5, margin: 0 }}>
-                  Maintain weekly signal quality to earn<br />
-                  <span style={{
-                    fontWeight: 700,
-                    background: "linear-gradient(90deg, #FFD700, #F5A623)",
-                    WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-                  }}>up to 2x compounding multiplier over time</span>
-                </p>
-              </div>
-            )}
-          </div>
 
-          {/* bottom glow */}
-          {s1 && (
-            <div style={{
-              marginTop: 20, height: 2, borderRadius: 1,
-              background: "linear-gradient(90deg, transparent, #FFD700, #F5A623, #FF8C00, transparent)",
-              opacity: 0.4, animation: "rw-pulse 2s ease-in-out infinite",
-            }} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  {[
+                    { title: "Copy Volume Earned", sub: "Points when users copy your trades", val: p.copyShare, unit: `of pts · ${p.multiplier}`, Icon: TrendingUp, hi: true },
+                    { title: "Your Own Trading", sub: "Copy or counter with your own capital", val: "70%", unit: `of pts · ${p.multiplier}`, Icon: Wallet, hi: true },
+                    { title: "Signal Quality", sub: "Tweets our LLM classifies as tradeable signal vs noise", val: "Bonus", unit: "per signal", Icon: Target, hi: false },
+                    { title: "Connected X Account", sub: "Link X for a permanent boost on all earnings", val: "Boost", unit: "on all pts", Icon: Link2, hi: false },
+                  ].map((t, i) => (
+                    <div key={i} style={{
+                      display: "flex", alignItems: "center", gap: 11, padding: "11px 12px",
+                      background: t.hi ? `rgba(${p.accentRgb},.04)` : p.cardBg, borderRadius: 11,
+                      border: `1px solid ${t.hi ? `rgba(${p.accentRgb},.12)` : "rgba(255,255,255,.04)"}`,
+                    }}>
+                      <IconBox accentRgb={p.accentRgb} active={t.hi}>
+                        <t.Icon size={15} color={t.hi ? p.accent : "rgba(255,255,255,.35)"} strokeWidth={2} />
+                      </IconBox>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 11.5, fontWeight: 600, color: "rgba(255,255,255,.88)", marginBottom: 1 }}>{t.title}</div>
+                        <div style={{ fontSize: 9, color: "rgba(255,255,255,.3)", lineHeight: 1.3 }}>{t.sub}</div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{t.val}</div>
+                        <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.25)", marginTop: 2 }}>{t.unit}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Earn Fees (Revenue Flow) */}
+              <div style={{
+                background: `rgba(${p.accentRgb},.03)`, border: `1px solid rgba(${p.accentRgb},.08)`,
+                borderRadius: 14, padding: "16px 14px", marginBottom: 16,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 14 }}>
+                  <CircleDollarSign size={13} color={p.accent} strokeWidth={2} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.8)", fontFamily: "'Outfit',sans-serif" }}>Earn Fees</span>
+                </div>
+
+                {/* Step 1 */}
+                <div style={{
+                  background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)",
+                  borderRadius: 9, padding: "9px 11px", display: "flex", alignItems: "center", gap: 9,
+                }}>
+                  <IconBox accentRgb={p.accentRgb}><Users size={13} color="rgba(255,255,255,.5)" strokeWidth={2} /></IconBox>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,.65)" }}>User copies your signal</div>
+                    <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.22)" }}>Trade executed on-chain</div>
+                  </div>
+                </div>
+                <FlowArrow color={p.accent} />
+
+                {/* Step 2 */}
+                <div style={{
+                  background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.06)",
+                  borderRadius: 9, padding: "9px 11px", display: "flex", alignItems: "center", gap: 9,
+                }}>
+                  <IconBox accentRgb={p.accentRgb}><Shield size={13} color="rgba(255,255,255,.5)" strokeWidth={2} /></IconBox>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,.65)" }}>0.1% builder code fee collected</div>
+                    <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.22)" }}>On every trade through platform</div>
+                  </div>
+                </div>
+                <FlowArrow color={p.accent} />
+
+                {/* Fee/TWAP Split */}
+                <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{
+                    flex: 1, background: `rgba(${p.accentRgb},.06)`, border: `1px solid rgba(${p.accentRgb},.15)`,
+                    borderRadius: 9, padding: "10px 9px", textAlign: "center",
+                  }}>
+                    <Wallet size={14} color={p.accent} strokeWidth={2} style={{ margin: "0 auto 4px" }} />
+                    <div style={{ fontSize: 16, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{p.feeShare}</div>
+                    <div style={{ fontSize: 8.5, fontWeight: 600, color: p.accent, marginTop: 3, opacity: .7 }}>Fee Share</div>
+                    <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.2)", marginTop: 3, lineHeight: 1.3 }}>Paid weekly in USDC on Arbitrum</div>
+                  </div>
+                  <div style={{
+                    flex: 1, background: "rgba(16,185,129,.05)", border: "1px solid rgba(16,185,129,.15)",
+                    borderRadius: 9, padding: "10px 9px", textAlign: "center",
+                  }}>
+                    <ArrowRightLeft size={14} color="#10B981" strokeWidth={2} style={{ margin: "0 auto 4px" }} />
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{p.twapShare}</div>
+                    <div style={{ fontSize: 8.5, fontWeight: 600, color: "#10B981", marginTop: 3, opacity: .7 }}>TWAP Buyback</div>
+                    <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.2)", marginTop: 3, lineHeight: 1.3 }}>Buys HYPE off open market</div>
+                  </div>
+                </div>
+                <FlowArrow color={p.accent} />
+
+                {/* Points earned */}
+                <div style={{
+                  background: `rgba(${p.accentRgb},.06)`, border: `1px solid rgba(${p.accentRgb},.15)`,
+                  borderRadius: 9, padding: "9px 11px", display: "flex", alignItems: "center", gap: 9,
+                }}>
+                  <IconBox accentRgb={p.accentRgb} active><Coins size={13} color={p.accent} strokeWidth={2} /></IconBox>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: p.accent }}>+ {p.copyShare} of trade points to you</div>
+                    <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.22)" }}>At {p.multiplier} multiplier</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Phase Stats */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
+                  <Clock size={13} color="rgba(255,255,255,.5)" strokeWidth={2} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.8)", fontFamily: "'Outfit',sans-serif" }}>Phase Stats</span>
+                </div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                  <div style={{ flex: 1, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)", borderRadius: 10, padding: "11px 10px" }}>
+                    <div style={{ fontSize: 8.5, fontWeight: 600, color: "rgba(255,255,255,.28)", letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 4 }}>Fee Share</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{p.feeShare}</div>
+                    <div style={{ fontSize: 8, color: "rgba(255,255,255,.2)", marginTop: 4, lineHeight: 1.3 }}>of 0.1% fee → paid weekly USDC</div>
+                  </div>
+                  <div style={{ flex: 1, background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)", borderRadius: 10, padding: "11px 10px" }}>
+                    <div style={{ fontSize: 8.5, fontWeight: 600, color: "rgba(255,255,255,.28)", letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 4 }}>TWAP Buyback</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{p.twapShare}</div>
+                    <div style={{ fontSize: 8, color: "rgba(255,255,255,.2)", marginTop: 4, lineHeight: 1.3 }}>remaining fee → buys HYPE</div>
+                  </div>
+                </div>
+                <div style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)", borderRadius: 10, padding: "11px 10px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <div style={{ fontSize: 8.5, fontWeight: 600, color: "rgba(255,255,255,.28)", letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 4 }}>Airdrop Pool</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{p.airdropPool}</div>
+                    </div>
+                    <div style={{ fontSize: 7.5, fontWeight: 700, color: p.accent, background: `rgba(${p.accentRgb},.08)`, borderRadius: 4, padding: "2px 5px" }}>
+                      {s1 ? "S1 ONLY" : "BETA ONLY"}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 8, color: "rgba(255,255,255,.2)", marginTop: 4, lineHeight: 1.3 }}>
+                    {s1
+                      ? "Of total supply for S1 participants. Separate from Beta's 8-10%."
+                      : "Of total supply for Beta only. Season 1 has its own 40-50% pool."}
+                  </div>
+                </div>
+              </div>
+
+              {/* Referral Fee Share */}
+              <div style={{ background: p.cardBg, border: "1px solid rgba(255,255,255,.04)", borderRadius: 12, padding: 13 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                  <Flame size={14} color={p.accent} strokeWidth={2} />
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.85)", fontFamily: "'Outfit',sans-serif" }}>Referral Fee Share</div>
+                    <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.25)" }}>Earn real $ from referred trader volume</div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 5 }}>
+                  {[
+                    { val: p.feeShare, label: "Fee Share", sub: "to referrer", color: p.accent, rgb: p.accentRgb },
+                    { val: p.kolRefBonus, label: "KOL Bonus", sub: "for KOL refs", color: "#F59E0B", rgb: "245,158,11" },
+                    { val: p.twapShare, label: "TWAP", sub: "buys HYPE", color: "#10B981", rgb: "16,185,129" },
+                  ].map((c, i) => (
+                    <div key={i} style={{
+                      flex: 1, background: `rgba(${c.rgb},.05)`, borderRadius: 8,
+                      padding: "9px 7px", textAlign: "center", border: `1px solid rgba(${c.rgb},.1)`,
+                    }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: c.color, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{c.val}</div>
+                      <div style={{ fontSize: 8, color: "rgba(255,255,255,.28)", marginTop: 3, fontWeight: 600 }}>{c.label}</div>
+                      <div style={{ fontSize: 7, color: "rgba(255,255,255,.16)", marginTop: 1 }}>{c.sub}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* S1 banners */}
+              {s1 && (
+                <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{
+                    background: "linear-gradient(135deg,rgba(245,166,35,.06),rgba(255,140,0,.02))",
+                    border: "1px solid rgba(245,166,35,.12)", borderRadius: 10, padding: "10px 12px",
+                    display: "flex", alignItems: "center", gap: 9,
+                  }}>
+                    <Crown size={16} color="#FFD700" strokeWidth={2} />
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "#FFD700", fontFamily: "'Outfit',sans-serif" }}>Airdrop Pool 5x Larger</div>
+                      <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.28)" }}>40-50% of total supply this season</div>
+                    </div>
+                  </div>
+                  <div style={{
+                    background: "linear-gradient(135deg,rgba(0,240,255,.03),rgba(245,166,35,.02))",
+                    border: "1px solid rgba(0,240,255,.1)", borderRadius: 10, padding: "10px 12px",
+                    display: "flex", alignItems: "center", gap: 9,
+                  }}>
+                    <RefreshCw size={14} color="#00F0FF" strokeWidth={2} />
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "#00F0FF", fontFamily: "'Outfit',sans-serif" }}>Beta Users Carried Over</div>
+                      <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.28)", lineHeight: 1.3 }}>Points, referrals, Smart Followers carry forward.</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
+          {/* ════════════════════════════════════════════ */}
+          {/* TAB: MULTIPLY                                */}
+          {/* ════════════════════════════════════════════ */}
+          {tab === "multiply" && (
+            <div className="fade-in">
+
+              {/* Active Multipliers */}
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+                  <Zap size={13} color={p.accent} strokeWidth={2} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.85)", fontFamily: "'Outfit',sans-serif" }}>Your Active Multipliers</span>
+                </div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,.25)", marginBottom: 10 }}>These boost all point earnings automatically</div>
+
+                <div style={{ display: "flex", gap: 6 }}>
+                  <div style={{
+                    flex: 1, background: `rgba(${p.accentRgb},.05)`, border: `1px solid rgba(${p.accentRgb},.14)`,
+                    borderRadius: 11, padding: "12px 10px", textAlign: "center",
+                  }}>
+                    <Star size={16} color={p.accent} strokeWidth={2} fill={p.accent} style={{ margin: "0 auto 5px", display: "block", opacity: .8 }} />
+                    <div style={{ fontSize: 18, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>4.2x</div>
+                    <div style={{ fontSize: 8.5, fontWeight: 600, color: p.accent, marginTop: 4, opacity: .65 }}>Smart Followers</div>
+                    <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.2)", marginTop: 3, lineHeight: 1.3 }}>847 verified from 6K cohort</div>
+                  </div>
+                  <div style={{
+                    flex: 1, background: `rgba(${p.accentRgb},.04)`, border: `1px solid rgba(${p.accentRgb},.12)`,
+                    borderRadius: 11, padding: "12px 10px", textAlign: "center",
+                  }}>
+                    <Zap size={16} color={p.accent} strokeWidth={2} style={{ margin: "0 auto 5px", display: "block" }} />
+                    <div style={{ fontSize: 18, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{p.multiplier}</div>
+                    <div style={{ fontSize: 8.5, fontWeight: 600, color: p.accent, marginTop: 4, opacity: .65 }}>{s1 ? "Consistency" : "Beta"} Mult</div>
+                    <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.2)", marginTop: 3, lineHeight: 1.3 }}>{s1 ? "Maintain weekly quality" : "Elevated rate during Beta"}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Increase Your Multiplier */}
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
+                  <TrendingUp size={13} color="rgba(255,255,255,.5)" strokeWidth={2} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,.85)", fontFamily: "'Outfit',sans-serif" }}>Increase Your Multiplier</span>
+                </div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,.25)", marginBottom: 10 }}>Actions that grow your boost over time</div>
+
+                {/* Share PnL */}
+                <div style={{ background: p.cardBg, border: "1px solid rgba(255,255,255,.05)", borderRadius: 11, padding: "11px 12px", marginBottom: 5 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      <IconBox accentRgb={p.accentRgb} active><BarChart3 size={14} color={p.accent} strokeWidth={2} /></IconBox>
+                      <div>
+                        <div style={{ fontSize: 10.5, fontWeight: 600, color: "rgba(255,255,255,.85)" }}>Share PnL Card to X</div>
+                        <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.28)", marginTop: 1 }}>Earns points + grows multiplier</div>
+                      </div>
+                    </div>
+                    <button style={{
+                      background: `rgba(${p.accentRgb},.12)`, color: p.accent,
+                      border: `1px solid rgba(${p.accentRgb},.25)`, borderRadius: 7,
+                      padding: "5px 9px", fontSize: 8.5, fontWeight: 700, cursor: "pointer",
+                      fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 3,
+                    }}>
+                      <ExternalLink size={10} color={p.accent} strokeWidth={2.5} />Share
+                    </button>
+                  </div>
+                </div>
+
+                {/* Share Leaderboard */}
+                <div style={{ background: p.cardBg, border: "1px solid rgba(255,255,255,.05)", borderRadius: 11, padding: "11px 12px", marginBottom: 5 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      <IconBox accentRgb="245,158,11"><Trophy size={14} color="#F59E0B" strokeWidth={2} /></IconBox>
+                      <div>
+                        <div style={{ fontSize: 10.5, fontWeight: 600, color: "rgba(255,255,255,.85)" }}>Share Leaderboard to X</div>
+                        <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.28)", marginTop: 1 }}>Your rank or any KOL's result</div>
+                      </div>
+                    </div>
+                    <button style={{
+                      background: "rgba(245,158,11,.1)", color: "#F59E0B",
+                      border: "1px solid rgba(245,158,11,.22)", borderRadius: 7,
+                      padding: "5px 9px", fontSize: 8.5, fontWeight: 700, cursor: "pointer",
+                      fontFamily: "'DM Sans',sans-serif", display: "flex", alignItems: "center", gap: 3,
+                    }}>
+                      <ExternalLink size={10} color="#F59E0B" strokeWidth={2.5} />Share
+                    </button>
+                  </div>
+                </div>
+
+                {/* Link X */}
+                <div style={{ background: p.cardBg, border: "1px solid rgba(255,255,255,.05)", borderRadius: 11, padding: "11px 12px", marginBottom: 5 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      <IconBox accentRgb={p.accentRgb}><Link2 size={14} color="rgba(255,255,255,.4)" strokeWidth={2} /></IconBox>
+                      <div>
+                        <div style={{ fontSize: 10.5, fontWeight: 600, color: "rgba(255,255,255,.85)" }}>Link X Account</div>
+                        <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.28)", marginTop: 1 }}>Permanent boost on all earnings</div>
+                      </div>
+                    </div>
+                    <div style={{
+                      fontSize: 8, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,.1)",
+                      borderRadius: 5, padding: "3px 7px", display: "flex", alignItems: "center", gap: 3,
+                    }}>
+                      <Check size={9} color="#10B981" strokeWidth={3} /> LINKED
+                    </div>
+                  </div>
+                </div>
+
+                {/* Signal Quality */}
+                <div style={{ background: p.cardBg, border: "1px solid rgba(255,255,255,.05)", borderRadius: 11, padding: "11px 12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <IconBox accentRgb={p.accentRgb}><Target size={14} color="rgba(255,255,255,.4)" strokeWidth={2} /></IconBox>
+                    <div>
+                      <div style={{ fontSize: 10.5, fontWeight: 600, color: "rgba(255,255,255,.85)" }}>Post Quality Signals</div>
+                      <div style={{ fontSize: 8.5, color: "rgba(255,255,255,.28)", marginTop: 1, lineHeight: 1.3 }}>Tweets classified as tradeable signal earn bonus pts</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Revenue Split */}
+              <div style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.04)", borderRadius: 10, padding: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>
+                  <ArrowRightLeft size={12} color="rgba(255,255,255,.4)" strokeWidth={2} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.7)", fontFamily: "'Outfit',sans-serif" }}>Revenue Split</span>
+                </div>
+                <div style={{ display: "flex", gap: 5 }}>
+                  <div style={{
+                    flex: 1, background: `rgba(${p.accentRgb},.05)`, borderRadius: 8,
+                    padding: "8px 7px", border: `1px solid rgba(${p.accentRgb},.08)`, textAlign: "center",
+                  }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: p.accent, fontFamily: "'DM Mono',monospace" }}>{p.feeShare}</div>
+                    <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.25)", marginTop: 2 }}>Fee Share → you</div>
+                  </div>
+                  <div style={{
+                    flex: 1, background: "rgba(16,185,129,.04)", borderRadius: 8,
+                    padding: "8px 7px", border: "1px solid rgba(16,185,129,.08)", textAlign: "center",
+                  }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace" }}>{p.twapShare}</div>
+                    <div style={{ fontSize: 7.5, color: "rgba(255,255,255,.25)", marginTop: 2 }}>TWAP → buys HYPE</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ════════════════════════════════════════════ */}
+          {/* TAB: DISTRIBUTIONS                          */}
+          {/* ════════════════════════════════════════════ */}
+          {tab === "distributions" && (
+            <div className="fade-in">
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,.28)", marginBottom: 14 }}>Points and Fee Share distributed every Monday. Fee Share in USDC on Arbitrum.</div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 14 }}>
+                {DISTRIBUTIONS.map((d, i) => (
+                  <div key={i} style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "10px 11px",
+                    background: i === 0 ? `rgba(${p.accentRgb},.04)` : "rgba(255,255,255,.015)",
+                    borderRadius: 10, border: i === 0 ? `1px solid rgba(${p.accentRgb},.14)` : "1px solid rgba(255,255,255,.04)",
+                  }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 7, flexShrink: 0,
+                      background: i === 0 ? `rgba(${p.accentRgb},.08)` : "rgba(255,255,255,.03)",
+                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <div style={{ fontSize: 7, fontWeight: 700, color: i === 0 ? p.accent : "rgba(255,255,255,.22)", fontFamily: "'DM Mono',monospace" }}>WK</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? p.accent : "rgba(255,255,255,.4)", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{d.week}</div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,.8)" }}>+{d.points.toLocaleString()} pts</span>
+                        {i === 0 && <span style={{ fontSize: 7, fontWeight: 700, color: p.accent, background: `rgba(${p.accentRgb},.12)`, borderRadius: 3, padding: "1px 4px" }}>LATEST</span>}
+                      </div>
+                      <div style={{ fontSize: 9, color: "rgba(255,255,255,.22)", marginTop: 1.5 }}>{d.date}</div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>+${d.feeShare.toFixed(2)}</div>
+                      <div style={{ fontSize: 7.5, color: "#10B981", opacity: .4, marginTop: 1.5, fontFamily: "'DM Mono',monospace" }}>USDC</div>
+                    </div>
+                    <div style={{
+                      width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+                      background: "rgba(16,185,129,.08)", display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <Check size={9} color="#10B981" strokeWidth={3} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Total */}
+              <div style={{
+                padding: "9px 11px", background: "rgba(16,185,129,.03)", border: "1px solid rgba(16,185,129,.08)",
+                borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14,
+              }}>
+                <span style={{ fontSize: 9.5, color: "rgba(255,255,255,.32)" }}>Total distributed ({DISTRIBUTIONS.length} wk)</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#10B981", fontFamily: "'DM Mono',monospace" }}>
+                  ${DISTRIBUTIONS.reduce((s, d) => s + d.feeShare, 0).toFixed(2)} USDC
+                </span>
+              </div>
+
+              {/* Week Breakdown */}
+              <div style={{ background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.04)", borderRadius: 10, padding: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,.75)", marginBottom: 10, fontFamily: "'Outfit',sans-serif" }}>Week 8 Breakdown</div>
+                {[
+                  { label: "Copy volume (from followers)", val: "+9,120 pts", color: "rgba(255,255,255,.75)" },
+                  { label: "Own trading volume", val: "+3,840 pts", color: "rgba(255,255,255,.75)" },
+                  { label: "Signal quality bonus", val: "+1,280 pts", color: "rgba(255,255,255,.75)" },
+                  { label: "X account boost", val: "1.3x", color: p.accent },
+                  { label: "Smart Follower boost", val: "4.2x", color: p.accent },
+                  { label: "Fee Share earned", val: "$47.30", color: "#10B981" },
+                ].map((r, i) => (
+                  <div key={i} style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    padding: "5px 0", borderBottom: i < 5 ? "1px solid rgba(255,255,255,.03)" : "none",
+                  }}>
+                    <span style={{ fontSize: 9, color: "rgba(255,255,255,.32)" }}>{r.label}</span>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: r.color, fontFamily: "'DM Mono',monospace" }}>{r.val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Bottom Phase Hint ── */}
           <div style={{
-            marginTop: s1 ? 12 : 28, height: 1,
-            marginLeft: 36, marginRight: 36,
-            background: `linear-gradient(90deg, transparent, ${p.accent}22, transparent)`,
-            animation: "rw-pulse 3s ease-in-out infinite",
-          }} />
+            marginTop: 18, padding: 10, borderRadius: 9, textAlign: "center",
+            background: s1
+              ? "linear-gradient(135deg,rgba(245,166,35,.04),rgba(16,185,129,.02))"
+              : "linear-gradient(135deg,rgba(100,80,200,.03),transparent)",
+            border: `1px solid ${s1 ? "rgba(245,166,35,.1)" : "rgba(100,80,200,.1)"}`,
+          }}>
+            {!s1 ? (
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,.35)", lineHeight: 1.5 }}>
+                When Beta ends → Fee Share 30% · TWAP 70% · <span style={{ color: "#A855F7", fontWeight: 600 }}>Airdrop pool grows 5x</span>
+              </div>
+            ) : (
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,.35)", lineHeight: 1.5 }}>
+                Maintain weekly signal quality → <span style={{ color: "#FFD700", fontWeight: 600 }}>up to 2x compounding multiplier</span>
+              </div>
+            )}
+          </div>
+
         </div>
       </div>
     </div>

@@ -9,19 +9,19 @@ import { Sparkles, ChevronRight, Zap, Star } from "lucide-react";
 const PHASES = {
   beta: {
     label: "BETA",
-    accent: "#2dd4bf",
+    accent: "#00F0FF",
+    accentRgb: "0,240,255",
     multiplier: "2-5x",
-    revShare: "50%",
-    refCommission: "75%",
+    feeShare: "60%",
     tagline: "EARLY ACCESS",
   },
   season1: {
     label: "S1",
-    accent: "#c4a35a",
-    multiplier: "1-2x",
-    revShare: "25%",
-    refCommission: "30%",
-    tagline: "MAIN EVENT",
+    accent: "#F5A623",
+    accentRgb: "245,166,35",
+    multiplier: "1x → 2x",
+    feeShare: "30%",
+    tagline: "SEASON 1 LIVE",
   },
 } as const;
 
@@ -40,15 +40,15 @@ export function KOLRewardsCard({ onOpen, phase = "beta" }: KOLRewardsCardProps) 
       onClick={onOpen}
       className="rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-300 hover:scale-[1.01] active:scale-[0.99] relative overflow-hidden"
       style={{
-        background: `linear-gradient(135deg, ${p.accent}0a 0%, ${p.accent}03 100%)`,
-        border: `1px solid ${p.accent}20`,
+        background: `linear-gradient(135deg, rgba(${p.accentRgb},.04) 0%, rgba(${p.accentRgb},.015) 100%)`,
+        border: `1px solid rgba(${p.accentRgb},.12)`,
       }}
     >
       {/* top accent line */}
       <div
         className="absolute top-0 left-0 right-0 h-px"
         style={{
-          background: `linear-gradient(90deg, transparent, ${p.accent}50, transparent)`,
+          background: `linear-gradient(90deg, transparent, rgba(${p.accentRgb},.35), transparent)`,
         }}
       />
 
@@ -56,7 +56,7 @@ export function KOLRewardsCard({ onOpen, phase = "beta" }: KOLRewardsCardProps) 
         <div className="flex items-center gap-2.5">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: `${p.accent}12` }}
+            style={{ background: `rgba(${p.accentRgb},.08)` }}
           >
             <Sparkles size={14} color={p.accent} />
           </div>
@@ -73,8 +73,8 @@ export function KOLRewardsCard({ onOpen, phase = "beta" }: KOLRewardsCardProps) 
                 className="text-[7px] font-bold tracking-wider rounded px-1 py-px"
                 style={{
                   color: p.accent,
-                  background: `${p.accent}15`,
-                  border: `1px solid ${p.accent}25`,
+                  background: `rgba(${p.accentRgb},.1)`,
+                  border: `1px solid rgba(${p.accentRgb},.2)`,
                 }}
               >
                 {p.tagline}
@@ -92,9 +92,9 @@ export function KOLRewardsCard({ onOpen, phase = "beta" }: KOLRewardsCardProps) 
               <span className="flex items-center gap-0.5 text-[9px] text-white/40">
                 <Star size={8} color={p.accent} />
                 <span style={{ color: p.accent }} className="font-semibold">
-                  {p.revShare}
+                  {p.feeShare}
                 </span>{" "}
-                rev share
+                fee share
               </span>
             </div>
           </div>

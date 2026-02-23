@@ -1,3 +1,13 @@
+// ================================================================
+// FILE: dashboard/page.tsx
+// ================================================================
+// Changes from previous version:
+//   - REMOVED: KOLRewardsCard import and static card in dashboard
+//   - REMOVED: showRewards local state
+//   - ADDED: useRewards() from RewardsContext
+//   - KOLRewardsScreen now controlled by RewardsContext triggers
+//   - The rewards screen ONLY appears via event triggers (see §8)
+// ================================================================
 
 "use client";
 
@@ -32,8 +42,8 @@ import CopyingSheet from "./components/CopyingSheet";
 import ActiveTradesSheet from "./components/ActiveTradesSheet";
 import DepositSheet from "./components/DepositSheet";
 import WithdrawSheet from "./components/WithdrawSheet";
-import { KOLRewardsCard } from "./components/KOLRewardsCard";
 import { KOLRewardsScreen } from "./components/KOLRewardsScreen";
+import { useRewards } from "@/providers/RewardsContext";
 
 export interface BalanceChartData {
   label: string;
@@ -81,6 +91,7 @@ const Home = () => {
   const wallet = wallets?.[0];
 
   const { builderFeeApproved } = useContext(HyperLiquidContext);
+  const { showRewards, closeRewards } = useRewards();
 
   const [authReady, setAuthReady] = useState(false);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -101,7 +112,6 @@ const Home = () => {
   const [showActiveTrades, setShowActiveTrades] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
-  const [showRewards, setShowRewards] = useState(false); // ← NEW
 
   // ── 1. Privy → Backend JWT sync ──
   useEffect(() => {
@@ -312,12 +322,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ── KOL Rewards Entry Card ── */}
-      {authenticated && (                                                    /* ← NEW */
-        <div className="relative z-10 px-3 mb-2">                           {/* ← NEW */}
-          <KOLRewardsCard onOpen={() => setShowRewards(true)} phase="beta" />{/* ← NEW */}
-        </div>                                                               /* ← NEW */
-      )}                                                                     {/* ← NEW */}
+      {/* KOLRewardsCard REMOVED — rewards screen now triggered by events only (see §8) */}
 
       <div className="relative z-10 px-3">
         <div className="rounded-xl p-4 mb-3 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(45,212,191,0.2)", boxShadow: "0 0 30px rgba(45,212,191,0.1), inset 0 0 40px rgba(45,212,191,0.03)" }}>
@@ -537,7 +542,7 @@ const Home = () => {
       </div>
 
       {/* ── Overlays & Sheets ── */}
-      {showRewards && <KOLRewardsScreen onClose={() => setShowRewards(false)} />}  {/* ← NEW */}
+      {showRewards && <KOLRewardsScreen onClose={closeRewards} />}
       {showCopying && <CopyingSheet mode="copying" onClose={() => setShowCopying(false)} />}
       {showCopiers && <CopyingSheet mode="copiers" onClose={() => setShowCopiers(false)} />}
       {showActiveTrades && (
