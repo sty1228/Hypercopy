@@ -1,15 +1,3 @@
-// ================================================================
-// FILE: providers/RewardsContext.tsx
-// ================================================================
-// Centralized trigger system for KOL Rewards Screen.
-// The rewards screen should ONLY appear via event triggers, never as
-// a static menu item. See Rewards Program Guide §8 for trigger spec.
-//
-// Usage:
-//   const { triggerFirstCopyTrade } = useRewards();
-//   triggerFirstCopyTrade();  // shows rewards screen if first time
-// ================================================================
-
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
