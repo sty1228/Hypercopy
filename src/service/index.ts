@@ -125,6 +125,11 @@ export interface FollowedTrader {
   profit_grade: string | null;
 }
 
+export interface FollowStatus {
+  is_following: boolean;
+  is_copy_trading: boolean;
+}
+
 export const getFollowedTraders = async (window = "30d"): Promise<FollowedTrader[]> => {
   return await get(`/api/follows?window=${window}`);
 };
@@ -147,6 +152,10 @@ export const toggleCopyTrading = async (
   traderUsername: string
 ): Promise<{ is_copy_trading: boolean }> => {
   return await patch(`/api/follow/${traderUsername}/copy-trading`, {});
+};
+
+export const checkFollowStatus = async (traderUsername: string): Promise<FollowStatus> => {
+  return await get(`/api/follow/check/${traderUsername}`);
 };
 
 // ─── Trader Profile ─────────────────────────────────────
@@ -232,7 +241,6 @@ export interface LeaderboardItem {
 export const leaderboard = async (window: string = "30d"): Promise<LeaderboardItem[]> => {
   return await get(`/api/leaderboard?window=${window}`);
 };
-
 
 // ─── User Signals ───────────────────────────────────────
 
@@ -331,21 +339,34 @@ export interface DefaultFollowSettings {
   orderType: "market" | "limit";
 }
 
-export const getDefaultFollowSettings = async (): Promise<DefaultFollowSettings> => {
-  return await get(
-    "https://mock.apidog.com/m1/1147892-1140449-default/api/defaultFollowSetting?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
-  );
+export const getDefaultSettings = async (): Promise<DefaultFollowSettings> => {
+  return await get("/api/settings/default");
 };
 
-export const updateDefaultFollowSettings = async (
-  settings: { address: string } & DefaultFollowSettings
-) => {
-  return await put(
-    "https://mock.apidog.com/m1/1147892-1140449-default/api/defaultFollowSetting?apidogToken=PbNG_tQ6mXqOpxO8CvYsp",
-    settings
-  );
+export const updateDefaultSettings = async (
+  settings: DefaultFollowSettings
+): Promise<DefaultFollowSettings> => {
+  return await put("/api/settings/default", settings);
 };
 
+export const getTraderSettings = async (
+  traderUsername: string
+): Promise<DefaultFollowSettings> => {
+  return await get(`/api/settings/trader/${traderUsername}`);
+};
+
+export const updateTraderSettings = async (
+  traderUsername: string,
+  settings: DefaultFollowSettings
+): Promise<DefaultFollowSettings> => {
+  return await put(`/api/settings/trader/${traderUsername}`, settings);
+};
+
+// ─── Trades History ─────────────────────────────────────
+
+export const getTradeHistory = async (): Promise<unknown[]> => {
+  return await get("/api/trades");
+};
 
 // ─── Explore ────────────────────────────────────────────
 
@@ -440,11 +461,6 @@ export interface ClaimResponse {
   message: string;
 }
 
-export interface FollowStatus {
-  is_following: boolean;
-  is_copy_trading: boolean;
-}
-
 export const getRewards = async (): Promise<RewardsData> => {
   return await get("/api/kol/rewards");
 };
@@ -468,8 +484,4 @@ export const claimFeeShare = async (amount?: number): Promise<ClaimResponse> => 
   return await post("/api/kol/claim-fee-share", {
     amount: amount || null,
   });
-};
-
-export const checkFollowStatus = async (traderUsername: string): Promise<FollowStatus> => {
-  return await get(`/api/follow/check/${traderUsername}`);
 };

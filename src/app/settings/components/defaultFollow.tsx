@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useContext, useEffect, useState, useRef, useCallback } from "react";
@@ -8,10 +7,10 @@ import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { getPerpsBalance } from "@/helpers/hyperliquid";
 import { toast } from "sonner";
 import {
-  getDefaultFollowSettings as fetchDefaultFollowSettings,
+  getDefaultSettings,
+  updateDefaultSettings,
   LeverageType,
   TradeSizeType,
-  updateDefaultFollowSettings,
 } from "@/service";
 import { OrderStyleEnum } from "../types";
 import BottomButtons from "./bottomButtons";
@@ -303,7 +302,7 @@ export default function DefaultFollow() {
   const loadSettings = async () => {
     setIsLoading(true);
     try {
-      const data = await fetchDefaultFollowSettings();
+      const data = await getDefaultSettings();
       const transformed: IDefaultFollowSettings = {
         ...DEFAULT_FOLLOW_SETTINGS,
         tradeSize: data.tradeSize,
@@ -346,8 +345,7 @@ export default function DefaultFollow() {
 
   const handleSave = async () => {
     try {
-      await updateDefaultFollowSettings({
-        address: currentWallet?.address ?? "",
+      await updateDefaultSettings({
         tradeSizeType: settings.tradeSizeType,
         tradeSize: settings.tradeSize,
         leverage: settings.leverage,
