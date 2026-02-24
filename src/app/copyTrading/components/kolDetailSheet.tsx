@@ -10,16 +10,30 @@ import {
   userSignals,
   followTrader,
   checkFollowStatus,
+  toggleCopyTrading,
   updateDefaultSettings,
   DefaultFollowSettings,
 } from "@/service";
 import BigNumber from "bignumber.js";
 import SignalItem from "./signalItem";
 import { useRewards } from "@/providers/RewardsContext";
-import CopyCongratsSheet from "@/components/CopyCongratsSheet";
+
+// localStorage key — marks whether user has EVER copied/countered anyone
+const LS_HAS_COPIED = "hc_has_copied_before";
+
+function hasEverCopied(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(LS_HAS_COPIED) === "1";
+}
+
+function markHasCopied(): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LS_HAS_COPIED, "1");
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  QUICK SETTINGS SHEET (Bottom Sheet with Portal)
+//  Only shown on the user's FIRST-EVER copy action
 // ═══════════════════════════════════════════════════════════════
 
 function QuickSettingsSheet({
@@ -132,7 +146,7 @@ function QuickSettingsSheet({
             style={{ background: "rgba(255,255,255,0.12)" }}
           />
 
-          {/* Header */}
+          {/* Header — encouraging tone */}
           <div className="flex items-center gap-3 mb-1">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm"
@@ -150,7 +164,7 @@ function QuickSettingsSheet({
                 {isCopy ? "Copy" : "Counter"} @{traderName}
               </h3>
               <p className="text-xs m-0" style={{ color: "rgba(255,255,255,0.35)" }}>
-                Configure your trade settings
+                Set up once, trade automatically
               </p>
             </div>
           </div>
@@ -311,13 +325,12 @@ function QuickSettingsSheet({
             TP {tpType === "PCT" ? `${tpVal}%` : `$${tpVal}`}
           </div>
 
-          {/* Risk disclaimer */}
+          {/* Lightweight risk note — encouraging, not scary */}
           <p
             className="text-center text-[10px] mb-4"
             style={{ color: "rgba(255,255,255,0.2)", lineHeight: 1.5 }}
           >
-            Copy trading involves risk. Past performance does not guarantee future results.
-            Only invest what you can afford to lose.
+            Start small, learn as you go. You can adjust settings anytime.
           </p>
 
           {/* Confirm Button */}
@@ -357,6 +370,7 @@ function QuickSettingsSheet({
 
 // ═══════════════════════════════════════════════════════════════
 //  SUCCESS SHEET (Bottom Sheet with Portal)
+//  Only shown on the user's FIRST-EVER copy action
 // ═══════════════════════════════════════════════════════════════
 
 function SuccessSheet({
@@ -528,6 +542,7 @@ export default function KolDetailSheet({
   const [showSuccess, setShowSuccess] = useState(false);
   const [copyAction, setCopyAction] = useState<"copy" | "counter">("copy");
   const [isFollowed, setIsFollowed] = useState(false);
+  const [toggling, setToggling] = useState(false); // loading state for toggle-off
 
   const { authenticated, login } = usePrivy();
   const { triggerFirstCopyTrade, viewRewardsFromPrompt } = useRewards();
@@ -563,25 +578,55 @@ export default function KolDetailSheet({
     }
   };
 
-  const handleCopyAction = (action: "copy" | "counter") => {
+  // ── Core action handler ──────────────────────────────────
+  const handleCopyAction = async (action: "copy" | "counter") => {
     if (!authenticated) {
       login();
       return;
     }
 
-    // Already copy trading this trader → go to settings
-    if (isFollowed && action === "copy") {
-      router.push("/settings");
+    // Already copy trading this trader → TOGGLE OFF (uncopy)
+    if (isFollowed) {
+      setToggling(true);
+      try {
+        await toggleCopyTrading(data.x_handle);
+        setIsFollowed(false);
+      } catch (e) {
+        console.error("Failed to stop copy trading:", e);
+      } finally {
+        setToggling(false);
+      }
       return;
     }
 
     setCopyAction(action);
-    setShowSettings(true);
+
+    // First time EVER copying anyone → show settings sheet
+    if (!hasEverCopied()) {
+      setShowSettings(true);
+      return;
+    }
+
+    // Subsequent copies → directly start with saved default settings
+    await startCopyDirect();
   };
 
+  // ── Direct copy (no settings sheet) ──────────────────────
+  const startCopyDirect = async () => {
+    try {
+      await followTrader(data.x_handle, true);
+      setIsFollowed(true);
+      // No SuccessSheet, no rewards — just a quick visual confirmation
+    } catch (e: any) {
+      console.error("Copy failed:", e);
+      alert(e?.message || "Failed to start copy trading. Please try again.");
+    }
+  };
+
+  // ── Settings confirm (first-time only path) ─────────────
   const handleSettingsConfirm = async (cfg: any) => {
     try {
-      // 1. Save settings to backend (PUT /api/settings/default)
+      // 1. Save settings to backend
       const settingsPayload: DefaultFollowSettings = {
         tradeSizeType: cfg.sizeType,
         tradeSize: cfg.sizeVal,
@@ -593,14 +638,16 @@ export default function KolDetailSheet({
       };
       await updateDefaultSettings(settingsPayload);
 
-      // 2. Follow trader with copy trading enabled (POST /api/follow)
+      // 2. Follow trader with copy trading enabled
       await followTrader(data.x_handle, true);
 
-      // 3. Close settings, show success
+      // 3. Mark first-time done BEFORE showing success
+      markHasCopied();
+
+      // 4. Close settings, show success + rewards (first time only)
       setShowSettings(false);
       setIsFollowed(true);
 
-      // Small delay for smooth transition
       setTimeout(() => {
         setShowSuccess(true);
         triggerFirstCopyTrade();
@@ -819,26 +866,34 @@ export default function KolDetailSheet({
                 <div className="flex gap-3">
                   <button
                     onClick={() => handleCopyAction("counter")}
+                    disabled={toggling}
                     className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                     style={{
                       background: "rgba(244,63,94,0.12)",
                       border: "1px solid rgba(244,63,94,0.25)",
+                      opacity: toggling ? 0.5 : 1,
                     }}
                   >
                     <span className="text-rose-400">Counter All</span>
                   </button>
                   <button
                     onClick={() => handleCopyAction("copy")}
+                    disabled={toggling}
                     className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                     style={{
                       background: isFollowed
                         ? "rgba(45,212,191,0.25)"
                         : "rgba(45,212,191,0.12)",
                       border: "1px solid rgba(45,212,191,0.25)",
+                      opacity: toggling ? 0.5 : 1,
                     }}
                   >
                     <span className="text-teal-400">
-                      {isFollowed ? "Copying ✓" : "Copy All"}
+                      {toggling
+                        ? "Stopping..."
+                        : isFollowed
+                        ? "Copying ✓"
+                        : "Copy All"}
                     </span>
                   </button>
                 </div>
@@ -887,7 +942,7 @@ export default function KolDetailSheet({
           </div>
         </div>
 
-        {/* Quick Settings Sheet */}
+        {/* Quick Settings Sheet — first-time only */}
         {showSettings && (
           <QuickSettingsSheet
             traderName={data.x_handle}
@@ -897,7 +952,7 @@ export default function KolDetailSheet({
           />
         )}
 
-        {/* Success Sheet */}
+        {/* Success Sheet — first-time only */}
         {showSuccess && (
           <SuccessSheet
             traderName={data.x_handle}
