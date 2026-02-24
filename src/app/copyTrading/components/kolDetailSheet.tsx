@@ -396,7 +396,7 @@ function ConfettiCanvas({ accent }: { accent: string }) {
 
     const dpr = window.devicePixelRatio || 1;
     const W = 393;
-    const H = 500;
+    const H = 520;
     canvas.width = W * dpr;
     canvas.height = H * dpr;
     ctx.scale(dpr, dpr);
@@ -410,19 +410,19 @@ function ConfettiCanvas({ accent }: { accent: string }) {
     }
 
     const particles: P[] = [];
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 90; i++) {
       particles.push({
-        x: W / 2 + (Math.random() - 0.5) * 60,
-        y: H * 0.35,
-        vx: (Math.random() - 0.5) * 12,
-        vy: -Math.random() * 14 - 4,
-        w: Math.random() * 6 + 3,
-        h: Math.random() * 10 + 4,
+        x: W / 2 + (Math.random() - 0.5) * 40,
+        y: H * 0.22,
+        vx: (Math.random() - 0.5) * 14,
+        vy: -Math.random() * 16 - 5,
+        w: Math.random() * 5 + 2,
+        h: Math.random() * 10 + 5,
         rot: Math.random() * Math.PI * 2,
         vr: (Math.random() - 0.5) * 0.3,
         color: colors[Math.floor(Math.random() * colors.length)],
         opacity: 1,
-        gravity: 0.25 + Math.random() * 0.15,
+        gravity: 0.22 + Math.random() * 0.12,
       });
     }
 
@@ -438,7 +438,7 @@ function ConfettiCanvas({ accent }: { accent: string }) {
         p.y += p.vy;
         p.vx *= 0.99;
         p.rot += p.vr;
-        if (p.y > H * 0.85) p.opacity -= 0.03;
+        if (p.y > H * 0.85) p.opacity -= 0.025;
         ctx.save();
         ctx.translate(p.x, p.y);
         ctx.rotate(p.rot);
@@ -474,14 +474,16 @@ function SuccessSheet({
   onDone: () => void;
 }) {
   const [visible, setVisible] = useState(false);
-  const [checkAnim, setCheckAnim] = useState(false);
+  const [step, setStep] = useState(0); // 0→1→2→3 stagger
   const isCopy = action === "copy";
-  const accentColor = isCopy ? "#2dd4bf" : "#fb7185";
+  const accent = isCopy ? "#2dd4bf" : "#fb7185";
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
-    const t = setTimeout(() => setCheckAnim(true), 400);
-    return () => clearTimeout(t);
+    const t1 = setTimeout(() => setStep(1), 350);
+    const t2 = setTimeout(() => setStep(2), 600);
+    const t3 = setTimeout(() => setStep(3), 850);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
 
   const handleDone = () => {
@@ -502,194 +504,203 @@ function SuccessSheet({
       <div
         className="absolute inset-0 transition-opacity duration-300"
         style={{
-          background: "rgba(0,0,0,0.75)",
-          backdropFilter: "blur(8px)",
+          background: "rgba(0,0,0,0.8)",
+          backdropFilter: "blur(12px)",
           opacity: visible ? 1 : 0,
         }}
       />
 
       <div
-        className="relative w-full transition-transform duration-300 ease-out text-center"
+        className="relative w-full transition-transform duration-300 ease-out"
         style={{
           maxWidth: 393,
-          background: "linear-gradient(180deg, #111820 0%, #0d1117 100%)",
-          borderRadius: "24px 24px 0 0",
+          background: "#0d1117",
+          borderRadius: "20px 20px 0 0",
           border: "1px solid rgba(255,255,255,0.06)",
           borderBottom: "none",
           transform: visible ? "translateY(0)" : "translateY(100%)",
-          boxShadow: "0 -10px 40px rgba(0,0,0,0.5)",
+          boxShadow: "0 -10px 40px rgba(0,0,0,0.6)",
           overflow: "hidden",
         }}
       >
-        {/* Confetti */}
-        <ConfettiCanvas accent={accentColor} />
-
-        {/* Ambient glows */}
+        {/* Top accent line */}
         <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full pointer-events-none"
           style={{
-            background: `radial-gradient(circle, ${accentColor}12, transparent 65%)`,
+            height: 3,
+            borderRadius: "20px 20px 0 0",
+            background: isCopy
+              ? "linear-gradient(90deg, transparent, #2dd4bf, transparent)"
+              : "linear-gradient(90deg, transparent, #f43f5e, transparent)",
+            opacity: 0.6,
+          }}
+        />
+
+        {/* Confetti */}
+        <ConfettiCanvas accent={accent} />
+
+        {/* Ambient glow */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: -40,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: 280,
+            height: 280,
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${accent}10, transparent 70%)`,
             filter: "blur(40px)",
           }}
         />
-        <div
-          className="absolute bottom-20 right-0 w-[180px] h-[180px] rounded-full pointer-events-none"
-          style={{
-            background: `radial-gradient(circle, ${accentColor}08, transparent 65%)`,
-            filter: "blur(30px)",
-          }}
-        />
 
-        <div className="relative p-6 pb-9">
-          {/* Animated check icon */}
-          <div className="mx-auto mb-6 mt-2 relative" style={{ width: 80, height: 80 }}>
-            {/* Outer ring pulse */}
+        <div className="relative text-center px-6 pt-6 pb-8">
+
+          {/* ── Check icon with ring burst ──────── */}
+          <div className="mx-auto mb-5 relative" style={{ width: 72, height: 72 }}>
+            {/* Expanding ring */}
             <div
               className="absolute inset-0 rounded-full"
               style={{
-                border: `2px solid ${accentColor}`,
-                opacity: checkAnim ? 0 : 0.4,
-                transform: checkAnim ? "scale(1.8)" : "scale(1)",
+                border: `1.5px solid ${accent}`,
+                opacity: step >= 1 ? 0 : 0.3,
+                transform: step >= 1 ? "scale(2)" : "scale(1)",
                 transition: "all 0.8s ease-out",
               }}
             />
-            {/* Inner circle */}
+            {/* Circle bg */}
             <div
               className="absolute inset-0 rounded-full flex items-center justify-center"
               style={{
-                background: `linear-gradient(135deg, ${accentColor}15, ${accentColor}08)`,
-                border: `1.5px solid ${accentColor}30`,
-                boxShadow: `0 0 40px ${accentColor}20, inset 0 0 20px ${accentColor}08`,
-                transform: checkAnim ? "scale(1)" : "scale(0.8)",
-                opacity: checkAnim ? 1 : 0,
-                transition: "all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                background: `${accent}0a`,
+                border: `1px solid ${accent}25`,
+                transform: step >= 1 ? "scale(1)" : "scale(0.6)",
+                opacity: step >= 1 ? 1 : 0,
+                transition: "all 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)",
               }}
             >
               <svg
-                width="36"
-                height="36"
-                viewBox="0 0 24 24"
-                fill="none"
+                width="32" height="32" viewBox="0 0 24 24" fill="none"
                 style={{
-                  opacity: checkAnim ? 1 : 0,
-                  transform: checkAnim ? "scale(1)" : "scale(0.5)",
-                  transition: "all 0.4s ease-out 0.2s",
+                  opacity: step >= 1 ? 1 : 0,
+                  transform: step >= 1 ? "scale(1)" : "scale(0.4)",
+                  transition: "all 0.35s ease-out 0.15s",
                 }}
               >
-                <path
-                  d="M20 6L9 17l-5-5"
-                  stroke={accentColor}
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+                <path d="M20 6L9 17l-5-5" stroke={accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
           </div>
 
-          <h3
-            className="text-white text-xl font-bold mb-1"
-            style={{
-              opacity: checkAnim ? 1 : 0,
-              transform: checkAnim ? "translateY(0)" : "translateY(10px)",
-              transition: "all 0.4s ease-out 0.3s",
-            }}
-          >
-            You&apos;re Now {isCopy ? "Copying" : "Countering"}
-          </h3>
-          <p
-            className="text-lg font-bold mb-3"
-            style={{
-              color: accentColor,
-              opacity: checkAnim ? 1 : 0,
-              transform: checkAnim ? "translateY(0)" : "translateY(10px)",
-              transition: "all 0.4s ease-out 0.4s",
-            }}
-          >
-            @{traderName}
-          </p>
-          <p
-            className="text-xs mb-6 leading-relaxed"
-            style={{
-              color: "rgba(255,255,255,0.35)",
-              opacity: checkAnim ? 1 : 0,
-              transition: "opacity 0.4s ease-out 0.5s",
-            }}
-          >
-            Trades will execute automatically based on your settings.
-            <br />
-            You&apos;ll be notified when new positions open.
-          </p>
-
-          {/* Points earned — premium card */}
+          {/* ── Title block ────────────────────── */}
           <div
-            className="rounded-2xl p-4 mb-6 relative overflow-hidden"
             style={{
-              background: `linear-gradient(135deg, ${accentColor}08, transparent)`,
-              border: `1px solid ${accentColor}15`,
-              opacity: checkAnim ? 1 : 0,
-              transform: checkAnim ? "translateY(0)" : "translateY(15px)",
-              transition: "all 0.5s ease-out 0.55s",
+              opacity: step >= 1 ? 1 : 0,
+              transform: step >= 1 ? "translateY(0)" : "translateY(8px)",
+              transition: "all 0.4s ease-out 0.1s",
             }}
           >
-            <div
-              className="absolute -top-8 -right-8 w-24 h-24 rounded-full pointer-events-none"
-              style={{
-                background: `radial-gradient(circle, ${accentColor}12, transparent 70%)`,
-                filter: "blur(12px)",
-              }}
-            />
-            <div className="relative flex items-center justify-center gap-2.5 mb-1.5">
-              <span className="text-3xl font-extrabold" style={{ color: accentColor }}>
-                +50
-              </span>
-              <span
-                className="text-xs font-medium uppercase tracking-wider"
-                style={{ color: "rgba(255,255,255,0.4)" }}
-              >
-                points
-              </span>
-            </div>
             <p
-              className="text-[11px] m-0"
-              style={{ color: "rgba(255,255,255,0.25)" }}
+              className="m-0 mb-1"
+              style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 500 }}
             >
-              Earn points on every trade · Top performers earn fee share
+              You&apos;re now {isCopy ? "copying" : "countering"}
+            </p>
+            <h3
+              className="m-0 mb-3"
+              style={{ fontSize: 22, fontWeight: 800, color: accent, letterSpacing: "-0.02em" }}
+            >
+              @{traderName}
+            </h3>
+            <p
+              className="m-0 mb-6 leading-relaxed"
+              style={{ fontSize: 12, color: "rgba(255,255,255,0.28)" }}
+            >
+              Trades execute automatically when they make a call.
             </p>
           </div>
 
-          {/* CTA — View Rewards */}
-          <button
-            onClick={handleRewards}
-            className="w-full py-3.5 rounded-2xl text-sm font-semibold mb-3 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+          {/* ── Points card ────────────────────── */}
+          <div
+            className="rounded-xl p-4 mb-6 relative overflow-hidden"
             style={{
-              background: isCopy
-                ? "linear-gradient(135deg, #2dd4bf, #14b8a6)"
-                : "linear-gradient(135deg, #f43f5e, #e11d48)",
-              color: isCopy ? "#000" : "#fff",
-              border: "none",
-              boxShadow: `0 0 30px ${accentColor}25`,
-              opacity: checkAnim ? 1 : 0,
-              transform: checkAnim ? "translateY(0)" : "translateY(10px)",
-              transition: "opacity 0.4s ease-out 0.65s, transform 0.4s ease-out 0.65s",
+              background: "rgba(255,255,255,0.02)",
+              border: "1px solid rgba(255,255,255,0.05)",
+              opacity: step >= 2 ? 1 : 0,
+              transform: step >= 2 ? "translateY(0)" : "translateY(12px)",
+              transition: "all 0.45s ease-out",
             }}
           >
-            View Rewards Program
-          </button>
+            <div
+              className="absolute -top-6 -right-6 w-20 h-20 rounded-full pointer-events-none"
+              style={{
+                background: `radial-gradient(circle, ${accent}10, transparent 70%)`,
+                filter: "blur(10px)",
+              }}
+            />
+            <div className="relative">
+              <div className="flex items-baseline justify-center gap-2 mb-1">
+                <span
+                  style={{ fontSize: 28, fontWeight: 800, color: accent, letterSpacing: "-0.02em" }}
+                >
+                  +50
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: "rgba(255,255,255,0.3)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                  }}
+                >
+                  points earned
+                </span>
+              </div>
+              <p
+                className="m-0"
+                style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}
+              >
+                Earn on every trade · Top performers share platform fees
+              </p>
+            </div>
+          </div>
 
-          <button
-            onClick={handleDone}
-            className="w-full py-3 rounded-2xl text-xs transition-all"
+          {/* ── CTA buttons ────────────────────── */}
+          <div
             style={{
-              background: "transparent",
-              border: "none",
-              color: "rgba(255,255,255,0.3)",
-              opacity: checkAnim ? 1 : 0,
-              transition: "opacity 0.4s ease-out 0.75s",
+              opacity: step >= 3 ? 1 : 0,
+              transform: step >= 3 ? "translateY(0)" : "translateY(8px)",
+              transition: "all 0.4s ease-out",
             }}
           >
-            Done
-          </button>
+            <button
+              onClick={handleRewards}
+              className="w-full py-3.5 rounded-xl text-[13px] font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              style={{
+                background: isCopy
+                  ? "linear-gradient(135deg, #2dd4bf, #14b8a6)"
+                  : "linear-gradient(135deg, #f43f5e, #e11d48)",
+                color: isCopy ? "#000" : "#fff",
+                border: "none",
+                boxShadow: `0 4px 24px ${accent}30`,
+                letterSpacing: "0.01em",
+              }}
+            >
+              View Rewards Program
+            </button>
+
+            <button
+              onClick={handleDone}
+              className="w-full mt-2 py-2.5 text-[11px] transition-all"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "rgba(255,255,255,0.2)",
+              }}
+            >
+              Done
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -842,6 +853,8 @@ export default function KolDetailSheet({
   const handleViewRewards = () => {
     setShowSuccess(false);
     viewRewardsFromPrompt();
+    // KOLRewardsScreen lives in /dashboard — navigate there so it renders
+    router.push("/dashboard");
   };
 
   const profit = data?.results_pct || 0;
