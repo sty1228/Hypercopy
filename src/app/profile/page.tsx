@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -24,9 +25,22 @@ import UserMenu from "@/components/UserMenu";
 import ShareSheet from "./components/shareSheet";
 import {
   getTraderProfile, followTrader, unfollowTrader, toggleCopyTrading,
-  userSignals,
-  type TraderProfile, type RadarData, type UserSignalItem,
+  userSignals, updateDefaultSettings,
+  type TraderProfile, type RadarData, type UserSignalItem, type DefaultFollowSettings,
 } from "@/service";
+import { useRewards } from "@/providers/RewardsContext";
+
+/* ─── First-time copy localStorage helpers ─── */
+
+const LS_HAS_COPIED = "hc_has_copied_before";
+function hasEverCopied(): boolean {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(LS_HAS_COPIED) === "1";
+}
+function markHasCopied(): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LS_HAS_COPIED, "1");
+}
 
 /* ─────────────── Scroll Animation Hook ──────────── */
 
@@ -352,6 +366,156 @@ const ProfileError = ({ message, onBack }: { message: string; onBack: () => void
   </div>
 );
 
+/* ─── Profile Copy Settings Sheet (first-time only, Portal) ─── */
+
+function ProfileCopySettingsSheet({ traderName, onConfirm, onClose }: {
+  traderName: string; onConfirm: (cfg: any) => void; onClose: () => void;
+}) {
+  const [sizeVal, setSizeVal] = useState(10);
+  const [sizeType, setSizeType] = useState<"USD" | "PCT">("PCT");
+  const [leverage, setLeverage] = useState(8);
+  const [tpVal, setTpVal] = useState(15);
+  const [tpType, setTpType] = useState<"USD" | "PCT">("PCT");
+  const [slVal, setSlVal] = useState(35);
+  const [slType, setSlType] = useState<"USD" | "PCT">("PCT");
+  const [loading, setLoading] = useState(false);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => { requestAnimationFrame(() => setVisible(true)); }, []);
+  const handleClose = () => { setVisible(false); setTimeout(onClose, 300); };
+  const handleConfirm = async () => { setLoading(true); await onConfirm({ sizeVal, sizeType, leverage, tpVal, tpType, slVal, slType }); setLoading(false); };
+
+  const ac = "rgba(45,212,191,1)";
+  const TT = ({ val, onChange, a = ac }: { val: string; onChange: (v: "USD" | "PCT") => void; a?: string }) => (
+    <div className="flex" style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: 2 }}>
+      {(["$", "%"] as const).map((t) => { const m = t === "$" ? "USD" : "PCT"; const on = val === m; return (
+        <button key={t} onClick={() => onChange(m)} className="text-[11px] font-semibold transition-all" style={{ width: 28, height: 26, borderRadius: 6, background: on ? `${a}20` : "transparent", color: on ? a : "rgba(255,255,255,0.2)", border: "none" }}>{t}</button>
+      ); })}
+    </div>
+  );
+
+  const el = (
+    <div className="fixed inset-0 flex items-end justify-center" style={{ zIndex: 9998 }}>
+      <div className="absolute inset-0 transition-opacity duration-300" style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)", opacity: visible ? 1 : 0 }} onClick={handleClose} />
+      <div className="relative w-full transition-transform duration-300 ease-out" style={{ maxWidth: 393, background: "#0d1117", borderRadius: "20px 20px 0 0", border: "1px solid rgba(255,255,255,0.06)", borderBottom: "none", maxHeight: "90vh", overflowY: "auto", transform: visible ? "translateY(0)" : "translateY(100%)", boxShadow: "0 -10px 40px rgba(0,0,0,0.6)" }}>
+        <div style={{ height: 3, borderRadius: "20px 20px 0 0", background: "linear-gradient(90deg, transparent, #2dd4bf, transparent)", opacity: 0.5 }} />
+        <div className="px-5 pt-4 pb-7">
+          <div className="w-9 h-[3px] rounded-full mx-auto mb-5" style={{ background: "rgba(255,255,255,0.1)" }} />
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-widest m-0 mb-1" style={{ color: ac, opacity: 0.7 }}>First time setup</p>
+              <h3 className="text-white text-[17px] font-bold m-0 leading-tight">Copy <span style={{ color: ac }}>@{traderName}</span></h3>
+            </div>
+            <button onClick={handleClose} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,255,255,0.05)" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" /></svg>
+            </button>
+          </div>
+          <p className="text-[11px] leading-relaxed m-0 mb-5" style={{ color: "rgba(255,255,255,0.3)" }}>We&apos;ll auto-mirror their trades for you. These defaults apply to all future copies.</p>
+          <div className="rounded-2xl overflow-hidden mb-4" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+            <div className="flex items-center justify-between px-4 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.5)" }}>Size</span>
+              <div className="flex items-center gap-2.5"><input type="number" value={sizeVal} onChange={(e) => setSizeVal(Number(e.target.value) || 0)} className="w-14 text-right bg-transparent border-none outline-none text-[15px] font-bold" style={{ color: "rgba(255,255,255,0.9)" }} /><TT val={sizeType} onChange={setSizeType} /></div>
+            </div>
+            <div className="px-4 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <div className="flex justify-between items-center mb-3"><span className="text-[13px]" style={{ color: "rgba(255,255,255,0.5)" }}>Leverage</span><span className="text-[15px] font-bold" style={{ color: "rgba(255,255,255,0.9)" }}>{leverage}x</span></div>
+              <input type="range" min={1} max={20} value={leverage} onChange={(e) => setLeverage(Number(e.target.value))} className="w-full" style={{ accentColor: "#2dd4bf" }} />
+              <div className="flex justify-between mt-0.5" style={{ fontSize: 9, color: "rgba(255,255,255,0.15)" }}><span>1x</span><span>5x</span><span>10x</span><span>15x</span><span>20x</span></div>
+            </div>
+            <div className="flex items-center justify-between px-4 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+              <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.5)" }}>Stop Loss</span>
+              <div className="flex items-center gap-2.5"><input type="number" value={slVal} onChange={(e) => setSlVal(Number(e.target.value) || 0)} className="w-14 text-right bg-transparent border-none outline-none text-[15px] font-bold" style={{ color: "#fb7185" }} /><TT val={slType} onChange={setSlType} a="#fb7185" /></div>
+            </div>
+            <div className="flex items-center justify-between px-4 py-3.5">
+              <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.5)" }}>Take Profit</span>
+              <div className="flex items-center gap-2.5"><input type="number" value={tpVal} onChange={(e) => setTpVal(Number(e.target.value) || 0)} className="w-14 text-right bg-transparent border-none outline-none text-[15px] font-bold" style={{ color: "#34d399" }} /><TT val={tpType} onChange={setTpType} a="#34d399" /></div>
+            </div>
+          </div>
+          <div className="text-center text-[11px] mb-5" style={{ color: "rgba(255,255,255,0.2)" }}>{sizeType === "PCT" ? `${sizeVal}%` : `$${sizeVal}`} per trade · {leverage}x · SL {slType === "PCT" ? `${slVal}%` : `$${slVal}`} · TP {tpType === "PCT" ? `${tpVal}%` : `$${tpVal}`}</div>
+          <button onClick={handleConfirm} disabled={loading} className="w-full py-3.5 rounded-xl text-[13px] font-bold transition-all duration-300" style={{ background: loading ? "rgba(255,255,255,0.05)" : "linear-gradient(135deg, #2dd4bf, #14b8a6)", color: loading ? "rgba(255,255,255,0.3)" : "#000", border: "none", cursor: loading ? "not-allowed" : "pointer", boxShadow: loading ? "none" : "0 4px 20px rgba(45,212,191,0.3)" }}>
+            {loading ? (<span className="flex items-center justify-center gap-2"><svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" /><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>Setting up...</span>) : "Start Copying"}
+          </button>
+          <p className="text-center m-0 mt-3" style={{ fontSize: 9, color: "rgba(255,255,255,0.15)" }}>Editable anytime in Settings · Past performance ≠ future results</p>
+        </div>
+      </div>
+    </div>
+  );
+  if (typeof window === "undefined") return null;
+  return createPortal(el, document.body);
+}
+
+/* ─── Profile Copy Success Sheet (first-time only, Portal + Confetti) ─── */
+
+function ProfileConfetti({ accent }: { accent: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = canvasRef.current; if (!c) return;
+    const ctx = c.getContext("2d"); if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1, W = 393, H = 520;
+    c.width = W * dpr; c.height = H * dpr; ctx.scale(dpr, dpr);
+    const cols = [accent, "#fbbf24", "#a78bfa", "#fb7185", "#38bdf8", "#34d399", "#f472b6"];
+    interface P { x:number;y:number;vx:number;vy:number;w:number;h:number;rot:number;vr:number;color:string;opacity:number;gravity:number }
+    const ps: P[] = [];
+    for (let i = 0; i < 90; i++) ps.push({ x: W/2+(Math.random()-0.5)*40, y: H*0.22, vx: (Math.random()-0.5)*14, vy: -Math.random()*16-5, w: Math.random()*5+2, h: Math.random()*10+5, rot: Math.random()*Math.PI*2, vr: (Math.random()-0.5)*0.3, color: cols[Math.floor(Math.random()*cols.length)], opacity: 1, gravity: 0.22+Math.random()*0.12 });
+    let raf: number;
+    const draw = () => { ctx.clearRect(0,0,W,H); let alive = false; for (const p of ps) { if (p.opacity<=0) continue; alive=true; p.x+=p.vx; p.vy+=p.gravity; p.y+=p.vy; p.vx*=0.99; p.rot+=p.vr; if(p.y>H*0.85) p.opacity-=0.025; ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot); ctx.globalAlpha=Math.max(0,p.opacity); ctx.fillStyle=p.color; ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); ctx.restore(); } if (alive) raf=requestAnimationFrame(draw); };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [accent]);
+  return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ width: "100%", height: "100%" }} />;
+}
+
+function ProfileCopySuccessSheet({ traderName, onViewRewards, onDone }: { traderName: string; onViewRewards: () => void; onDone: () => void }) {
+  const [visible, setVisible] = useState(false);
+  const [step, setStep] = useState(0);
+  const accent = "#2dd4bf";
+  useEffect(() => {
+    requestAnimationFrame(() => setVisible(true));
+    const t1 = setTimeout(() => setStep(1), 350);
+    const t2 = setTimeout(() => setStep(2), 600);
+    const t3 = setTimeout(() => setStep(3), 850);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
+  const handleDone = () => { setVisible(false); setTimeout(onDone, 300); };
+  const handleRewards = () => { setVisible(false); setTimeout(onViewRewards, 300); };
+
+  const el = (
+    <div className="fixed inset-0 flex items-end justify-center" style={{ zIndex: 9999 }}>
+      <div className="absolute inset-0 transition-opacity duration-300" style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(12px)", opacity: visible ? 1 : 0 }} />
+      <div className="relative w-full transition-transform duration-300 ease-out" style={{ maxWidth: 393, background: "#0d1117", borderRadius: "20px 20px 0 0", border: "1px solid rgba(255,255,255,0.06)", borderBottom: "none", transform: visible ? "translateY(0)" : "translateY(100%)", boxShadow: "0 -10px 40px rgba(0,0,0,0.6)", overflow: "hidden" }}>
+        <div style={{ height: 3, borderRadius: "20px 20px 0 0", background: "linear-gradient(90deg, transparent, #2dd4bf, transparent)", opacity: 0.6 }} />
+        <ProfileConfetti accent={accent} />
+        <div className="absolute pointer-events-none" style={{ top: -40, left: "50%", transform: "translateX(-50%)", width: 280, height: 280, borderRadius: "50%", background: `radial-gradient(circle, ${accent}10, transparent 70%)`, filter: "blur(40px)" }} />
+        <div className="relative text-center px-6 pt-6 pb-8">
+          <div className="mx-auto mb-5 relative" style={{ width: 72, height: 72 }}>
+            <div className="absolute inset-0 rounded-full" style={{ border: `1.5px solid ${accent}`, opacity: step >= 1 ? 0 : 0.3, transform: step >= 1 ? "scale(2)" : "scale(1)", transition: "all 0.8s ease-out" }} />
+            <div className="absolute inset-0 rounded-full flex items-center justify-center" style={{ background: `${accent}0a`, border: `1px solid ${accent}25`, transform: step >= 1 ? "scale(1)" : "scale(0.6)", opacity: step >= 1 ? 1 : 0, transition: "all 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)" }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style={{ opacity: step >= 1 ? 1 : 0, transform: step >= 1 ? "scale(1)" : "scale(0.4)", transition: "all 0.35s ease-out 0.15s" }}><path d="M20 6L9 17l-5-5" stroke={accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </div>
+          </div>
+          <div style={{ opacity: step >= 1 ? 1 : 0, transform: step >= 1 ? "translateY(0)" : "translateY(8px)", transition: "all 0.4s ease-out 0.1s" }}>
+            <p className="m-0 mb-1" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 500 }}>You&apos;re now copying</p>
+            <h3 className="m-0 mb-3" style={{ fontSize: 22, fontWeight: 800, color: accent, letterSpacing: "-0.02em" }}>@{traderName}</h3>
+            <p className="m-0 mb-6 leading-relaxed" style={{ fontSize: 12, color: "rgba(255,255,255,0.28)" }}>Trades execute automatically when they make a call.</p>
+          </div>
+          <div className="rounded-xl p-4 mb-6 relative overflow-hidden" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", opacity: step >= 2 ? 1 : 0, transform: step >= 2 ? "translateY(0)" : "translateY(12px)", transition: "all 0.45s ease-out" }}>
+            <div className="flex items-baseline justify-center gap-2 mb-1">
+              <span style={{ fontSize: 28, fontWeight: 800, color: accent, letterSpacing: "-0.02em" }}>+50</span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>points earned</span>
+            </div>
+            <p className="m-0" style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>Earn on every trade · Top performers share platform fees</p>
+          </div>
+          <div style={{ opacity: step >= 3 ? 1 : 0, transform: step >= 3 ? "translateY(0)" : "translateY(8px)", transition: "all 0.4s ease-out" }}>
+            <button onClick={handleRewards} className="w-full py-3.5 rounded-xl text-[13px] font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]" style={{ background: "linear-gradient(135deg, #2dd4bf, #14b8a6)", color: "#000", border: "none", boxShadow: `0 4px 24px ${accent}30` }}>View Rewards Program</button>
+            <button onClick={handleDone} className="w-full mt-2 py-2.5 text-[11px] transition-all" style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.2)" }}>Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+  if (typeof window === "undefined") return null;
+  return createPortal(el, document.body);
+}
+
 /* ═══════════════════════════════════════════════════
    Main Page — Suspense wrapper for useSearchParams
    ═══════════════════════════════════════════════════ */
@@ -365,7 +529,7 @@ export default function KOLProfilePage() {
 }
 
 /* ═══════════════════════════════════════════════════
-   Inner Content — ALL data from API, ZERO mock data
+   Inner Content
    ═══════════════════════════════════════════════════ */
 
 function KOLProfileContent() {
@@ -373,18 +537,15 @@ function KOLProfileContent() {
   const router = useRouter();
   const handle = searchParams.get("handle")?.replace(/^@/, "") ?? "";
 
-  /* ── API data state ── */
   const [trader, setTrader] = useState<TraderProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  /* ── Signals data ── */
   const [signals, setSignals] = useState<UserSignalItem[]>([]);
   const [signalsLoading, setSignalsLoading] = useState(false);
   const [signalFilter, setSignalFilter] = useState<"all" | "wins" | "losses">("all");
   const [pnlRange, setPnlRange] = useState<"1W" | "1M" | "3M" | "ALL">("ALL");
 
-  /* ── UI state ── */
   const [activeTab, setActiveTab] = useState("overview");
   const [isFollowing, setIsFollowing] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
@@ -402,6 +563,11 @@ function KOLProfileContent() {
 
   const [followPressed, setFollowPressed] = useState(false);
   const [copyPressed, setCopyPressed] = useState(false);
+
+  // ★ NEW — first-time copy flow state
+  const [showCopySettings, setShowCopySettings] = useState(false);
+  const [showCopySuccess, setShowCopySuccess] = useState(false);
+  const { triggerFirstCopyTrade, viewRewardsFromPrompt } = useRewards();
 
   /* ── Fetch trader profile ── */
   useEffect(() => {
@@ -448,7 +614,7 @@ function KOLProfileContent() {
     return () => { cancelled = true; };
   }, [handle, isXConnected]);
 
-  /* ── Follow / Unfollow (FIXED: 400 no longer sticks loading) ── */
+  /* ── Follow / Unfollow ── */
   const handleFollow = useCallback(async () => {
     if (followLoading || !trader) return;
     setFollowLoading(true);
@@ -460,67 +626,88 @@ function KOLProfileContent() {
         try {
           await followTrader(trader.username);
         } catch (err: any) {
-          // Already following — just sync state
-          if (err?.response?.status === 400) {
-            setIsFollowing(true);
-            return;
-          }
+          if (err?.response?.status === 400) { setIsFollowing(true); return; }
           throw err;
         }
         setIsFollowing(true);
       }
     } catch (err: any) {
-      // Not following (404 on unfollow) — sync state
-      if (err?.response?.status === 404) {
-        setIsFollowing(false);
-      } else {
-        console.error("Follow toggle failed:", err);
-      }
+      if (err?.response?.status === 404) setIsFollowing(false);
+      else console.error("Follow toggle failed:", err);
     } finally {
       setFollowLoading(false);
     }
   }, [isFollowing, followLoading, trader]);
 
-  /* ── Copy Trading toggle (FIXED: 400 no longer sticks loading) ── */
+  /* ── Copy Trading toggle (★ UPDATED — first-time flow) ── */
   const handleCopyToggle = useCallback(async () => {
     if (copyLoading || !trader) return;
+
+    // Already copying → toggle OFF
+    if (isCopying) {
+      setCopyLoading(true);
+      try {
+        await toggleCopyTrading(trader.username);
+        setIsCopying(false);
+      } catch (err: any) {
+        if (err?.response?.status === 404) { setIsCopying(false); setIsFollowing(false); }
+        else console.error("Copy toggle off failed:", err);
+      } finally {
+        setCopyLoading(false);
+      }
+      return;
+    }
+
+    // First time EVER → show settings sheet
+    if (!hasEverCopied()) {
+      setShowCopySettings(true);
+      return;
+    }
+
+    // Subsequent → direct copy
     setCopyLoading(true);
     try {
-      if (isCopying) {
-        await unfollowTrader(trader.username);
-        setIsCopying(false);
-        setIsFollowing(false);
-      } else {
-        try {
-          await followTrader(trader.username, true);
-        } catch (err: any) {
-          if (err?.response?.status === 400) {
-            // Already following — just enable copy trading
-            try {
-              await toggleCopyTrading(trader.username);
-            } catch { /* ignore */ }
-            setIsCopying(true);
-            setIsFollowing(true);
-            return;
-          }
-          throw err;
+      try {
+        await followTrader(trader.username, true);
+      } catch (err: any) {
+        if (err?.response?.status === 400) {
+          try { await toggleCopyTrading(trader.username); } catch { /* ignore */ }
+          setIsCopying(true); setIsFollowing(true); return;
         }
-        setIsCopying(true);
-        setIsFollowing(true);
+        throw err;
       }
-    } catch (err: any) {
-      if (err?.response?.status === 404) {
-        setIsCopying(false);
-        setIsFollowing(false);
-      } else {
-        console.error("Copy toggle failed:", err);
-      }
+      setIsCopying(true);
+      setIsFollowing(true);
+    } catch (err) {
+      console.error("Direct copy failed:", err);
     } finally {
       setCopyLoading(false);
     }
   }, [isCopying, copyLoading, trader]);
 
-  /* ── Connect X (still mock — no real X OAuth yet) ── */
+  /* ── First-time settings confirm ── */
+  const handleCopySettingsConfirm = async (cfg: any) => {
+    if (!trader) return;
+    try {
+      const payload: DefaultFollowSettings = {
+        tradeSizeType: cfg.sizeType, tradeSize: cfg.sizeVal, leverage: cfg.leverage,
+        leverageType: "cross", tp: { type: cfg.tpType, value: cfg.tpVal },
+        sl: { type: cfg.slType, value: cfg.slVal }, orderType: "market",
+      };
+      await updateDefaultSettings(payload);
+      await followTrader(trader.username, true);
+      markHasCopied();
+      setShowCopySettings(false);
+      setIsCopying(true);
+      setIsFollowing(true);
+      setTimeout(() => { setShowCopySuccess(true); triggerFirstCopyTrade(); }, 200);
+    } catch (e: any) {
+      console.error("Copy setup failed:", e);
+      alert(e?.message || "Failed to start copy trading.");
+    }
+  };
+
+  /* ── Connect X ── */
   const handleConnectX = () => {
     setShowConnectModal(true);
     setConnectStage("connecting");
@@ -528,11 +715,9 @@ function KOLProfileContent() {
   };
   const handleConnectDone = () => { setIsXConnected(true); setShowConnectModal(false); };
 
-  /* ── Loading / Error states ── */
   if (loading) return <ProfileSkeleton />;
   if (error || !trader) return <ProfileError message={error || "Trader not found"} onBack={() => router.push("/copyTrading")} />;
 
-  /* ── Derived data from API response ── */
   const radarData = trader.radar ?? { accuracy: 0, winRate: 0, riskReward: 0, consistency: 0, timing: 0, transparency: 0, engagement: 0, trackRecord: 0 };
   const radarAvg = Object.values(radarData).reduce((a, b) => a + b, 0) / 8;
   const kolGrade = getGradeFromString(trader.profit_grade, radarAvg);
@@ -631,7 +816,6 @@ function KOLProfileContent() {
             <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15), transparent 60%)" }} />
 
             <div className="relative z-10">
-              {/* Avatar + Name + Grade */}
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   {trader.avatar_url ? (
@@ -661,17 +845,14 @@ function KOLProfileContent() {
                 </div>
               </div>
 
-              {/* Followers / Following */}
               <div className="flex items-center gap-3 mb-2.5">
                 <span className="text-[10px]"><span className="text-white font-bold">{trader.following_count}</span><span className="text-gray-500 font-medium"> Following</span></span>
                 <span className="text-[10px]"><span className="text-white font-bold">{trader.followers_count}</span><span className="text-gray-500 font-medium"> Followers</span></span>
                 <span className="text-[10px]"><span className="text-white font-bold">{trader.total_signals}</span><span className="text-gray-500 font-medium"> Signals</span></span>
               </div>
 
-              {/* Bio */}
               {trader.bio && <p className="text-[11px] text-gray-400 leading-relaxed mb-3">{trader.bio}</p>}
 
-              {/* Quick stats pills */}
               <div className="flex items-center gap-2 mb-3">
                 <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "rgba(45,212,191,0.06)", border: "1px solid rgba(45,212,191,0.12)" }}>
                   <Target size={9} className="text-teal-400" />
@@ -689,7 +870,7 @@ function KOLProfileContent() {
                 )}
               </div>
 
-              {/* Copy Trade CTA */}
+              {/* Copy Trade CTA — ★ UPDATED: toggle behavior */}
               <button
                 onClick={handleCopyToggle}
                 disabled={copyLoading}
@@ -698,17 +879,16 @@ function KOLProfileContent() {
                 onPointerLeave={() => setCopyPressed(false)}
                 className="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all duration-300 cursor-pointer relative overflow-hidden"
                 style={isCopying
-                  ? { background: "rgba(251,146,60,0.12)", color: "#fb923c", border: "1px solid rgba(251,146,60,0.25)", transform: copyPressed ? "scale(0.98)" : "scale(1)" }
+                  ? { background: "rgba(45,212,191,0.15)", color: "#2dd4bf", border: "1px solid rgba(45,212,191,0.25)", transform: copyPressed ? "scale(0.98)" : "scale(1)" }
                   : { background: "linear-gradient(135deg, #2dd4bf, #14b8a6)", color: "#0a0f14", boxShadow: "0 4px 20px rgba(45,212,191,0.35), inset 0 1px 0 rgba(255,255,255,0.2)", transform: copyPressed ? "scale(0.98)" : "scale(1)", opacity: copyLoading ? 0.7 : 1 }
                 }
               >
                 {!isCopying && <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%)", backgroundSize: "200% 100%", animation: "copyShimmer 3s ease-in-out infinite" }} />}
                 <span className="relative z-10 flex items-center justify-center gap-1.5">
-                  {copyLoading ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : isCopying ? <><CheckCircle size={13} /><span>Copying</span></> : <><Copy size={13} /><span>Copy Trade</span></>}
+                  {copyLoading ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : isCopying ? <><CheckCircle size={13} /><span>Copying ✓</span></> : <><Copy size={13} /><span>Copy Trade</span></>}
                 </span>
               </button>
 
-              {/* Secondary Buttons */}
               <div className="grid grid-cols-2 mt-1.5 gap-1.5">
                 <button
                   onClick={handleFollow}
@@ -755,11 +935,8 @@ function KOLProfileContent() {
 
       {/* ── Content ── */}
       <div className="relative z-10 px-4 pb-24">
-
-        {/* ════════ OVERVIEW TAB ════════ */}
         {activeTab === "overview" && (
           <div className="space-y-1.5">
-            {/* Radar */}
             <ScrollReveal direction="scale" delay={0}>
               <div className="rounded-xl p-2 relative overflow-hidden" style={cardStyle}>
                 <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at center, rgba(45,212,191,0.04) 0%, transparent 70%)" }} />
@@ -768,7 +945,6 @@ function KOLProfileContent() {
               </div>
             </ScrollReveal>
 
-            {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-1.5">
               {[
                 bestSignal ? { icon: Trophy, ic: "text-teal-400", ib: "bg-teal-400/10", label: "Best Signal", val: Math.abs(bestSignal.pnl), pre: bestSignal.pnl >= 0 ? "+" : "-", suf: "%", color: "text-teal-400", sub: `${bestSignal.token} · ${bestSignal.date}` } : null,
@@ -789,7 +965,6 @@ function KOLProfileContent() {
               })}
             </div>
 
-            {/* Signal vs Noise + Copiers + Points */}
             <ScrollReveal direction="up" delay={0}>
               <div className="rounded-xl p-2.5 relative overflow-hidden" style={cardStyle}>
                 <div className="flex items-center gap-2.5 mb-2">
@@ -798,62 +973,37 @@ function KOLProfileContent() {
                   <span className="text-[8px] text-teal-400 font-semibold shrink-0"><AnimatedNumber value={signalPct} suffix="%" /></span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md flex items-center justify-center bg-blue-400/10"><Users size={11} className="text-blue-400" /></div>
-                    <div><p className="text-[12px] font-bold text-white">{trader.copiers_count}</p><p className="text-[7px] text-gray-500">Copiers</p></div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md flex items-center justify-center bg-yellow-400/10"><Award size={11} className="text-yellow-400" /></div>
-                    <div><p className="text-[12px] font-bold text-white">{trader.points}</p><p className="text-[7px] text-gray-500">Points</p></div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-md flex items-center justify-center bg-teal-400/10"><Zap size={11} className="text-teal-400" /></div>
-                    <div><p className="text-[12px] font-bold text-white">{trader.total_signals}</p><p className="text-[7px] text-gray-500">Signals</p></div>
-                  </div>
+                  <div className="flex items-center gap-2"><div className="w-6 h-6 rounded-md flex items-center justify-center bg-blue-400/10"><Users size={11} className="text-blue-400" /></div><div><p className="text-[12px] font-bold text-white">{trader.copiers_count}</p><p className="text-[7px] text-gray-500">Copiers</p></div></div>
+                  <div className="flex items-center gap-2"><div className="w-6 h-6 rounded-md flex items-center justify-center bg-yellow-400/10"><Award size={11} className="text-yellow-400" /></div><div><p className="text-[12px] font-bold text-white">{trader.points}</p><p className="text-[7px] text-gray-500">Points</p></div></div>
+                  <div className="flex items-center gap-2"><div className="w-6 h-6 rounded-md flex items-center justify-center bg-teal-400/10"><Zap size={11} className="text-teal-400" /></div><div><p className="text-[12px] font-bold text-white">{trader.total_signals}</p><p className="text-[7px] text-gray-500">Signals</p></div></div>
                 </div>
               </div>
             </ScrollReveal>
           </div>
         )}
 
-        {/* ════════ SIGNALS TAB ════════ */}
         {activeTab === "signals" && (
           isXConnected ? (
             signalsLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 size={24} className="text-teal-400" style={{ animation: "spin 1s linear infinite" }} />
-              </div>
+              <div className="flex items-center justify-center py-16"><Loader2 size={24} className="text-teal-400" style={{ animation: "spin 1s linear infinite" }} /></div>
             ) : signals.length === 0 ? (
               <EmptyState icon={Zap} title="No Signal Data Yet" description="This trader hasn't posted any signals yet." />
             ) : (() => {
               const wins = signals.filter(s => s.change_since_tweet > 0);
               const losses = signals.filter(s => s.change_since_tweet < 0);
               const filtered = signalFilter === "wins" ? wins : signalFilter === "losses" ? losses : signals;
-
               const totalAvgPnl = signals.reduce((a, s) => a + s.change_since_tweet, 0) / signals.length;
               const winRate = (wins.length / signals.length) * 100;
-
-              /* PnL curve: sort oldest-first, accumulate */
-              const parseAge = (str: string) => {
-                const m = str.match(/(\d+)(m|h|d)/);
-                if (!m) return 0;
-                const n = parseInt(m[1]);
-                return m[2] === "d" ? n * 1440 : m[2] === "h" ? n * 60 : n;
-              };
+              const parseAge = (str: string) => { const m = str.match(/(\d+)(m|h|d)/); if (!m) return 0; const n = parseInt(m[1]); return m[2] === "d" ? n * 1440 : m[2] === "h" ? n * 60 : n; };
               const sorted = [...signals].sort((a, b) => parseAge(b.updateTime) - parseAge(a.updateTime));
               let cum = 0;
-              const pnlData = sorted.map((s, i) => {
-                cum += s.change_since_tweet;
-                return { idx: i, cumPnl: parseFloat(cum.toFixed(2)), ticker: s.ticker };
-              });
-
+              const pnlData = sorted.map((s, i) => { cum += s.change_since_tweet; return { idx: i, cumPnl: parseFloat(cum.toFixed(2)), ticker: s.ticker }; });
               const rangeLimit = pnlRange === "1W" ? 7 : pnlRange === "1M" ? 30 : pnlRange === "3M" ? 90 : 9999;
               const pnlFiltered = pnlRange === "ALL" ? pnlData : pnlData.slice(-rangeLimit);
               const totalCumPnl = pnlData.length > 0 ? pnlData[pnlData.length - 1].cumPnl : 0;
 
               return (
                 <div className="space-y-1.5" style={{ animation: "unlockReveal 0.5s ease both" }}>
-                  {/* PnL Curve */}
                   <ScrollReveal direction="scale" delay={0}>
                     <div className="rounded-xl p-3 relative overflow-hidden" style={cardStyle}>
                       <div className="flex items-center justify-between mb-1">
@@ -861,39 +1011,20 @@ function KOLProfileContent() {
                           <span className="text-[10px] text-gray-400 font-medium">PnL Curve</span>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <TrendingUp size={14} className={totalCumPnl >= 0 ? "text-teal-400" : "text-rose-400"} />
-                            <span className="text-[16px] font-bold" style={{ color: totalCumPnl >= 0 ? "#2dd4bf" : "#f43f5e" }}>
-                              {totalCumPnl >= 0 ? "+" : ""}{totalCumPnl.toFixed(1)}%
-                            </span>
+                            <span className="text-[16px] font-bold" style={{ color: totalCumPnl >= 0 ? "#2dd4bf" : "#f43f5e" }}>{totalCumPnl >= 0 ? "+" : ""}{totalCumPnl.toFixed(1)}%</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-0.5 p-0.5 rounded-lg" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                          {(["1W", "1M", "3M", "ALL"] as const).map(r => (
-                            <button key={r} onClick={() => setPnlRange(r)}
-                              className="px-2 py-1 rounded-md text-[9px] font-semibold transition-all cursor-pointer"
-                              style={pnlRange === r
-                                ? { background: "rgba(45,212,191,0.2)", color: "#2dd4bf", border: "1px solid rgba(45,212,191,0.3)" }
-                                : { color: "rgba(255,255,255,0.4)" }
-                              }>{r}</button>
-                          ))}
+                          {(["1W", "1M", "3M", "ALL"] as const).map(r => (<button key={r} onClick={() => setPnlRange(r)} className="px-2 py-1 rounded-md text-[9px] font-semibold transition-all cursor-pointer" style={pnlRange === r ? { background: "rgba(45,212,191,0.2)", color: "#2dd4bf", border: "1px solid rgba(45,212,191,0.3)" } : { color: "rgba(255,255,255,0.4)" }}>{r}</button>))}
                         </div>
                       </div>
                       <div style={{ height: 140 }}>
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={pnlFiltered} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="pnlGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor={totalCumPnl >= 0 ? "#2dd4bf" : "#f43f5e"} stopOpacity={0.3} />
-                                <stop offset="100%" stopColor={totalCumPnl >= 0 ? "#2dd4bf" : "#f43f5e"} stopOpacity={0} />
-                              </linearGradient>
-                            </defs>
+                            <defs><linearGradient id="pnlGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={totalCumPnl >= 0 ? "#2dd4bf" : "#f43f5e"} stopOpacity={0.3} /><stop offset="100%" stopColor={totalCumPnl >= 0 ? "#2dd4bf" : "#f43f5e"} stopOpacity={0} /></linearGradient></defs>
                             <XAxis dataKey="idx" hide />
                             <YAxis hide domain={["dataMin - 1", "dataMax + 1"]} />
-                            <Tooltip
-                              contentStyle={{ background: "rgba(15,20,25,0.95)", border: "1px solid rgba(45,212,191,0.2)", borderRadius: 8, fontSize: 10 }}
-                              labelStyle={{ color: "rgba(255,255,255,0.5)" }}
-                              formatter={((v: number | undefined) => [`${(v ?? 0) >= 0 ? "+" : ""}${(v ?? 0).toFixed(2)}%`, "Cumulative"]) as any}
-                              labelFormatter={(i) => pnlFiltered[i as number]?.ticker || ""}
-                            />
+                            <Tooltip contentStyle={{ background: "rgba(15,20,25,0.95)", border: "1px solid rgba(45,212,191,0.2)", borderRadius: 8, fontSize: 10 }} labelStyle={{ color: "rgba(255,255,255,0.5)" }} formatter={((v: number | undefined) => [`${(v ?? 0) >= 0 ? "+" : ""}${(v ?? 0).toFixed(2)}%`, "Cumulative"]) as any} labelFormatter={(i) => pnlFiltered[i as number]?.ticker || ""} />
                             <Area type="monotone" dataKey="cumPnl" stroke={totalCumPnl >= 0 ? "#2dd4bf" : "#f43f5e"} strokeWidth={1.5} fill="url(#pnlGrad)" dot={false} />
                           </AreaChart>
                         </ResponsiveContainer>
@@ -901,92 +1032,55 @@ function KOLProfileContent() {
                     </div>
                   </ScrollReveal>
 
-                  {/* Stats Row */}
                   <ScrollReveal direction="up" delay={0.05}>
                     <div className="grid grid-cols-3 gap-1.5">
                       {[
                         { icon: Zap, ic: "text-teal-400", bg: "bg-teal-400/10", label: "Total Signals", value: String(signals.length) },
                         { icon: Target, ic: "text-teal-400", bg: "bg-teal-400/10", label: "Win Rate", value: `${winRate.toFixed(0)}%` },
                         { icon: TrendingUp, ic: totalAvgPnl >= 0 ? "text-teal-400" : "text-rose-400", bg: totalAvgPnl >= 0 ? "bg-teal-400/10" : "bg-rose-400/10", label: "Avg PnL", value: `${totalAvgPnl >= 0 ? "+" : ""}${totalAvgPnl.toFixed(1)}%` },
-                      ].map((s, i) => {
-                        const SIcon = s.icon;
-                        return (
-                          <div key={i} className="rounded-xl p-2.5 relative overflow-hidden" style={cardStyle}>
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <div className={`w-5 h-5 rounded-md flex items-center justify-center ${s.bg}`}><SIcon size={10} className={s.ic} /></div>
-                              <span className="text-[8px] text-gray-500">{s.label}</span>
-                            </div>
-                            <p className="text-[14px] font-bold text-white">{s.value}</p>
-                          </div>
-                        );
-                      })}
+                      ].map((s, i) => { const SIcon = s.icon; return (
+                        <div key={i} className="rounded-xl p-2.5 relative overflow-hidden" style={cardStyle}>
+                          <div className="flex items-center gap-1.5 mb-1"><div className={`w-5 h-5 rounded-md flex items-center justify-center ${s.bg}`}><SIcon size={10} className={s.ic} /></div><span className="text-[8px] text-gray-500">{s.label}</span></div>
+                          <p className="text-[14px] font-bold text-white">{s.value}</p>
+                        </div>
+                      ); })}
                     </div>
                   </ScrollReveal>
 
-                  {/* Filter Tabs */}
                   <ScrollReveal direction="up" delay={0.08}>
                     <div className="flex p-0.5 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                      {([
-                        { key: "all" as const, label: `All (${signals.length})` },
-                        { key: "wins" as const, label: `Wins (${wins.length})` },
-                        { key: "losses" as const, label: `Losses (${losses.length})` },
-                      ]).map(f => (
-                        <button key={f.key} onClick={() => setSignalFilter(f.key)}
-                          className="flex-1 py-1.5 rounded-md text-[10px] font-medium transition-all cursor-pointer"
-                          style={signalFilter === f.key
-                            ? { background: "rgba(45,212,191,0.15)", color: "#2dd4bf", border: "1px solid rgba(45,212,191,0.3)" }
-                            : { color: "rgba(255,255,255,0.4)" }
-                          }>{f.label}</button>
+                      {([{ key: "all" as const, label: `All (${signals.length})` }, { key: "wins" as const, label: `Wins (${wins.length})` }, { key: "losses" as const, label: `Losses (${losses.length})` }]).map(f => (
+                        <button key={f.key} onClick={() => setSignalFilter(f.key)} className="flex-1 py-1.5 rounded-md text-[10px] font-medium transition-all cursor-pointer" style={signalFilter === f.key ? { background: "rgba(45,212,191,0.15)", color: "#2dd4bf", border: "1px solid rgba(45,212,191,0.3)" } : { color: "rgba(255,255,255,0.4)" }}>{f.label}</button>
                       ))}
                     </div>
                   </ScrollReveal>
 
-                  {/* Signal Cards */}
                   <div className="space-y-1.5">
                     {filtered.map((sig, i) => {
                       const isWin = sig.change_since_tweet > 0;
                       const pnlColor = isWin ? "#2dd4bf" : sig.change_since_tweet < 0 ? "#f43f5e" : "rgba(255,255,255,0.5)";
                       const dirColor = sig.bull_or_bear === "bullish" ? "#2dd4bf" : "#f43f5e";
                       const dirLabel = sig.bull_or_bear === "bullish" ? "LONG" : "SHORT";
-
                       return (
                         <ScrollReveal key={sig.signal_id} delay={Math.min(i * 0.03, 0.3)} direction="up" distance={14}>
                           <div className="rounded-xl p-3 relative overflow-hidden transition-all duration-300" style={cardStyle}>
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-center gap-2">
                                 <span className="text-[14px] font-bold text-white">${sig.ticker}</span>
-                                <span className="px-1.5 py-0.5 rounded text-[8px] font-bold" style={{ background: `${dirColor}20`, color: dirColor, border: `1px solid ${dirColor}30` }}>
-                                  {dirLabel}
-                                </span>
-                                <div className="flex items-center gap-0.5 text-gray-500">
-                                  <Clock size={8} />
-                                  <span className="text-[9px]">{sig.updateTime}</span>
-                                </div>
+                                <span className="px-1.5 py-0.5 rounded text-[8px] font-bold" style={{ background: `${dirColor}20`, color: dirColor, border: `1px solid ${dirColor}30` }}>{dirLabel}</span>
+                                <div className="flex items-center gap-0.5 text-gray-500"><Clock size={8} /><span className="text-[9px]">{sig.updateTime}</span></div>
                               </div>
                               <div className="flex items-center gap-1">
                                 {isWin ? <ArrowUpRight size={12} style={{ color: pnlColor }} /> : <ArrowDownRight size={12} style={{ color: pnlColor }} />}
-                                <span className="text-[13px] font-bold" style={{ color: pnlColor }}>
-                                  {sig.change_since_tweet >= 0 ? "+" : ""}{sig.change_since_tweet.toFixed(1)}%
-                                </span>
+                                <span className="text-[13px] font-bold" style={{ color: pnlColor }}>{sig.change_since_tweet >= 0 ? "+" : ""}{sig.change_since_tweet.toFixed(1)}%</span>
                               </div>
                             </div>
-
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex-1 min-w-0">
-                                {sig.entry_price > 0 && (
-                                  <div className="flex items-center gap-3 mb-1.5">
-                                    <div>
-                                      <span className="text-[8px] text-gray-500 block">Entry</span>
-                                      <span className="text-[11px] font-semibold text-white">${sig.entry_price.toLocaleString()}</span>
-                                    </div>
-                                  </div>
-                                )}
-                                {sig.content && (
-                                  <p className="text-[9px] text-gray-400 leading-relaxed line-clamp-2">{sig.content}</p>
-                                )}
+                                {sig.entry_price > 0 && (<div className="flex items-center gap-3 mb-1.5"><div><span className="text-[8px] text-gray-500 block">Entry</span><span className="text-[11px] font-semibold text-white">${sig.entry_price.toLocaleString()}</span></div></div>)}
+                                {sig.content && (<p className="text-[9px] text-gray-400 leading-relaxed line-clamp-2">{sig.content}</p>)}
                               </div>
                             </div>
-
                             {(sig.likesCount > 0 || sig.retweetsCount > 0 || sig.commentsCount > 0) && (
                               <div className="flex items-center gap-3 mt-2 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
                                 {sig.likesCount > 0 && <span className="text-[8px] text-gray-500">❤️ {sig.likesCount.toLocaleString()}</span>}
@@ -1007,7 +1101,6 @@ function KOLProfileContent() {
           )
         )}
 
-        {/* ════════ POSITIONS TAB ════════ */}
         {activeTab === "positions" && (
           isXConnected
             ? <EmptyState icon={Eye} title="No Position Data Yet" description="Copied positions will appear here once the positions API is connected." />
@@ -1019,6 +1112,28 @@ function KOLProfileContent() {
       <ConnectXModal isOpen={showConnectModal} stage={connectStage} onClose={handleConnectDone} />
       <PrivacySheet isOpen={showPrivacySheet} onClose={() => setShowPrivacySheet(false)} settings={privacySettings} onToggle={(k) => setPrivacySettings((p) => ({ ...p, [k]: !p[k] }))} />
       <ShareSheet isOpen={showShareSheet} onClose={() => setShowShareSheet(false)} traderData={{ name: displayName, handle: `@${trader.username}`, avatar: avatarLetter, avatarBg, rank, grade: kolGrade.grade, gradeColor: kolGrade.color, gradeGlow: kolGrade.glow, tags: [], radar: radarData as unknown as Record<string, number>, cumulative, streak: trader.streak, signalPct, bestTrade: bestSignal ?? { token: "—", pnl: 0, date: "—" }, tradersCopying: trader.copiers_count }} />
+
+      {/* ★ Copy Flow — First Time Settings Sheet */}
+      {showCopySettings && trader && (
+        <ProfileCopySettingsSheet
+          traderName={trader.username}
+          onConfirm={handleCopySettingsConfirm}
+          onClose={() => setShowCopySettings(false)}
+        />
+      )}
+
+      {/* ★ Copy Flow — First Time Success Sheet */}
+      {showCopySuccess && trader && (
+        <ProfileCopySuccessSheet
+          traderName={trader.username}
+          onViewRewards={() => {
+            setShowCopySuccess(false);
+            viewRewardsFromPrompt();
+            router.push("/dashboard");
+          }}
+          onDone={() => setShowCopySuccess(false)}
+        />
+      )}
     </div>
   );
 }
