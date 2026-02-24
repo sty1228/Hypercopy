@@ -105,8 +105,6 @@ function QuickSettingsSheet({
 
   const isCopy = action === "copy";
   const accentColor = isCopy ? "rgba(45,212,191,1)" : "rgba(244,63,94,1)";
-  const accentBg = isCopy ? "rgba(45,212,191,0.08)" : "rgba(244,63,94,0.08)";
-  const accentBorder = isCopy ? "rgba(45,212,191,0.2)" : "rgba(244,63,94,0.2)";
 
   const content = (
     <div
@@ -133,7 +131,7 @@ function QuickSettingsSheet({
           borderRadius: "24px 24px 0 0",
           border: "1px solid rgba(255,255,255,0.06)",
           borderBottom: "none",
-          maxHeight: "88vh",
+          maxHeight: "90vh",
           overflowY: "auto",
           transform: visible ? "translateY(0)" : "translateY(100%)",
           boxShadow: "0 -10px 40px rgba(0,0,0,0.5)",
@@ -146,56 +144,69 @@ function QuickSettingsSheet({
             style={{ background: "rgba(255,255,255,0.12)" }}
           />
 
-          {/* Header — encouraging tone */}
-          <div className="flex items-center gap-3 mb-1">
+          {/* ── Intro / Onboarding Banner ─────────── */}
+          <div
+            className="rounded-2xl p-4 mb-5 relative overflow-hidden"
+            style={{
+              background: isCopy
+                ? "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.02) 100%)"
+                : "linear-gradient(135deg, rgba(244,63,94,0.06) 0%, rgba(244,63,94,0.02) 100%)",
+              border: isCopy
+                ? "1px solid rgba(45,212,191,0.12)"
+                : "1px solid rgba(244,63,94,0.12)",
+            }}
+          >
+            {/* Subtle glow */}
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm"
+              className="absolute -top-10 -right-10 w-32 h-32 rounded-full pointer-events-none"
               style={{
-                background: isCopy
-                  ? "linear-gradient(135deg, #06b6d4, #2dd4bf)"
-                  : "linear-gradient(135deg, #f43f5e, #fb7185)",
-                color: "#fff",
+                background: `radial-gradient(circle, ${accentColor}10, transparent 70%)`,
+                filter: "blur(20px)",
               }}
-            >
-              {traderName[0]?.toUpperCase()}
-            </div>
-            <div>
-              <h3 className="text-white text-base font-bold m-0">
-                {isCopy ? "Copy" : "Counter"} @{traderName}
-              </h3>
-              <p className="text-xs m-0" style={{ color: "rgba(255,255,255,0.35)" }}>
-                Set up once, trade automatically
+            />
+            <div className="relative">
+              <div className="flex items-center gap-2.5 mb-2.5">
+                <div
+                  className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs"
+                  style={{
+                    background: isCopy
+                      ? "linear-gradient(135deg, #06b6d4, #2dd4bf)"
+                      : "linear-gradient(135deg, #f43f5e, #fb7185)",
+                    color: "#fff",
+                  }}
+                >
+                  {traderName[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="text-white text-sm font-bold m-0 leading-tight">
+                    {isCopy ? "Copy" : "Counter"} @{traderName}
+                  </h3>
+                </div>
+              </div>
+              <p
+                className="text-xs leading-relaxed m-0"
+                style={{ color: "rgba(255,255,255,0.4)" }}
+              >
+                When this trader makes a call, we'll automatically {isCopy ? "mirror" : "take the opposite of"} their
+                trade for you. Set your preferences below — you only need to do this once.
               </p>
             </div>
           </div>
 
-          <p
-            className="text-xs mb-5 pl-[52px]"
-            style={{ color: "rgba(255,255,255,0.3)" }}
-          >
-            You can change these anytime in Settings
-          </p>
-
-          {/* ── Position Size ─────────────────────── */}
-          <div className="mb-5">
+          {/* ── Trade Settings ─────────────────────── */}
+          <div className="mb-1.5">
             <div className="flex items-center gap-2 mb-3 pl-0.5">
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
-                style={{
-                  background: accentBg,
-                  border: `1px solid ${accentBorder}`,
-                }}
+              <span
+                className="text-xs font-medium uppercase tracking-wider"
+                style={{ color: "rgba(255,255,255,0.3)" }}
               >
-                📊
-              </div>
-              <span className="text-white text-sm font-semibold">
-                Position Size
+                Trade Settings
               </span>
             </div>
 
             {/* Trade Size */}
             <div
-              className="flex items-center justify-between px-4 py-3.5 rounded-xl mb-2.5"
+              className="flex items-center justify-between px-4 py-3.5 rounded-xl mb-2"
               style={{
                 background: "rgba(255,255,255,0.025)",
                 border: "1px solid rgba(255,255,255,0.06)",
@@ -218,7 +229,7 @@ function QuickSettingsSheet({
 
             {/* Leverage */}
             <div
-              className="px-4 py-3.5 rounded-xl"
+              className="px-4 py-3.5 rounded-xl mb-5"
               style={{
                 background: "rgba(255,255,255,0.025)",
                 border: "1px solid rgba(255,255,255,0.06)",
@@ -245,28 +256,20 @@ function QuickSettingsSheet({
                 <span>1x</span><span>5x</span><span>10x</span><span>15x</span><span>20x</span>
               </div>
             </div>
-          </div>
 
-          {/* ── Risk Controls ─────────────────────── */}
-          <div className="mb-5">
+            {/* ── Risk Management ─────────────────── */}
             <div className="flex items-center gap-2 mb-3 pl-0.5">
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
-                style={{
-                  background: "rgba(251,113,133,0.08)",
-                  border: "1px solid rgba(251,113,133,0.15)",
-                }}
+              <span
+                className="text-xs font-medium uppercase tracking-wider"
+                style={{ color: "rgba(255,255,255,0.3)" }}
               >
-                🛡️
-              </div>
-              <span className="text-white text-sm font-semibold">
-                Risk Controls
+                Risk Management
               </span>
             </div>
 
             {/* Stop Loss */}
             <div
-              className="flex items-center justify-between px-4 py-3.5 rounded-xl mb-2.5"
+              className="flex items-center justify-between px-4 py-3.5 rounded-xl mb-2"
               style={{
                 background: "rgba(255,255,255,0.025)",
                 border: "1px solid rgba(255,255,255,0.06)",
@@ -311,27 +314,23 @@ function QuickSettingsSheet({
             </div>
           </div>
 
-          {/* Summary */}
+          {/* Summary pill */}
           <div
-            className="px-4 py-3 rounded-xl mb-4 text-xs"
+            className="flex items-center justify-center gap-1.5 py-2.5 mt-4 mb-4 rounded-full text-[11px]"
             style={{
-              background: `${accentColor}06`,
-              border: `1px solid ${accentColor}12`,
-              color: "rgba(255,255,255,0.4)",
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.05)",
+              color: "rgba(255,255,255,0.35)",
             }}
           >
-            {sizeType === "PCT" ? `${sizeVal}%` : `$${sizeVal}`} per trade · {leverage}x ·{" "}
-            SL {slType === "PCT" ? `${slVal}%` : `$${slVal}`} ·{" "}
-            TP {tpType === "PCT" ? `${tpVal}%` : `$${tpVal}`}
+            <span>{sizeType === "PCT" ? `${sizeVal}%` : `${sizeVal}`} per trade</span>
+            <span style={{ color: "rgba(255,255,255,0.15)" }}>·</span>
+            <span>{leverage}x</span>
+            <span style={{ color: "rgba(255,255,255,0.15)" }}>·</span>
+            <span>SL {slType === "PCT" ? `${slVal}%` : `${slVal}`}</span>
+            <span style={{ color: "rgba(255,255,255,0.15)" }}>·</span>
+            <span>TP {tpType === "PCT" ? `${tpVal}%` : `${tpVal}`}</span>
           </div>
-
-          {/* Lightweight risk note — encouraging, not scary */}
-          <p
-            className="text-center text-[10px] mb-4"
-            style={{ color: "rgba(255,255,255,0.2)", lineHeight: 1.5 }}
-          >
-            Start small, learn as you go. You can adjust settings anytime.
-          </p>
 
           {/* Confirm Button */}
           <button
@@ -352,12 +351,24 @@ function QuickSettingsSheet({
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="animate-spin">⏳</span> Setting up...
+                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                  <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+                Setting up...
               </span>
             ) : (
               `Start ${isCopy ? "Copying" : "Countering"} @${traderName}`
             )}
           </button>
+
+          {/* Footer note */}
+          <p
+            className="text-center text-[10px] mt-3 mb-0"
+            style={{ color: "rgba(255,255,255,0.18)", lineHeight: 1.5 }}
+          >
+            You can adjust these anytime in Settings · Only risk what you can afford
+          </p>
         </div>
       </div>
     </div>
@@ -373,6 +384,84 @@ function QuickSettingsSheet({
 //  Only shown on the user's FIRST-EVER copy action
 // ═══════════════════════════════════════════════════════════════
 
+// ── Confetti particle system ──────────────────────────────
+function ConfettiCanvas({ accent }: { accent: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const W = 393;
+    const H = 500;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
+
+    const colors = [accent, "#fbbf24", "#a78bfa", "#fb7185", "#38bdf8", "#34d399", "#f472b6"];
+
+    interface P {
+      x: number; y: number; vx: number; vy: number;
+      w: number; h: number; rot: number; vr: number;
+      color: string; opacity: number; gravity: number;
+    }
+
+    const particles: P[] = [];
+    for (let i = 0; i < 80; i++) {
+      particles.push({
+        x: W / 2 + (Math.random() - 0.5) * 60,
+        y: H * 0.35,
+        vx: (Math.random() - 0.5) * 12,
+        vy: -Math.random() * 14 - 4,
+        w: Math.random() * 6 + 3,
+        h: Math.random() * 10 + 4,
+        rot: Math.random() * Math.PI * 2,
+        vr: (Math.random() - 0.5) * 0.3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        opacity: 1,
+        gravity: 0.25 + Math.random() * 0.15,
+      });
+    }
+
+    let raf: number;
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H);
+      let alive = false;
+      for (const p of particles) {
+        if (p.opacity <= 0) continue;
+        alive = true;
+        p.x += p.vx;
+        p.vy += p.gravity;
+        p.y += p.vy;
+        p.vx *= 0.99;
+        p.rot += p.vr;
+        if (p.y > H * 0.85) p.opacity -= 0.03;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.globalAlpha = Math.max(0, p.opacity);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      }
+      if (alive) raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [accent]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 pointer-events-none"
+      style={{ width: "100%", height: "100%" }}
+    />
+  );
+}
+
 function SuccessSheet({
   traderName,
   action,
@@ -385,11 +474,14 @@ function SuccessSheet({
   onDone: () => void;
 }) {
   const [visible, setVisible] = useState(false);
+  const [checkAnim, setCheckAnim] = useState(false);
   const isCopy = action === "copy";
   const accentColor = isCopy ? "#2dd4bf" : "#fb7185";
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
+    const t = setTimeout(() => setCheckAnim(true), 400);
+    return () => clearTimeout(t);
   }, []);
 
   const handleDone = () => {
@@ -410,8 +502,8 @@ function SuccessSheet({
       <div
         className="absolute inset-0 transition-opacity duration-300"
         style={{
-          background: "rgba(0,0,0,0.7)",
-          backdropFilter: "blur(4px)",
+          background: "rgba(0,0,0,0.75)",
+          backdropFilter: "blur(8px)",
           opacity: visible ? 1 : 0,
         }}
       />
@@ -426,80 +518,163 @@ function SuccessSheet({
           borderBottom: "none",
           transform: visible ? "translateY(0)" : "translateY(100%)",
           boxShadow: "0 -10px 40px rgba(0,0,0,0.5)",
+          overflow: "hidden",
         }}
       >
-        <div className="p-6 pb-9">
-          {/* Success icon */}
-          <div
-            className="w-[72px] h-[72px] rounded-3xl mx-auto mb-5 flex items-center justify-center"
-            style={{
-              background: `${accentColor}10`,
-              border: `2px solid ${accentColor}30`,
-              boxShadow: `0 0 40px ${accentColor}15`,
-            }}
-          >
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M20 6L9 17l-5-5"
-                stroke={accentColor}
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+        {/* Confetti */}
+        <ConfettiCanvas accent={accentColor} />
+
+        {/* Ambient glows */}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full pointer-events-none"
+          style={{
+            background: `radial-gradient(circle, ${accentColor}12, transparent 65%)`,
+            filter: "blur(40px)",
+          }}
+        />
+        <div
+          className="absolute bottom-20 right-0 w-[180px] h-[180px] rounded-full pointer-events-none"
+          style={{
+            background: `radial-gradient(circle, ${accentColor}08, transparent 65%)`,
+            filter: "blur(30px)",
+          }}
+        />
+
+        <div className="relative p-6 pb-9">
+          {/* Animated check icon */}
+          <div className="mx-auto mb-6 mt-2 relative" style={{ width: 80, height: 80 }}>
+            {/* Outer ring pulse */}
+            <div
+              className="absolute inset-0 rounded-full"
+              style={{
+                border: `2px solid ${accentColor}`,
+                opacity: checkAnim ? 0 : 0.4,
+                transform: checkAnim ? "scale(1.8)" : "scale(1)",
+                transition: "all 0.8s ease-out",
+              }}
+            />
+            {/* Inner circle */}
+            <div
+              className="absolute inset-0 rounded-full flex items-center justify-center"
+              style={{
+                background: `linear-gradient(135deg, ${accentColor}15, ${accentColor}08)`,
+                border: `1.5px solid ${accentColor}30`,
+                boxShadow: `0 0 40px ${accentColor}20, inset 0 0 20px ${accentColor}08`,
+                transform: checkAnim ? "scale(1)" : "scale(0.8)",
+                opacity: checkAnim ? 1 : 0,
+                transition: "all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
+              }}
+            >
+              <svg
+                width="36"
+                height="36"
+                viewBox="0 0 24 24"
+                fill="none"
+                style={{
+                  opacity: checkAnim ? 1 : 0,
+                  transform: checkAnim ? "scale(1)" : "scale(0.5)",
+                  transition: "all 0.4s ease-out 0.2s",
+                }}
+              >
+                <path
+                  d="M20 6L9 17l-5-5"
+                  stroke={accentColor}
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
           </div>
 
-          <h3 className="text-white text-xl font-bold mb-2">
+          <h3
+            className="text-white text-xl font-bold mb-1"
+            style={{
+              opacity: checkAnim ? 1 : 0,
+              transform: checkAnim ? "translateY(0)" : "translateY(10px)",
+              transition: "all 0.4s ease-out 0.3s",
+            }}
+          >
             You&apos;re Now {isCopy ? "Copying" : "Countering"}
           </h3>
-          <p className="text-base font-semibold mb-2" style={{ color: accentColor }}>
+          <p
+            className="text-lg font-bold mb-3"
+            style={{
+              color: accentColor,
+              opacity: checkAnim ? 1 : 0,
+              transform: checkAnim ? "translateY(0)" : "translateY(10px)",
+              transition: "all 0.4s ease-out 0.4s",
+            }}
+          >
             @{traderName}
           </p>
           <p
             className="text-xs mb-6 leading-relaxed"
-            style={{ color: "rgba(255,255,255,0.35)" }}
+            style={{
+              color: "rgba(255,255,255,0.35)",
+              opacity: checkAnim ? 1 : 0,
+              transition: "opacity 0.4s ease-out 0.5s",
+            }}
           >
             Trades will execute automatically based on your settings.
             <br />
             You&apos;ll be notified when new positions open.
           </p>
 
-          {/* Points earned */}
+          {/* Points earned — premium card */}
           <div
-            className="rounded-2xl p-4 mb-6"
+            className="rounded-2xl p-4 mb-6 relative overflow-hidden"
             style={{
-              background: `linear-gradient(135deg, ${accentColor}06, ${accentColor}02)`,
-              border: `1px solid ${accentColor}18`,
+              background: `linear-gradient(135deg, ${accentColor}08, transparent)`,
+              border: `1px solid ${accentColor}15`,
+              opacity: checkAnim ? 1 : 0,
+              transform: checkAnim ? "translateY(0)" : "translateY(15px)",
+              transition: "all 0.5s ease-out 0.55s",
             }}
           >
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="text-xl">🎉</span>
-              <span className="text-2xl font-extrabold" style={{ color: accentColor }}>
+            <div
+              className="absolute -top-8 -right-8 w-24 h-24 rounded-full pointer-events-none"
+              style={{
+                background: `radial-gradient(circle, ${accentColor}12, transparent 70%)`,
+                filter: "blur(12px)",
+              }}
+            />
+            <div className="relative flex items-center justify-center gap-2.5 mb-1.5">
+              <span className="text-3xl font-extrabold" style={{ color: accentColor }}>
                 +50
               </span>
-              <span className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>
-                points earned
+              <span
+                className="text-xs font-medium uppercase tracking-wider"
+                style={{ color: "rgba(255,255,255,0.4)" }}
+              >
+                points
               </span>
             </div>
             <p
               className="text-[11px] m-0"
-              style={{ color: "rgba(255,255,255,0.3)" }}
+              style={{ color: "rgba(255,255,255,0.25)" }}
             >
-              Earn points on every copy trade · Top KOLs earn fee share rewards
+              Earn points on every trade · Top performers earn fee share
             </p>
           </div>
 
-          {/* Buttons */}
+          {/* CTA — View Rewards */}
           <button
             onClick={handleRewards}
-            className="w-full py-3.5 rounded-2xl text-sm font-semibold mb-2.5 transition-all"
+            className="w-full py-3.5 rounded-2xl text-sm font-semibold mb-3 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
             style={{
-              background: `${accentColor}10`,
-              border: `1px solid ${accentColor}20`,
-              color: accentColor,
+              background: isCopy
+                ? "linear-gradient(135deg, #2dd4bf, #14b8a6)"
+                : "linear-gradient(135deg, #f43f5e, #e11d48)",
+              color: isCopy ? "#000" : "#fff",
+              border: "none",
+              boxShadow: `0 0 30px ${accentColor}25`,
+              opacity: checkAnim ? 1 : 0,
+              transform: checkAnim ? "translateY(0)" : "translateY(10px)",
+              transition: "opacity 0.4s ease-out 0.65s, transform 0.4s ease-out 0.65s",
             }}
           >
-            View Rewards Program →
+            View Rewards Program
           </button>
 
           <button
@@ -508,7 +683,9 @@ function SuccessSheet({
             style={{
               background: "transparent",
               border: "none",
-              color: "rgba(255,255,255,0.35)",
+              color: "rgba(255,255,255,0.3)",
+              opacity: checkAnim ? 1 : 0,
+              transition: "opacity 0.4s ease-out 0.75s",
             }}
           >
             Done
