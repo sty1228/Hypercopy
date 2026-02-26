@@ -17,14 +17,16 @@ import {
   getProfileData,
   balanceHistory,
   getFollowedTraders,
+  getWalletBalance,
   type DashboardSummary,
   type PositionItem,
   type ProfileDataResponse,
   type FollowedTrader,
+  type WalletBalance,
 } from "@/service";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
-import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Upload } from "lucide-react";
+import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Upload, RefreshCw, TrendingUp, Wallet, Eye, EyeOff } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import PositionDetail, { PositionDetailData, positionExtendedData } from "./components/PositionDetail";
 import CopyingSheet from "./components/CopyingSheet";
@@ -72,6 +74,8 @@ const formatLabel = (ts: number, tr: TimeRange): string => {
   }
 };
 
+const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const AVATAR_COLORS = ["#2dd4bf", "#a78bfa", "#f97316", "#3b82f6", "#ec4899", "#eab308"];
 
 const Home = () => {
@@ -91,10 +95,13 @@ const Home = () => {
   const [loading, setLoading] = useState(false);
   const [builderDismissed, setBuilderDismissed] = useState(false);
 
+  // ★ Real-time wallet balance (reads from chain, not DB snapshots)
+  const [walletBal, setWalletBal] = useState<WalletBalance | null>(null);
+  const [balRefreshing, setBalRefreshing] = useState(false);
+  const [hideBalance, setHideBalance] = useState(false);
+
   const [timeRange, setTimeRange] = useState<TimeRange>("M");
   const [chartData, setChartData] = useState<BalanceChartData[]>([]);
-  const [balance, setBalance] = useState(0);
-  const [todayGain, setTodayGain] = useState(0);
   const [activeTab, setActiveTab] = useState<"followed" | "position">("followed");
   const [selectedPos, setSelectedPos] = useState<PositionDetailData | null>(null);
   const [showCopying, setShowCopying] = useState(false);
@@ -102,6 +109,16 @@ const Home = () => {
   const [showActiveTrades, setShowActiveTrades] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
+
+  // ── Derived from real-time wallet balance ──
+  const totalBalance = walletBal ? walletBal.hl_equity + walletBal.arb_usdc : 0;
+  const availableToTrade = walletBal?.hl_withdrawable ?? 0;
+  const pendingBalance = walletBal?.arb_usdc ?? 0;
+  const pnl = summary?.total_pnl ?? 0;
+  const pnlPct = summary?.total_pnl_pct ?? 0;
+  const openCount = summary?.open_positions ?? 0;
+  const totalTrades = summary?.total_trades ?? 0;
+  const copyingCount = profile?.followingCount ?? 0;
 
   // ── 1. Privy → Backend JWT sync ──
   useEffect(() => {
@@ -112,28 +129,36 @@ const Home = () => {
       setProfile(null);
       setPositions([]);
       setFollowedTraders([]);
-      setBalance(0);
-      setTodayGain(0);
+      setWalletBal(null);
       setChartData([]);
       return;
     }
     if (!wallet?.address) return;
-
     const existing = localStorage.getItem("token");
-    if (existing) {
-      setAuthReady(true);
-      return;
-    }
-
+    if (existing) { setAuthReady(true); return; }
     connectWalletApi(wallet.address)
-      .then((res) => {
-        localStorage.setItem("token", res.access_token);
-        setAuthReady(true);
-      })
+      .then((res) => { localStorage.setItem("token", res.access_token); setAuthReady(true); })
       .catch((err) => console.error("Auth sync failed:", err));
   }, [authenticated, wallet?.address]);
 
-  // ── 2. Fetch dashboard data ──
+  // ── 2. Fetch real-time balance (from chain, not DB) ──
+  const refreshWalletBalance = useCallback(async () => {
+    if (!authReady) return;
+    setBalRefreshing(true);
+    try { setWalletBal(await getWalletBalance()); }
+    catch (e) { console.error("Wallet balance fetch failed:", e); }
+    finally { setBalRefreshing(false); }
+  }, [authReady]);
+
+  // Poll wallet balance every 10s for real-time updates
+  useEffect(() => {
+    if (!authReady) return;
+    refreshWalletBalance();
+    const iv = setInterval(refreshWalletBalance, 10_000);
+    return () => clearInterval(iv);
+  }, [authReady, refreshWalletBalance]);
+
+  // ── 3. Fetch dashboard data (summary, positions, profile, follows) ──
   const fetchDashboard = useCallback(async () => {
     if (!authReady) return;
     setLoading(true);
@@ -157,30 +182,6 @@ const Home = () => {
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  // ── 3. Animate balance when summary loads ──
-  useEffect(() => {
-    if (!summary) { setTodayGain(0); return; }
-    const bTarget = summary.total_balance;
-    const gTarget = summary.total_pnl;
-    if (bTarget === 0 && gTarget === 0) { setBalance(0); setTodayGain(0); return; }
-    if (balance > 0) {
-      setBalance(bTarget);
-      setTodayGain(gTarget);
-      return;
-    }
-    const dur = 1500, steps = 60;
-    let step = 0;
-    const timer = setInterval(() => {
-      step++;
-      const e = 1 - Math.pow(1 - step / steps, 3);
-      setBalance(bTarget * e);
-      setTodayGain(gTarget * e);
-      if (step >= steps) clearInterval(timer);
-    }, dur / steps);
-    return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [summary]);
-
   // ── 4. Chart data ──
   const getChartData = useCallback(async (tr: TimeRange = "M") => {
     if (!authReady) { setChartData([]); return; }
@@ -190,48 +191,45 @@ const Home = () => {
         label: formatLabel(item.timestamp, tr),
         value: item.acconutValue,
       })));
-    } catch {
-      setChartData([]);
-    }
+    } catch { setChartData([]); }
   }, [authReady]);
 
   useEffect(() => { getChartData(timeRange); }, [timeRange, getChartData]);
 
-  // ── 5. Sheet close handlers ──
-  const handleSheetClose = useCallback((setter: (v: boolean) => void) => {
-    setter(false);
-    fetchDashboard();
-    getChartData(timeRange);
-  }, [fetchDashboard, getChartData, timeRange]);
-
-  // ── 6. Optimistic balance update after withdraw ──
-  const handleWithdrawSuccess = useCallback((amount?: string) => {
-    const num = parseFloat(amount || "0");
-    if (num > 0) {
-      setBalance((prev) => Math.max(0, prev - num));
-      setSummary((prev) =>
-        prev ? { ...prev, total_balance: Math.max(0, prev.total_balance - num) } : prev
-      );
-    }
-    getChartData(timeRange);
-  }, [getChartData, timeRange]);
-
-  // ── Derived: chart last point = live balance ──
+  // ── 5. Chart: sync last point to live balance ──
   const finalChartData = useMemo(() => {
-    if (!chartData.length || !summary) return chartData;
+    if (!chartData.length || !walletBal) return chartData;
     const last = chartData[chartData.length - 1];
-    if (Math.abs(last.value - summary.total_balance) > 0.005) {
+    if (Math.abs(last.value - totalBalance) > 0.005) {
       const updated = [...chartData];
-      updated[updated.length - 1] = { ...last, value: summary.total_balance };
+      updated[updated.length - 1] = { ...last, value: totalBalance };
       return updated;
     }
     return chartData;
-  }, [chartData, summary]);
+  }, [chartData, walletBal, totalBalance]);
 
-  const pnlPct = summary?.total_pnl_pct ?? 0;
-  const openCount = summary?.open_positions ?? 0;
-  const totalTrades = summary?.total_trades ?? 0;
-  const copyingCount = profile?.followingCount ?? 0;
+  // ── 6. Sheet close / deposit success ──
+  const handleSheetClose = useCallback((setter: (v: boolean) => void) => {
+    setter(false);
+    refreshWalletBalance();
+    fetchDashboard();
+    getChartData(timeRange);
+  }, [refreshWalletBalance, fetchDashboard, getChartData, timeRange]);
+
+  const handleDepositSuccess = useCallback(() => {
+    // Immediately start polling faster for ~60s after deposit
+    refreshWalletBalance();
+    const fast = setInterval(refreshWalletBalance, 5_000);
+    setTimeout(() => clearInterval(fast), 60_000);
+    fetchDashboard();
+    getChartData(timeRange);
+  }, [refreshWalletBalance, fetchDashboard, getChartData, timeRange]);
+
+  const handleWithdrawSuccess = useCallback((amount?: string) => {
+    refreshWalletBalance();
+    getChartData(timeRange);
+    setTimeout(fetchDashboard, 60_000);
+  }, [refreshWalletBalance, getChartData, timeRange, fetchDashboard]);
 
   const currentPositions = positions.map((p, idx) => ({
     id: idx + 1,
@@ -245,17 +243,11 @@ const Home = () => {
     entry: p.entry_price,
   }));
 
-  const handleLogout = async () => {
-    localStorage.removeItem("token");
-    await logout();
-    router.push("/");
-  };
+  const handleLogout = async () => { localStorage.removeItem("token"); await logout(); router.push("/"); };
 
   const handleSelectPosition = (pos: (typeof currentPositions)[0]) => {
     const ext = positionExtendedData[pos.token];
-    if (ext) {
-      setSelectedPos({ ...pos, color: ext.color, currentPrice: ext.currentPrice, txs: ext.txs });
-    }
+    if (ext) setSelectedPos({ ...pos, color: ext.color, currentPrice: ext.currentPrice, txs: ext.txs });
   };
 
   return (
@@ -263,7 +255,6 @@ const Home = () => {
       <style jsx>{`
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
-        @keyframes pulse-glow { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
         .row-animate { animation: slideIn 0.3s ease-out forwards; }
       `}</style>
 
@@ -273,16 +264,12 @@ const Home = () => {
       </div>
 
       {!authenticated && (
-        <div
-          className="relative z-10 mx-3 mt-2 mb-1 rounded-lg px-3 py-2 flex items-center justify-between cursor-pointer transition-all duration-300 hover:scale-[1.01]"
+        <div className="relative z-10 mx-3 mt-2 mb-1 rounded-lg px-3 py-2 flex items-center justify-between cursor-pointer transition-all duration-300 hover:scale-[1.01]"
           style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.1) 0%, rgba(45,212,191,0.03) 100%)", border: "1px solid rgba(45,212,191,0.2)" }}
-          onClick={() => login()}
-        >
+          onClick={() => login()}>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(45,212,191,0.15)" }}>
-              <svg className="w-3.5 h-3.5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+              <svg className="w-3.5 h-3.5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
             <div>
               <p className="text-[10px] font-semibold text-white">Connect to start trading</p>
@@ -297,9 +284,9 @@ const Home = () => {
         <BuilderApprovalBanner onApproved={() => setBuilderDismissed(true)} onDismiss={() => setBuilderDismissed(true)} />
       )}
 
-      {/* Rewards banner — non-intrusive, for "first time copied", milestones, etc. */}
       <RewardsBanner />
 
+      {/* ── Top bar ── */}
       <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
         <div className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }} onClick={handleLogout}>
           <Image src={profileIcon} alt="profile" width={12} height={12} />
@@ -315,16 +302,84 @@ const Home = () => {
         </div>
       </div>
 
+      {/* ═══════════════════════════════════════════════
+           PORTFOLIO CARD — Real-time balance from chain
+          ═══════════════════════════════════════════════ */}
       <div className="relative z-10 px-3">
-        <div className="rounded-xl p-4 mb-3 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(45,212,191,0.2)", boxShadow: "0 0 30px rgba(45,212,191,0.1), inset 0 0 40px rgba(45,212,191,0.03)" }}>
-          <div className="absolute inset-0 rounded-xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15) 0%, transparent 60%)" }} />
-          <div className="relative z-10">
-            <div className="flex justify-between items-start mb-0.5">
+        <div className="rounded-xl overflow-hidden mb-3" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.05) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(45,212,191,0.15)", boxShadow: "0 0 30px rgba(45,212,191,0.08)" }}>
+          {/* Glow */}
+          <div className="absolute inset-0 rounded-xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.12) 0%, transparent 60%)" }} />
+
+          <div className="relative z-10 p-4">
+            {/* Row 1: Portfolio label + eye toggle + refresh */}
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">Portfolio</p>
+                <button onClick={() => setHideBalance(!hideBalance)} className="text-gray-600 hover:text-gray-400 transition-colors">
+                  {hideBalance ? <EyeOff size={12} /> : <Eye size={12} />}
+                </button>
+              </div>
+              <button onClick={refreshWalletBalance} disabled={balRefreshing}
+                className="text-gray-600 hover:text-teal-400 transition-colors disabled:opacity-50">
+                <RefreshCw size={12} className={balRefreshing ? "animate-spin" : ""} />
+              </button>
+            </div>
+
+            {/* Row 2: Main balance (BIG) + Available to trade */}
+            <div className="flex justify-between items-start mb-3">
               <div>
-                <p className="text-[11px] text-gray-400 mb-0.5">Current Balance</p>
-                <p className="text-xl font-bold text-white tracking-tight tabular-nums" style={{ textShadow: "0 0 20px rgba(45,212,191,0.3)" }}>
-                  {authenticated ? `$${balance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
+                <p className="text-3xl font-bold text-white tracking-tight tabular-nums" style={{ textShadow: "0 0 20px rgba(45,212,191,0.2)" }}>
+                  {authenticated ? (hideBalance ? "••••••" : `$${fmt(totalBalance)}`) : "—"}
                 </p>
+                {/* PnL under main balance */}
+                {authenticated && summary && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`text-[12px] font-bold tabular-nums ${pnl >= 0 ? "text-teal-400" : "text-rose-400"}`}>
+                      {pnl >= 0 ? "+" : "-"}${fmt(Math.abs(pnl))}
+                    </span>
+                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${pnl >= 0 ? "text-teal-400 bg-teal-400/10" : "text-rose-400 bg-rose-400/10"}`}>
+                      {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
+                    </span>
+                    {timeRange === "D" && <span className="text-[9px] text-gray-600">past day</span>}
+                  </div>
+                )}
+              </div>
+
+              {/* Available to trade — right side */}
+              <div className="text-right">
+                <p className="text-[10px] text-gray-500 mb-0.5">Available to trade</p>
+                <p className="text-lg font-bold text-white tabular-nums">
+                  {authenticated ? (hideBalance ? "••••" : `$${fmt(availableToTrade)}`) : "—"}
+                </p>
+                {pendingBalance > 0.01 && (
+                  <p className="text-[9px] text-yellow-400/70 mt-0.5">
+                    +${fmt(pendingBalance)} bridging
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Row 3: Deposit / Withdraw buttons */}
+            <div className="flex gap-2 mb-4">
+              <Button onClick={() => authenticated ? setShowDeposit(true) : login()}
+                className="flex-1 bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-[12px] font-bold rounded-xl py-3 h-auto transition-all cursor-pointer gap-1.5"
+                style={{ boxShadow: "0 0 20px rgba(45,212,191,0.3)" }}>
+                <Download size={14} /> {authenticated ? "Deposit" : "Connect"}
+              </Button>
+              {authenticated && (
+                <Button onClick={() => setShowWithdraw(true)}
+                  className="flex-1 bg-transparent hover:bg-white/5 text-gray-300 text-[12px] font-bold rounded-xl py-3 h-auto transition-all cursor-pointer gap-1.5"
+                  style={{ border: "1px solid rgba(255,255,255,0.12)" }}>
+                  <Upload size={14} /> Withdraw
+                </Button>
+              )}
+            </div>
+
+            {/* Row 4: Chart area */}
+            <div className="flex justify-between items-center mb-2">
+              <div className="flex items-center gap-1.5">
+                <TrendingUp size={12} className="text-teal-400" />
+                <span className="text-[11px] text-gray-400 font-medium">Profit/Loss</span>
               </div>
               <div className="flex gap-0.5">
                 {(["D", "W", "M", "Y", "ALL"] as TimeRange[]).map((t) => (
@@ -333,41 +388,14 @@ const Home = () => {
               </div>
             </div>
 
-            <div className="relative h-24 mb-1.5 mt-3">
+            <div className="relative h-28 mb-1">
               <BalanceChart timeRange={timeRange} chartData={finalChartData} />
-            </div>
-
-            <div className="h-px bg-white/10 mb-3 rounded-full" />
-
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-[10px] text-gray-400 mb-0.5">Total P&L</p>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-bold tabular-nums text-white">
-                    {authenticated ? `${todayGain >= 0 ? "+" : "-"}$${Math.abs(todayGain).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
-                  </span>
-                  {authenticated && summary && (
-                    <span className={`text-[10px] font-semibold ${pnlPct >= 0 ? "text-teal-400" : "text-rose-400"}`} style={{ textShadow: pnlPct >= 0 ? "0 0 10px rgba(45,212,191,0.5)" : "none" }}>
-                      {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {authenticated && balance > 0 && (
-                  <Button onClick={() => setShowWithdraw(true)} className="bg-transparent hover:bg-white/10 text-purple-400 text-[11px] font-bold rounded-lg px-3 py-2.5 h-auto transition-all cursor-pointer gap-1" style={{ border: "1px solid rgba(168,85,247,0.3)" }}>
-                    <Upload size={12} /> Withdraw
-                  </Button>
-                )}
-                <Button onClick={() => authenticated ? setShowDeposit(true) : login()} className="bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-[11px] font-bold rounded-lg px-4 py-2.5 h-auto transition-all cursor-pointer gap-1" style={{ boxShadow: "0 0 25px rgba(45,212,191,0.4)" }}>
-                  <Download size={12} /> {authenticated ? "Deposit" : "Connect"}
-                </Button>
-              </div>
             </div>
           </div>
         </div>
       </div>
 
+      {/* ── Stats grid ── */}
       <div className="relative z-10 flex px-3 mt-2.5 gap-2">
         <div className="flex flex-1 gap-2">
           {[
@@ -403,6 +431,7 @@ const Home = () => {
         </div>
       </div>
 
+      {/* ── Followed / Positions tabs ── */}
       <div className="relative z-10 px-3 mt-3 mb-24">
         <div className="rounded-xl overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <div className="relative flex border-b border-white/10">
@@ -412,7 +441,7 @@ const Home = () => {
             ))}
           </div>
           <div className="relative overflow-hidden">
-            {/* ── Followed Tab ── */}
+            {/* Followed */}
             <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "followed" ? 1 : 0, transform: activeTab === "followed" ? "translateX(0)" : "translateX(-20px)", position: activeTab === "followed" ? "relative" : "absolute", pointerEvents: activeTab === "followed" ? "auto" : "none", width: "100%" }}>
               {followedTraders.length > 0 ? (
                 <>
@@ -428,12 +457,10 @@ const Home = () => {
                       const bg = AVATAR_COLORS[index % AVATAR_COLORS.length];
                       const initial = (trader.display_name || trader.trader_username)?.[0]?.toUpperCase() || "?";
                       return (
-                        <div
-                          key={trader.id}
+                        <div key={trader.id}
                           className="grid grid-cols-[1fr_55px_65px_28px_24px] gap-1.5 px-3 py-2.5 items-center hover:bg-white/5 transition-all duration-200 row-animate cursor-pointer active:bg-white/10"
                           style={{ animationDelay: `${index * 0.05}s` }}
-                          onClick={() => router.push(`/profile?handle=${trader.trader_username}`)}
-                        >
+                          onClick={() => router.push(`/profile?handle=${trader.trader_username}`)}>
                           <div className="flex items-center gap-1.5">
                             {trader.avatar_url ? (
                               <img src={trader.avatar_url} className="w-5 h-5 rounded-full object-cover" alt="" />
@@ -441,12 +468,8 @@ const Home = () => {
                               <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ backgroundColor: bg }}>{initial}</div>
                             )}
                             <div className="flex flex-col min-w-0">
-                              <span className="text-[10px] text-gray-300 hover:text-teal-400 transition-colors truncate">
-                                @{trader.trader_username}
-                              </span>
-                              {trader.profit_grade && (
-                                <span className="text-[8px] text-gray-500">{trader.profit_grade}</span>
-                              )}
+                              <span className="text-[10px] text-gray-300 hover:text-teal-400 transition-colors truncate">@{trader.trader_username}</span>
+                              {trader.profit_grade && <span className="text-[8px] text-gray-500">{trader.profit_grade}</span>}
                             </div>
                           </div>
                           <span className={`text-[10px] text-right font-medium ${trader.avg_return_pct >= 0 ? "text-teal-400" : "text-rose-400"}`}>
@@ -456,10 +479,8 @@ const Home = () => {
                             {trader.total_profit_usd >= 0 ? "" : "-"}${Math.abs(trader.total_profit_usd).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                           </span>
                           <span className="text-[10px] text-gray-400 text-right">{trader.total_signals}</span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); router.push(`/settings?tab=trader&handle=${trader.trader_username}`); }}
-                            className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-teal-400 hover:bg-white/10 rounded-md transition-all cursor-pointer"
-                          >
+                          <button onClick={(e) => { e.stopPropagation(); router.push(`/settings?tab=trader&handle=${trader.trader_username}`); }}
+                            className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-teal-400 hover:bg-white/10 rounded-md transition-all cursor-pointer">
                             <Settings size={11} />
                           </button>
                         </div>
@@ -470,9 +491,7 @@ const Home = () => {
               ) : (
                 <div className="flex flex-col items-center justify-center py-10 px-4">
                   <Copy size={24} className="text-gray-600 mb-2" />
-                  <p className="text-[11px] text-gray-500 text-center">
-                    {authenticated ? "You're not following any traders yet" : "Connect wallet to see followed traders"}
-                  </p>
+                  <p className="text-[11px] text-gray-500 text-center">{authenticated ? "You're not following any traders yet" : "Connect wallet to see followed traders"}</p>
                   {authenticated && (
                     <button onClick={() => router.push("/copyTrading")} className="mt-3 text-[10px] font-semibold text-teal-400 px-4 py-1.5 rounded-lg cursor-pointer" style={{ background: "rgba(45,212,191,0.08)", border: "1px solid rgba(45,212,191,0.2)" }}>
                       Browse Traders
@@ -482,7 +501,7 @@ const Home = () => {
               )}
             </div>
 
-            {/* ── Positions Tab ── */}
+            {/* Positions */}
             <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "position" ? 1 : 0, transform: activeTab === "position" ? "translateX(0)" : "translateX(20px)", position: activeTab === "position" ? "relative" : "absolute", pointerEvents: activeTab === "position" ? "auto" : "none", width: "100%", top: 0 }}>
               {currentPositions.length > 0 ? (
                 <>
@@ -522,9 +541,7 @@ const Home = () => {
               ) : (
                 <div className="flex flex-col items-center justify-center py-10 px-4">
                   <ArrowUpDown size={24} className="text-gray-600 mb-2" />
-                  <p className="text-[11px] text-gray-500 text-center">
-                    {authenticated ? "No open positions" : "Connect wallet to see positions"}
-                  </p>
+                  <p className="text-[11px] text-gray-500 text-center">{authenticated ? "No open positions" : "Connect wallet to see positions"}</p>
                 </div>
               )}
             </div>
@@ -532,33 +549,22 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ── Overlays & Sheets ── */}
+      {/* ── Overlays ── */}
       {showRewards && <KOLRewardsScreen onClose={closeRewards} />}
       {showCopying && <CopyingSheet mode="copying" onClose={() => setShowCopying(false)} />}
       {showCopiers && <CopyingSheet mode="copiers" onClose={() => setShowCopiers(false)} />}
       {showActiveTrades && (
-        <ActiveTradesSheet
-          positions={currentPositions}
-          onClose={() => setShowActiveTrades(false)}
-          onSelectPosition={(pos: (typeof currentPositions)[0]) => handleSelectPosition(pos)}
-        />
+        <ActiveTradesSheet positions={currentPositions} onClose={() => setShowActiveTrades(false)}
+          onSelectPosition={(pos: (typeof currentPositions)[0]) => handleSelectPosition(pos)} />
       )}
       {selectedPos && <PositionDetail pos={selectedPos} onClose={() => setSelectedPos(null)} />}
-      <DepositSheet
-        isOpen={showDeposit}
+      <DepositSheet isOpen={showDeposit}
         onClose={() => handleSheetClose(setShowDeposit)}
-        onSuccess={() => { fetchDashboard(); getChartData(timeRange); }}
-      />
-      <WithdrawSheet
-        isOpen={showWithdraw}
-        onClose={() => {
-          setShowWithdraw(false);
-          getChartData(timeRange);
-          setTimeout(() => fetchDashboard(), 60_000);
-        }}
-        availableBalance={balance}
-        onSuccess={handleWithdrawSuccess}
-      />
+        onSuccess={handleDepositSuccess} />
+      <WithdrawSheet isOpen={showWithdraw}
+        onClose={() => { setShowWithdraw(false); refreshWalletBalance(); getChartData(timeRange); setTimeout(fetchDashboard, 60_000); }}
+        availableBalance={availableToTrade}
+        onSuccess={handleWithdrawSuccess} />
     </div>
   );
 };
