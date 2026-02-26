@@ -15,7 +15,7 @@ import {
   getDashboardSummary,
   getOpenPositions,
   getProfileData,
-  balanceHistory,
+  getPnlHistory,
   getFollowedTraders,
   getWalletBalance,
   type DashboardSummary,
@@ -23,10 +23,11 @@ import {
   type ProfileDataResponse,
   type FollowedTrader,
   type WalletBalance,
+  type PnlHistoryResponse,
 } from "@/service";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
-import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Upload, RefreshCw, TrendingUp, Wallet, Eye, EyeOff } from "lucide-react";
+import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Upload, RefreshCw, TrendingUp, Eye, EyeOff } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import PositionDetail, { PositionDetailData, positionExtendedData } from "./components/PositionDetail";
 import CopyingSheet from "./components/CopyingSheet";
@@ -68,13 +69,19 @@ const formatLabel = (ts: number, tr: TimeRange): string => {
     case "D": return d.toLocaleTimeString("en-US", { hour: "numeric", hour12: true });
     case "W": return d.toLocaleDateString("en-US", { weekday: "short" });
     case "M": return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    case "Y": return d.toLocaleDateString("en-US", { month: "short" });
     case "ALL": return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
     default: return "";
   }
 };
 
 const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const TIME_RANGE_LABELS: Record<string, string> = {
+  D: "past day",
+  W: "past week",
+  M: "past month",
+  ALL: "all-time",
+};
 
 const AVATAR_COLORS = ["#2dd4bf", "#a78bfa", "#f97316", "#3b82f6", "#ec4899", "#eab308"];
 
@@ -95,13 +102,18 @@ const Home = () => {
   const [loading, setLoading] = useState(false);
   const [builderDismissed, setBuilderDismissed] = useState(false);
 
-  // ★ Real-time wallet balance (reads from chain, not DB snapshots)
+  // ★ Real-time wallet balance
   const [walletBal, setWalletBal] = useState<WalletBalance | null>(null);
   const [balRefreshing, setBalRefreshing] = useState(false);
   const [hideBalance, setHideBalance] = useState(false);
 
+  // ★ P&L chart data (replaces old balance chart)
   const [timeRange, setTimeRange] = useState<TimeRange>("M");
-  const [chartData, setChartData] = useState<BalanceChartData[]>([]);
+  const [pnlChartData, setPnlChartData] = useState<BalanceChartData[]>([]);
+  const [rangePnl, setRangePnl] = useState(0);
+  const [rangePnlPct, setRangePnlPct] = useState(0);
+  const [totalPnl, setTotalPnl] = useState(0);
+
   const [activeTab, setActiveTab] = useState<"followed" | "position">("followed");
   const [selectedPos, setSelectedPos] = useState<PositionDetailData | null>(null);
   const [showCopying, setShowCopying] = useState(false);
@@ -114,8 +126,6 @@ const Home = () => {
   const totalBalance = walletBal ? walletBal.hl_equity + walletBal.arb_usdc : 0;
   const availableToTrade = walletBal?.hl_withdrawable ?? 0;
   const pendingBalance = walletBal?.arb_usdc ?? 0;
-  const pnl = summary?.total_pnl ?? 0;
-  const pnlPct = summary?.total_pnl_pct ?? 0;
   const openCount = summary?.open_positions ?? 0;
   const totalTrades = summary?.total_trades ?? 0;
   const copyingCount = profile?.followingCount ?? 0;
@@ -130,7 +140,10 @@ const Home = () => {
       setPositions([]);
       setFollowedTraders([]);
       setWalletBal(null);
-      setChartData([]);
+      setPnlChartData([]);
+      setRangePnl(0);
+      setRangePnlPct(0);
+      setTotalPnl(0);
       return;
     }
     if (!wallet?.address) return;
@@ -141,7 +154,7 @@ const Home = () => {
       .catch((err) => console.error("Auth sync failed:", err));
   }, [authenticated, wallet?.address]);
 
-  // ── 2. Fetch real-time balance (from chain, not DB) ──
+  // ── 2. Fetch real-time balance ──
   const refreshWalletBalance = useCallback(async () => {
     if (!authReady) return;
     setBalRefreshing(true);
@@ -150,7 +163,6 @@ const Home = () => {
     finally { setBalRefreshing(false); }
   }, [authReady]);
 
-  // Poll wallet balance every 10s for real-time updates
   useEffect(() => {
     if (!authReady) return;
     refreshWalletBalance();
@@ -158,7 +170,7 @@ const Home = () => {
     return () => clearInterval(iv);
   }, [authReady, refreshWalletBalance]);
 
-  // ── 3. Fetch dashboard data (summary, positions, profile, follows) ──
+  // ── 3. Fetch dashboard data ──
   const fetchDashboard = useCallback(async () => {
     if (!authReady) return;
     setLoading(true);
@@ -182,54 +194,57 @@ const Home = () => {
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  // ── 4. Chart data ──
-  const getChartData = useCallback(async (tr: TimeRange = "M") => {
-    if (!authReady) { setChartData([]); return; }
+  // ── 4. ★ P&L chart data (replaces old balanceHistory) ──
+  const fetchPnlChart = useCallback(async (tr: TimeRange = "M") => {
+    if (!authReady) {
+      setPnlChartData([]);
+      setRangePnl(0);
+      setRangePnlPct(0);
+      setTotalPnl(0);
+      return;
+    }
     try {
-      const data = await balanceHistory(tr === "Y" ? "YTD" : tr);
-      setChartData(data.map((item) => ({
-        label: formatLabel(item.timestamp, tr),
-        value: item.acconutValue,
-      })));
-    } catch { setChartData([]); }
+      const res: PnlHistoryResponse = await getPnlHistory(tr as "D" | "W" | "M" | "YTD" | "ALL");
+      setPnlChartData(
+        res.data.map((item) => ({
+          label: formatLabel(item.timestamp, tr),
+          value: item.pnl,
+        }))
+      );
+      setRangePnl(res.range_pnl);
+      setRangePnlPct(res.range_pnl_pct);
+      setTotalPnl(res.total_pnl);
+    } catch {
+      setPnlChartData([]);
+      setRangePnl(0);
+      setRangePnlPct(0);
+      setTotalPnl(0);
+    }
   }, [authReady]);
 
-  useEffect(() => { getChartData(timeRange); }, [timeRange, getChartData]);
+  useEffect(() => { fetchPnlChart(timeRange); }, [timeRange, fetchPnlChart]);
 
-  // ── 5. Chart: sync last point to live balance ──
-  const finalChartData = useMemo(() => {
-    if (!chartData.length || !walletBal) return chartData;
-    const last = chartData[chartData.length - 1];
-    if (Math.abs(last.value - totalBalance) > 0.005) {
-      const updated = [...chartData];
-      updated[updated.length - 1] = { ...last, value: totalBalance };
-      return updated;
-    }
-    return chartData;
-  }, [chartData, walletBal, totalBalance]);
-
-  // ── 6. Sheet close / deposit success ──
+  // ── 5. Sheet close / deposit success ──
   const handleSheetClose = useCallback((setter: (v: boolean) => void) => {
     setter(false);
     refreshWalletBalance();
     fetchDashboard();
-    getChartData(timeRange);
-  }, [refreshWalletBalance, fetchDashboard, getChartData, timeRange]);
+    fetchPnlChart(timeRange);
+  }, [refreshWalletBalance, fetchDashboard, fetchPnlChart, timeRange]);
 
   const handleDepositSuccess = useCallback(() => {
-    // Immediately start polling faster for ~60s after deposit
     refreshWalletBalance();
     const fast = setInterval(refreshWalletBalance, 5_000);
     setTimeout(() => clearInterval(fast), 60_000);
     fetchDashboard();
-    getChartData(timeRange);
-  }, [refreshWalletBalance, fetchDashboard, getChartData, timeRange]);
+    fetchPnlChart(timeRange);
+  }, [refreshWalletBalance, fetchDashboard, fetchPnlChart, timeRange]);
 
-  const handleWithdrawSuccess = useCallback((amount?: string) => {
+  const handleWithdrawSuccess = useCallback(() => {
     refreshWalletBalance();
-    getChartData(timeRange);
+    fetchPnlChart(timeRange);
     setTimeout(fetchDashboard, 60_000);
-  }, [refreshWalletBalance, getChartData, timeRange, fetchDashboard]);
+  }, [refreshWalletBalance, fetchPnlChart, timeRange, fetchDashboard]);
 
   const currentPositions = positions.map((p, idx) => ({
     id: idx + 1,
@@ -249,6 +264,9 @@ const Home = () => {
     const ext = positionExtendedData[pos.token];
     if (ext) setSelectedPos({ ...pos, color: ext.color, currentPrice: ext.currentPrice, txs: ext.txs });
   };
+
+  // ── Determine P&L color direction ──
+  const pnlPositive = rangePnl >= 0;
 
   return (
     <div className="min-h-screen text-white relative overflow-hidden" style={{ background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)" }}>
@@ -303,11 +321,10 @@ const Home = () => {
       </div>
 
       {/* ═══════════════════════════════════════════════
-           PORTFOLIO CARD — Real-time balance from chain
+           PORTFOLIO CARD — Polymarket-style P&L
           ═══════════════════════════════════════════════ */}
       <div className="relative z-10 px-3">
         <div className="rounded-xl overflow-hidden mb-3" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.05) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(45,212,191,0.15)", boxShadow: "0 0 30px rgba(45,212,191,0.08)" }}>
-          {/* Glow */}
           <div className="absolute inset-0 rounded-xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.12) 0%, transparent 60%)" }} />
 
           <div className="relative z-10 p-4">
@@ -325,27 +342,27 @@ const Home = () => {
               </button>
             </div>
 
-            {/* Row 2: Main balance (BIG) + Available to trade */}
+            {/* Row 2: Main balance + Available to trade */}
             <div className="flex justify-between items-start mb-3">
               <div>
                 <p className="text-3xl font-bold text-white tracking-tight tabular-nums" style={{ textShadow: "0 0 20px rgba(45,212,191,0.2)" }}>
                   {authenticated ? (hideBalance ? "••••••" : `$${fmt(totalBalance)}`) : "—"}
                 </p>
-                {/* PnL under main balance */}
-                {authenticated && summary && (
+                {/* ★ Range P&L — changes with time tab */}
+                {authenticated && pnlChartData.length > 0 && (
                   <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-[12px] font-bold tabular-nums ${pnl >= 0 ? "text-teal-400" : "text-rose-400"}`}>
-                      {pnl >= 0 ? "+" : "-"}${fmt(Math.abs(pnl))}
+                    <span className={`text-[12px] font-bold tabular-nums ${pnlPositive ? "text-teal-400" : "text-rose-400"}`}>
+                      {rangePnl >= 0 ? "+" : "-"}${fmt(Math.abs(rangePnl))}
                     </span>
-                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${pnl >= 0 ? "text-teal-400 bg-teal-400/10" : "text-rose-400 bg-rose-400/10"}`}>
-                      {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
+                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${pnlPositive ? "text-teal-400 bg-teal-400/10" : "text-rose-400 bg-rose-400/10"}`}>
+                      {rangePnlPct >= 0 ? "+" : ""}{rangePnlPct.toFixed(2)}%
                     </span>
-                    {timeRange === "D" && <span className="text-[9px] text-gray-600">past day</span>}
+                    <span className="text-[9px] text-gray-600">{TIME_RANGE_LABELS[timeRange] || ""}</span>
                   </div>
                 )}
               </div>
 
-              {/* Available to trade — right side */}
+              {/* Available to trade */}
               <div className="text-right">
                 <p className="text-[10px] text-gray-500 mb-0.5">Available to trade</p>
                 <p className="text-lg font-bold text-white tabular-nums">
@@ -359,7 +376,7 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Row 3: Deposit / Withdraw buttons */}
+            {/* Row 3: Deposit / Withdraw */}
             <div className="flex gap-2 mb-4">
               <Button onClick={() => authenticated ? setShowDeposit(true) : login()}
                 className="flex-1 bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-[12px] font-bold rounded-xl py-3 h-auto transition-all cursor-pointer gap-1.5"
@@ -375,21 +392,35 @@ const Home = () => {
               )}
             </div>
 
-            {/* Row 4: Chart area */}
+            {/* Row 4: P&L Chart header + tabs */}
             <div className="flex justify-between items-center mb-2">
               <div className="flex items-center gap-1.5">
                 <TrendingUp size={12} className="text-teal-400" />
                 <span className="text-[11px] text-gray-400 font-medium">Profit/Loss</span>
               </div>
+              {/* ★ Removed "Y" — matching Polymarket: D, W, M, ALL */}
               <div className="flex gap-0.5">
-                {(["D", "W", "M", "Y", "ALL"] as TimeRange[]).map((t) => (
-                  <TimeRangeTab key={t} label={t} isActive={timeRange === t} onClick={() => setTimeRange(t)} />
+                {(["D", "W", "M", "ALL"] as TimeRange[]).map((t) => (
+                  <TimeRangeTab key={t} label={t === "D" ? "1D" : t === "W" ? "1W" : t === "M" ? "1M" : "ALL"} isActive={timeRange === t} onClick={() => setTimeRange(t)} />
                 ))}
               </div>
             </div>
 
+            {/* ★ Big P&L number above chart — Polymarket style */}
+            {authenticated && pnlChartData.length > 0 && (
+              <div className="mb-2">
+                <p className={`text-2xl font-bold tabular-nums ${pnlPositive ? "text-teal-400" : "text-rose-400"}`}>
+                  {hideBalance ? "••••••" : `${rangePnl >= 0 ? "+" : "-"}$${fmt(Math.abs(rangePnl))}`}
+                </p>
+                <p className="text-[10px] text-gray-500 capitalize">
+                  {TIME_RANGE_LABELS[timeRange] || ""}
+                </p>
+              </div>
+            )}
+
+            {/* ★ P&L Chart — mode="pnl" enables zero baseline + dynamic color */}
             <div className="relative h-28 mb-1">
-              <BalanceChart timeRange={timeRange} chartData={finalChartData} />
+              <BalanceChart timeRange={timeRange} chartData={pnlChartData} mode="pnl" />
             </div>
           </div>
         </div>
@@ -562,7 +593,7 @@ const Home = () => {
         onClose={() => handleSheetClose(setShowDeposit)}
         onSuccess={handleDepositSuccess} />
       <WithdrawSheet isOpen={showWithdraw}
-        onClose={() => { setShowWithdraw(false); refreshWalletBalance(); getChartData(timeRange); setTimeout(fetchDashboard, 60_000); }}
+        onClose={() => { setShowWithdraw(false); refreshWalletBalance(); fetchPnlChart(timeRange); setTimeout(fetchDashboard, 60_000); }}
         availableBalance={availableToTrade}
         onSuccess={handleWithdrawSuccess} />
     </div>

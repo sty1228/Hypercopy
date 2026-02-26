@@ -63,6 +63,26 @@ export const balanceHistory = async (
   return await get(`/api/portfolio/balance-history?timeRange=${timeRange}`);
 };
 
+// ─── ★ NEW: P&L History (deposits/withdrawals stripped) ──
+
+export interface PnlHistoryItem {
+  timestamp: number;
+  pnl: number;
+}
+
+export interface PnlHistoryResponse {
+  data: PnlHistoryItem[];
+  range_pnl: number;
+  range_pnl_pct: number;
+  total_pnl: number;
+}
+
+export const getPnlHistory = async (
+  timeRange: "D" | "W" | "M" | "YTD" | "ALL"
+): Promise<PnlHistoryResponse> => {
+  return await get(`/api/portfolio/pnl-history?timeRange=${timeRange}`);
+};
+
 // ─── Deposit ────────────────────────────────────────────
 
 export const recordDeposit = async (amount: number, txHash?: string) => {
