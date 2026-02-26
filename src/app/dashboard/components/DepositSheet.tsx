@@ -1,11 +1,10 @@
 "use client";
-
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   X, Download, Loader2, Copy, CheckCircle,
   ExternalLink, Shield, RefreshCw, AlertTriangle,
-  ChevronDown, Zap,
+  ChevronDown, Zap, Search, Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ethers } from "ethers";
@@ -13,20 +12,93 @@ import { createOrGetWallet, getWalletBalance } from "@/service";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import {
   CHAINS, CHAIN_LIST, ARB_LZ_EID,
-  ERC20_ABI, USDC_DECIMALS, STARGATE_POOL_ABI,
+  ERC20_ABI, STARGATE_POOL_ABI,
   type ChainConfig,
 } from "@/config/chains";
 
-// ethers v5 compat — cast to any to avoid TS errors with dual v5/v6 types
-const _ethers = ethers as any;
-const JsonRpcProvider = _ethers.providers?.JsonRpcProvider ?? _ethers.JsonRpcProvider;
-const Web3Provider = _ethers.providers?.Web3Provider ?? _ethers.BrowserProvider;
-const ContractClass = _ethers.Contract;
-const parseUnitsFunc = _ethers.utils?.parseUnits ?? _ethers.parseUnits;
-const formatUnitsFunc = _ethers.utils?.formatUnits ?? _ethers.formatUnits;
-const formatEtherFunc = _ethers.utils?.formatEther ?? _ethers.formatEther;
-const hexZeroPadFunc = _ethers.utils?.hexZeroPad ?? _ethers.zeroPadValue;
-const MaxUint256 = _ethers.constants?.MaxUint256 ?? _ethers.MaxUint256;
+// ethers v5 compat
+const _e = ethers as any;
+const JsonRpcProvider = _e.providers?.JsonRpcProvider ?? _e.JsonRpcProvider;
+const Web3Provider = _e.providers?.Web3Provider ?? _e.BrowserProvider;
+const Contract = _e.Contract;
+const parseUnits = _e.utils?.parseUnits ?? _e.parseUnits;
+const formatUnits = _e.utils?.formatUnits ?? _e.formatUnits;
+const formatEther = _e.utils?.formatEther ?? _e.formatEther;
+const hexZeroPad = _e.utils?.hexZeroPad ?? _e.zeroPadValue;
+const MaxUint256 = _e.constants?.MaxUint256 ?? _e.MaxUint256;
+
+
+// ── Chain Icons (inline SVG) ──
+
+function ChainIcon({ chain, size = 20 }: { chain: ChainConfig; size?: number }) {
+  const s = size;
+  const icons: Record<string, React.ReactNode> = {
+    arbitrum: (
+      <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="20" fill="#2D374B"/>
+        <path d="M21.8 15.4l5.1 8.2-2.3 1.4-5.1-8.2 2.3-1.4z" fill="#28A0F0"/>
+        <path d="M27.4 24.4l2-1.2 1.4 2.3-2 1.2-1.4-2.3z" fill="#28A0F0"/>
+        <path d="M14.1 25.2l5.1-8.2 2.3 1.4-5.1 8.2-2.3-1.4z" fill="white"/>
+        <path d="M11.2 25.5l1.4-2.3 2 1.2-1.4 2.3-2-1.2z" fill="white"/>
+        <path d="M20 10l-9 15.5 2.2 1.3L20 14.5l6.8 12.3 2.2-1.3L20 10z" fill="none" stroke="#96BEDC" strokeWidth="0.5"/>
+      </svg>
+    ),
+    avalanche: (
+      <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="20" fill="#E84142"/>
+        <path d="M14.5 26h-3.7c-.7 0-1-.3-.7-.9L19.3 10c.3-.6.9-.6 1.2 0l2.1 3.8c.2.3.2.7 0 1L15.2 26c-.2.3-.5.0-.7 0z" fill="white"/>
+        <path d="M23.5 26h5.7c.7 0 1-.3.7-.9l-4-7c-.3-.6-.9-.6-1.2 0l-4 7c-.3.6 0 .9.7.9h2.1z" fill="white"/>
+      </svg>
+    ),
+    base: (
+      <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="20" fill="#0052FF"/>
+        <path d="M19.8 33c7.2 0 13-5.8 13-13s-5.8-13-13-13C13 7 7.5 12.1 7 18.5h17.3v3H7C7.5 27.9 13 33 19.8 33z" fill="white"/>
+      </svg>
+    ),
+    ethereum: (
+      <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="20" fill="#627EEA"/>
+        <path d="M20 7v10.1l8.5 3.8L20 7z" fill="white" fillOpacity="0.6"/>
+        <path d="M20 7l-8.5 13.9L20 17.1V7z" fill="white"/>
+        <path d="M20 26.5v6.5l8.5-11.8L20 26.5z" fill="white" fillOpacity="0.6"/>
+        <path d="M20 33v-6.5l-8.5-5.3L20 33z" fill="white"/>
+        <path d="M20 24.9l8.5-4L20 17.1v7.8z" fill="white" fillOpacity="0.2"/>
+        <path d="M11.5 20.9l8.5 4v-7.8l-8.5 3.8z" fill="white" fillOpacity="0.5"/>
+      </svg>
+    ),
+    mantle: (
+      <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="20" fill="#000"/>
+        <rect x="9" y="14" width="4" height="12" rx="1" fill="white"/>
+        <rect x="15" y="10" width="4" height="16" rx="1" fill="white"/>
+        <rect x="21" y="14" width="4" height="12" rx="1" fill="white"/>
+        <rect x="27" y="10" width="4" height="16" rx="1" fill="white"/>
+      </svg>
+    ),
+    optimism: (
+      <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="20" fill="#FF0420"/>
+        <path d="M14.7 24.5c-1.3 0-2.3-.4-3-1.1-.7-.7-1-1.7-1-2.9 0-1.6.4-3 1.3-4 .9-1.1 2.1-1.6 3.5-1.6 1.3 0 2.3.4 3 1.1.7.8 1 1.8 1 3-.1 1.6-.5 2.9-1.4 3.9-.8 1.1-2 1.6-3.4 1.6zm.3-2.3c.6 0 1.1-.3 1.5-.9.4-.6.6-1.4.6-2.4 0-.7-.1-1.2-.4-1.6-.3-.4-.7-.6-1.2-.6-.6 0-1.1.3-1.5.9-.4.6-.6 1.4-.6 2.4 0 .7.1 1.3.4 1.6.3.4.7.6 1.2.6z" fill="white"/>
+        <path d="M22 24.3l1.6-8.2h3.3c1.1 0 1.9.2 2.4.7.5.5.8 1.1.8 1.9 0 1.1-.4 2-1.1 2.6-.7.6-1.7.9-3 .9h-1.6l-.5 2.1H22zm3.3-4.2h.9c.5 0 1-.1 1.3-.3.3-.2.5-.6.5-1 0-.3-.1-.6-.3-.7-.2-.2-.5-.3-1-.3h-.8l-.6 2.3z" fill="white"/>
+      </svg>
+    ),
+    polygon: (
+      <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="20" fill="#8247E5"/>
+        <path d="M25.8 16.7c-.4-.2-.9-.2-1.2 0l-2.9 1.7-2 1.1-2.9 1.7c-.4.2-.9.2-1.2 0l-2.3-1.3c-.4-.2-.6-.6-.6-1.1v-2.6c0-.4.2-.9.6-1.1l2.3-1.3c.4-.2.9-.2 1.2 0l2.3 1.3c.4.2.6.6.6 1.1v1.7l2-1.1v-1.7c0-.4-.2-.9-.6-1.1l-4.2-2.5c-.4-.2-.9-.2-1.2 0l-4.3 2.5c-.4.2-.6.6-.6 1.1v4.9c0 .4.2.9.6 1.1l4.3 2.5c.4.2.9.2 1.2 0l2.9-1.7 2-1.1 2.9-1.7c.4-.2.9-.2 1.2 0l2.3 1.3c.4.2.6.6.6 1.1v2.6c0 .4-.2.9-.6 1.1l-2.3 1.3c-.4.2-.9.2-1.2 0l-2.3-1.3c-.4-.2-.6-.6-.6-1.1v-1.7l-2 1.1v1.7c0 .4.2.9.6 1.1l4.3 2.5c.4.2.9.2 1.2 0l4.3-2.5c.4-.2.6-.6.6-1.1v-4.9c0-.4-.2-.9-.6-1.1l-4.4-2.5z" fill="white"/>
+      </svg>
+    ),
+    scroll: (
+      <svg width={s} height={s} viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="20" fill="#FFEEDA"/>
+        <path d="M26 13H16c-1.7 0-3 1.3-3 3v8c0 1.7 1.3 3 3 3h7c1.1 0 2-.9 2-2s-.9-2-2-2h-7v-2h10c1.7 0 3-1.3 3-3v-2c0-1.7-1.3-3-3-3zm0 5H16v-2h10v2z" fill="#684B2A"/>
+      </svg>
+    ),
+  };
+  const key = Object.keys(CHAINS).find((k) => CHAINS[k].chainId === chain.chainId) || "";
+  return icons[key] || <div style={{ width: s, height: s, borderRadius: "50%", background: chain.color }} />;
+}
 
 // ── Types ──
 
@@ -63,13 +135,13 @@ const fmt = (n: number, d = 2) => n.toLocaleString("en-US", { minimumFractionDig
 
 async function readUSDCBalance(chain: ChainConfig, address: string): Promise<number> {
   const provider = new JsonRpcProvider(chain.rpcUrl);
-  const contract = new ContractClass(chain.usdc, ERC20_ABI, provider);
+  const contract = new Contract(chain.usdc, ERC20_ABI, provider);
   const bal = await contract.balanceOf(address);
-  return parseFloat(formatUnitsFunc(bal, USDC_DECIMALS));
+  return parseFloat(formatUnits(bal, chain.usdcDecimals));
 }
 
 function padAddress(addr: string): string {
-  return hexZeroPadFunc(addr, 32);
+  return hexZeroPad(addr, 32);
 }
 
 // ── Component ──
@@ -78,29 +150,35 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
   const [mounted, setMounted] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
 
-  // Wallet state (dedicated wallet on backend)
   const [loading, setLoading] = useState(true);
   const [wallet, setWallet] = useState<WalletState | null>(null);
   const [error, setError] = useState("");
 
-  // Chain & deposit state
   const [selectedChain, setSelectedChain] = useState<ChainConfig>(CHAINS.arbitrum);
+  const [chainSearch, setChainSearch] = useState("");
+  const [chainOpen, setChainOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [sourceBalance, setSourceBalance] = useState<number | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(false);
   const [bridgeFee, setBridgeFee] = useState<string | null>(null);
 
-  // Tx state
   const [txStatus, setTxStatus] = useState<TxStatus>("idle");
   const [txHash, setTxHash] = useState("");
   const [txError, setTxError] = useState("");
 
-  // Manual copy fallback
   const [copied, setCopied] = useState(false);
   const [showManual, setShowManual] = useState(false);
 
   const privyWallet = useCurrentWallet();
   const abortRef = useRef(false);
+
+  const filteredChains = useMemo(() => {
+    if (!chainSearch.trim()) return CHAIN_LIST;
+    const q = chainSearch.toLowerCase();
+    return CHAIN_LIST.filter(
+      (c) => c.name.toLowerCase().includes(q) || c.shortName.toLowerCase().includes(q)
+    );
+  }, [chainSearch]);
 
   // ── Mount / open ──
 
@@ -119,17 +197,17 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
       setAmount("");
       setBridgeFee(null);
       setShowManual(false);
+      setChainOpen(false);
+      setChainSearch("");
     }
   }, [isOpen]);
 
-  // Auto-refresh dedicated wallet balance
   useEffect(() => {
     if (!isOpen || !wallet) return;
     const iv = setInterval(refreshBalance, 15_000);
     return () => clearInterval(iv);
   }, [isOpen, wallet?.address]);
 
-  // Read source USDC balance when chain changes
   useEffect(() => {
     if (!isOpen || !privyWallet?.address) return;
     loadSourceBalance();
@@ -151,21 +229,15 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
   };
 
   const refreshBalance = async () => {
-    try {
-      const d = await getWalletBalance();
-      setWallet(d);
-    } catch {}
+    try { setWallet(await getWalletBalance()); } catch {}
   };
-
-  // ── Source chain balance ──
 
   const loadSourceBalance = async () => {
     if (!privyWallet?.address) return;
     setLoadingBalance(true);
     setSourceBalance(null);
     try {
-      const bal = await readUSDCBalance(selectedChain, privyWallet.address);
-      setSourceBalance(bal);
+      setSourceBalance(await readUSDCBalance(selectedChain, privyWallet.address));
     } catch (e) {
       console.error("Balance read failed:", e);
       setSourceBalance(0);
@@ -174,11 +246,10 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     }
   };
 
-  // ── Get signer on the selected chain ──
+  // ── Get signer ──
 
   const getSignerOnChain = async () => {
     if (!privyWallet) throw new Error("Wallet not connected");
-
     const rawProvider = await privyWallet.getEthereumProvider();
     const provider = new Web3Provider(rawProvider as any);
     const network = await provider.getNetwork();
@@ -187,104 +258,75 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
       setTxStatus("switching");
       await privyWallet.switchChain(selectedChain.chainId);
       await new Promise((r) => setTimeout(r, 500));
-      // Re-get provider after chain switch
-      const newRaw = await privyWallet.getEthereumProvider();
-      const newProvider = new Web3Provider(newRaw as any);
-      return newProvider.getSigner();
+      const p2 = await privyWallet.getEthereumProvider();
+      return new Web3Provider(p2 as any).getSigner();
     }
-
     return provider.getSigner();
   };
 
-  // ── Deposit: Arbitrum direct transfer ──
+  // ── Deposit: Arbitrum direct ──
 
   const depositArbitrum = async () => {
     if (!wallet?.address) return;
     const signer = await getSignerOnChain();
-    const rawAmount = parseUnitsFunc(amount, USDC_DECIMALS);
-    const usdc = new ContractClass(selectedChain.usdc, ERC20_ABI, signer);
-
+    const raw = parseUnits(amount, selectedChain.usdcDecimals);
+    const usdc = new Contract(selectedChain.usdc, ERC20_ABI, signer);
     setTxStatus("sending");
-    const tx = await usdc.transfer(wallet.address, rawAmount);
+    const tx = await usdc.transfer(wallet.address, raw);
     setTxHash(tx.hash);
     setTxStatus("confirming");
     await tx.wait();
   };
 
-  // ── Deposit: Stargate V2 cross-chain bridge ──
+  // ── Deposit: Stargate V2 ──
 
   const depositStargate = async () => {
     if (!wallet?.address || !selectedChain.stargatePool) return;
     const signer = await getSignerOnChain();
-    const rawAmount = parseUnitsFunc(amount, USDC_DECIMALS);
-    const minAmount = rawAmount.mul(995).div(1000); // 0.5% slippage
-    const toBytes32 = padAddress(wallet.address);
+    const raw = parseUnits(amount, selectedChain.usdcDecimals);
+    const min = raw.mul(995).div(1000);
+    const to32 = padAddress(wallet.address);
 
-    const sendParam = {
-      dstEid: ARB_LZ_EID,
-      to: toBytes32,
-      amountLD: rawAmount,
-      minAmountLD: minAmount,
-      extraOptions: "0x",
-      composeMsg: "0x",
-      oftCmd: "0x", // taxi mode
+    const sp = {
+      dstEid: ARB_LZ_EID, to: to32, amountLD: raw, minAmountLD: min,
+      extraOptions: "0x", composeMsg: "0x", oftCmd: "0x",
     };
 
-    // 1. Approve USDC to Stargate pool
     setTxStatus("approving");
-    const usdc = new ContractClass(selectedChain.usdc, ERC20_ABI, signer);
-    const userAddr = await signer.getAddress();
-    const allowance = await usdc.allowance(userAddr, selectedChain.stargatePool);
-    if (allowance.lt(rawAmount)) {
-      const approveTx = await usdc.approve(selectedChain.stargatePool, MaxUint256);
-      await approveTx.wait();
+    const usdc = new Contract(selectedChain.usdc, ERC20_ABI, signer);
+    const addr = await signer.getAddress();
+    const allow = await usdc.allowance(addr, selectedChain.stargatePool);
+    if (allow.lt(raw)) {
+      const atx = await usdc.approve(selectedChain.stargatePool, MaxUint256);
+      await atx.wait();
     }
-
     if (abortRef.current) return;
 
-    // 2. Quote bridge fee
     setTxStatus("quoting");
-    const pool = new ContractClass(selectedChain.stargatePool, STARGATE_POOL_ABI, signer);
-    const [msgFee] = await pool.quoteSend(sendParam, false);
-    const nativeFee = msgFee.nativeFee.mul(110).div(100); // 10% buffer
-    const fee = { nativeFee, lzTokenFee: 0 };
-    setBridgeFee(formatEtherFunc(nativeFee));
-
+    const pool = new Contract(selectedChain.stargatePool, STARGATE_POOL_ABI, signer);
+    const [msgFee] = await pool.quoteSend(sp, false);
+    const nFee = msgFee.nativeFee.mul(110).div(100);
+    const fee = { nativeFee: nFee, lzTokenFee: 0 };
+    setBridgeFee(formatEther(nFee));
     if (abortRef.current) return;
 
-    // 3. Send
     setTxStatus("sending");
-    const tx = await pool.sendToken(sendParam, fee, userAddr, { value: nativeFee });
+    const tx = await pool.sendToken(sp, fee, addr, { value: nFee });
     setTxHash(tx.hash);
     setTxStatus("confirming");
     await tx.wait();
   };
 
-  // ── Deposit handler ──
-
   const handleDeposit = async () => {
-    const amtNum = parseFloat(amount);
-    if (!amtNum || amtNum < 1) {
-      toast.error("Minimum deposit is 1 USDC");
-      return;
-    }
-    if (sourceBalance !== null && amtNum > sourceBalance) {
-      toast.error("Insufficient USDC balance");
-      return;
-    }
+    const n = parseFloat(amount);
+    if (!n || n < 1) { toast.error("Minimum deposit is 1 USDC"); return; }
+    if (sourceBalance !== null && n > sourceBalance) { toast.error("Insufficient USDC balance"); return; }
 
-    setTxStatus("idle");
-    setTxError("");
-    setTxHash("");
-    abortRef.current = false;
+    setTxStatus("idle"); setTxError(""); setTxHash(""); abortRef.current = false;
 
     try {
-      if (!selectedChain.stargatePool) {
-        await depositArbitrum();
-      } else {
-        await depositStargate();
-      }
-
+      if (!selectedChain.stargatePool) await depositArbitrum();
+      else await depositStargate();
       setTxStatus("success");
       toast.success("Deposit sent! Funds will arrive in ~1-3 minutes.");
       onSuccess?.();
@@ -300,8 +342,6 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
     }
   };
 
-  // ── Copy address fallback ──
-
   const copyAddress = () => {
     if (!wallet?.address) return;
     navigator.clipboard.writeText(wallet.address);
@@ -312,11 +352,11 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
 
   // ── Derived ──
 
-  const totalBalance = (wallet?.hl_equity ?? 0) + (wallet?.arb_usdc ?? 0);
+  const totalBal = (wallet?.hl_equity ?? 0) + (wallet?.arb_usdc ?? 0);
   const isArb = !selectedChain.stargatePool;
   const amtNum = parseFloat(amount) || 0;
   const canDeposit = amtNum >= 1 && (sourceBalance === null || amtNum <= sourceBalance) && txStatus === "idle" && wallet?.address;
-  const isBusy = txStatus !== "idle" && txStatus !== "success" && txStatus !== "error";
+  const isBusy = !["idle", "success", "error"].includes(txStatus);
 
   if (!mounted || !isOpen) return null;
 
@@ -369,7 +409,6 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
           </div>
 
           <div className="px-5 pb-6">
-            {/* Loading state */}
             {loading && (
               <div className="py-12 flex flex-col items-center">
                 <Loader2 size={24} className="text-teal-400 animate-spin mb-3" />
@@ -377,7 +416,6 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
               </div>
             )}
 
-            {/* Error state */}
             {!loading && error && (
               <div className="py-12 text-center">
                 <p className="text-xs text-red-400 mb-3">{error}</p>
@@ -385,62 +423,113 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
               </div>
             )}
 
-            {/* Main content */}
             {!loading && !error && wallet && (
               <div className="space-y-4">
 
-                {/* ── Balance card ── */}
+                {/* ── Balance ── */}
                 <div className="rounded-xl px-4 py-3 text-center" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
                   <p className="text-[10px] text-gray-500 mb-1">Copy Trading Balance</p>
-                  <p className="text-2xl font-bold text-white">${fmt(totalBalance)}</p>
+                  <p className="text-2xl font-bold text-white">${fmt(totalBal)}</p>
                   <div className="flex items-center justify-center gap-3 mt-2">
                     <span className="text-[10px] text-gray-500">Active: ${fmt(wallet.hl_equity)}</span>
                     <span className="text-[10px] text-gray-500">Pending: ${fmt(wallet.arb_usdc)}</span>
-                    <button onClick={refreshBalance} className="text-gray-500 hover:text-teal-400 transition-colors">
-                      <RefreshCw size={10} />
-                    </button>
+                    <button onClick={refreshBalance} className="text-gray-500 hover:text-teal-400 transition-colors"><RefreshCw size={10} /></button>
                   </div>
                 </div>
 
-                {/* ── Chain selector ── */}
+                {/* ── Chain selector (dropdown) ── */}
                 <div>
                   <p className="text-[11px] text-gray-400 font-medium mb-2 ml-1">Select Network</p>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {CHAIN_LIST.map((c) => {
-                      const active = c.chainId === selectedChain.chainId;
-                      return (
-                        <button
-                          key={c.chainId}
-                          onClick={() => {
-                            if (isBusy) return;
-                            setSelectedChain(c);
-                            setAmount("");
-                            setBridgeFee(null);
-                            setTxStatus("idle");
-                            setTxError("");
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl shrink-0 transition-all"
-                          style={{
-                            background: active ? `${c.color}18` : "rgba(255,255,255,0.04)",
-                            border: `1px solid ${active ? `${c.color}50` : "rgba(255,255,255,0.06)"}`,
-                          }}
-                        >
-                          <span className="text-[11px]">{c.icon}</span>
-                          <span className={`text-[11px] font-semibold ${active ? "text-white" : "text-gray-500"}`}>
-                            {c.shortName}
-                          </span>
-                          {active && !c.stargatePool && (
-                            <span className="px-1 py-[1px] rounded text-[7px] font-bold uppercase tracking-wider" style={{ background: "rgba(45,212,191,0.2)", color: "#2dd4bf" }}>
-                              No fee
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+
+                  {/* Selected chain button */}
+                  <button
+                    onClick={() => { if (!isBusy) setChainOpen(!chainOpen); }}
+                    className="w-full rounded-xl px-3.5 py-2.5 flex items-center gap-3 transition-all"
+                    style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${chainOpen ? "rgba(45,212,191,0.3)" : "rgba(255,255,255,0.08)"}` }}
+                  >
+                    <ChainIcon chain={selectedChain} size={24} />
+                    <div className="flex-1 text-left">
+                      <span className="text-[12px] font-semibold text-white">{selectedChain.name}</span>
+                      {!selectedChain.stargatePool && (
+                        <span className="ml-2 px-1.5 py-[1px] rounded text-[7px] font-bold uppercase tracking-wider" style={{ background: "rgba(45,212,191,0.2)", color: "#2dd4bf" }}>
+                          No fee
+                        </span>
+                      )}
+                      {selectedChain.stargatePool && (
+                        <span className="ml-2 text-[9px] text-gray-600">via Stargate V2</span>
+                      )}
+                    </div>
+                    <ChevronDown size={14} className={`text-gray-500 transition-transform ${chainOpen ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {/* Dropdown */}
+                  {chainOpen && (
+                    <div
+                      className="mt-2 rounded-xl overflow-hidden"
+                      style={{ background: "rgba(15,20,28,0.98)", border: "1px solid rgba(255,255,255,0.1)" }}
+                    >
+                      {/* Search */}
+                      <div className="px-3 pt-3 pb-2">
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                          <Search size={12} className="text-gray-500 shrink-0" />
+                          <input
+                            type="text"
+                            placeholder="Search networks…"
+                            value={chainSearch}
+                            onChange={(e) => setChainSearch(e.target.value)}
+                            className="flex-1 bg-transparent text-[11px] text-white outline-none placeholder:text-gray-600"
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+
+                      {/* Chain list */}
+                      <div className="max-h-[200px] overflow-y-auto px-1.5 pb-1.5" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}>
+                        {filteredChains.length === 0 && (
+                          <p className="text-[10px] text-gray-600 text-center py-4">No networks found</p>
+                        )}
+                        {filteredChains.map((c) => {
+                          const sel = c.chainId === selectedChain.chainId;
+                          return (
+                            <button
+                              key={c.chainId}
+                              onClick={() => {
+                                setSelectedChain(c);
+                                setChainOpen(false);
+                                setChainSearch("");
+                                setAmount("");
+                                setBridgeFee(null);
+                                setTxStatus("idle");
+                                setTxError("");
+                              }}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors"
+                              style={{ background: sel ? "rgba(45,212,191,0.08)" : "transparent" }}
+                              onMouseEnter={(e) => { if (!sel) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+                              onMouseLeave={(e) => { if (!sel) e.currentTarget.style.background = "transparent"; }}
+                            >
+                              <ChainIcon chain={c} size={22} />
+                              <div className="flex-1 text-left">
+                                <span className={`text-[11px] font-semibold ${sel ? "text-teal-400" : "text-white"}`}>{c.name}</span>
+                                <span className="text-[10px] text-gray-600 ml-1.5">{c.shortName}</span>
+                              </div>
+                              {!c.stargatePool && (
+                                <span className="px-1.5 py-[1px] rounded text-[7px] font-bold uppercase" style={{ background: "rgba(45,212,191,0.15)", color: "#2dd4bf" }}>
+                                  No fee
+                                </span>
+                              )}
+                              {c.stargatePool && (
+                                <span className="text-[9px] text-gray-600">~0.06%</span>
+                              )}
+                              {sel && <Check size={13} className="text-teal-400 shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* ── Amount input ── */}
+                {/* ── Amount ── */}
                 <div>
                   <div className="flex items-center justify-between mb-2 ml-1">
                     <p className="text-[11px] text-gray-400 font-medium">Amount</p>
@@ -448,23 +537,14 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                       {loadingBalance ? (
                         <Loader2 size={10} className="text-gray-500 animate-spin" />
                       ) : sourceBalance !== null ? (
-                        <span className="text-[10px] text-gray-500">
-                          Balance: {fmt(sourceBalance)} USDC
-                        </span>
+                        <span className="text-[10px] text-gray-500">Balance: {fmt(sourceBalance)} USDC</span>
                       ) : null}
                     </div>
                   </div>
-                  <div
-                    className="rounded-xl px-4 py-3 flex items-center gap-3"
-                    style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.08)" }}
-                  >
+                  <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.08)" }}>
                     <input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="0.00"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      disabled={isBusy}
+                      type="number" inputMode="decimal" placeholder="0.00"
+                      value={amount} onChange={(e) => setAmount(e.target.value)} disabled={isBusy}
                       className="flex-1 bg-transparent text-white text-lg font-semibold outline-none placeholder:text-gray-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <span className="text-[11px] text-gray-500 font-medium">USDC</span>
@@ -472,16 +552,14 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                       <button
                         onClick={() => setAmount(String(Math.floor(sourceBalance * 100) / 100))}
                         disabled={isBusy}
-                        className="px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-colors"
+                        className="px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider"
                         style={{ background: "rgba(45,212,191,0.12)", color: "#2dd4bf" }}
-                      >
-                        Max
-                      </button>
+                      >Max</button>
                     )}
                   </div>
                 </div>
 
-                {/* ── Bridge fee estimate (non-Arbitrum) ── */}
+                {/* ── Bridge fee (non-Arb) ── */}
                 {!isArb && amtNum > 0 && (
                   <div className="rounded-xl p-3 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
                     <div className="flex items-center gap-2">
@@ -489,9 +567,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                       <span className="text-[10px] text-gray-400">Bridge via Stargate V2</span>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] text-gray-400">
-                        Fee: ~{fmt(amtNum * 0.0006)} USDC + gas
-                      </p>
+                      <p className="text-[10px] text-gray-400">Fee: ~{fmt(amtNum * 0.0006)} USDC + gas</p>
                       <p className="text-[9px] text-gray-600">Arrives in ~1-3 min</p>
                     </div>
                   </div>
@@ -514,21 +590,17 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                     </span>
                   ) : txStatus === "success" ? (
                     <span className="flex items-center justify-center gap-2">
-                      <CheckCircle size={14} />
-                      Deposit Sent!
+                      <CheckCircle size={14} /> Deposit Sent!
                     </span>
                   ) : (
                     `Deposit${amtNum > 0 ? ` $${fmt(amtNum)}` : ""} USDC${!isArb ? " via Stargate" : ""}`
                   )}
                 </button>
 
-                {/* ── Tx status details ── */}
+                {/* ── Tx details ── */}
                 {txHash && (
-                  <a
-                    href={`${selectedChain.explorerUrl}/tx/${txHash}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-1.5 text-[10px] text-teal-400 hover:underline"
-                  >
+                  <a href={`${selectedChain.explorerUrl}/tx/${txHash}`} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-1.5 text-[10px] text-teal-400 hover:underline">
                     View transaction <ExternalLink size={10} />
                   </a>
                 )}
@@ -543,51 +615,36 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                 {txStatus === "success" && (
                   <div className="rounded-xl p-3 text-center" style={{ background: "rgba(45,212,191,0.06)", border: "1px solid rgba(45,212,191,0.15)" }}>
                     <p className="text-[10px] text-gray-400">
-                      {isArb
-                        ? "USDC will be bridged to HyperLiquid automatically (~2 min)."
-                        : "USDC is bridging to Arbitrum (~1-3 min), then auto-deposits to HyperLiquid."
-                      }
+                      {isArb ? "USDC will be bridged to HyperLiquid automatically (~2 min)." : "USDC is bridging to Arbitrum (~1-3 min), then auto-deposits to HyperLiquid."}
                     </p>
                     <button
                       onClick={() => { setTxStatus("idle"); setAmount(""); setTxHash(""); }}
                       className="mt-2 px-4 py-1.5 rounded-lg text-[10px] text-teal-400 font-medium"
                       style={{ background: "rgba(45,212,191,0.1)" }}
-                    >
-                      Deposit More
-                    </button>
+                    >Deposit More</button>
                   </div>
                 )}
 
-                {/* ── Divider: manual option ── */}
+                {/* ── Manual ── */}
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
-                  <button
-                    onClick={() => setShowManual(!showManual)}
-                    className="text-[9px] text-gray-600 hover:text-gray-400 transition-colors flex items-center gap-1"
-                  >
+                  <button onClick={() => setShowManual(!showManual)}
+                    className="text-[9px] text-gray-600 hover:text-gray-400 transition-colors flex items-center gap-1">
                     Or send manually <ChevronDown size={10} className={`transition-transform ${showManual ? "rotate-180" : ""}`} />
                   </button>
                   <div className="flex-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
                 </div>
 
-                {/* ── Manual address copy (collapsed) ── */}
                 {showManual && (
                   <div className="space-y-3">
-                    <button
-                      onClick={copyAddress}
+                    <button onClick={copyAddress}
                       className="w-full rounded-xl px-4 py-3 flex items-center justify-between gap-3 transition-all active:scale-[0.98]"
-                      style={{
-                        background: "rgba(0,0,0,0.3)",
-                        border: `1px solid ${copied ? "rgba(45,212,191,0.4)" : "rgba(255,255,255,0.08)"}`,
-                      }}
-                    >
+                      style={{ background: "rgba(0,0,0,0.3)", border: `1px solid ${copied ? "rgba(45,212,191,0.4)" : "rgba(255,255,255,0.08)"}` }}>
                       <code className="text-[10px] text-white font-mono truncate">{wallet.address}</code>
                       <div className="shrink-0 flex items-center gap-1.5">
-                        {copied ? (
-                          <><span className="text-[9px] text-teal-400">Copied</span><CheckCircle size={12} className="text-teal-400" /></>
-                        ) : (
-                          <><span className="text-[9px] text-gray-500">Copy</span><Copy size={12} className="text-gray-400" /></>
-                        )}
+                        {copied
+                          ? <><span className="text-[9px] text-teal-400">Copied</span><CheckCircle size={12} className="text-teal-400" /></>
+                          : <><span className="text-[9px] text-gray-500">Copy</span><Copy size={12} className="text-gray-400" /></>}
                       </div>
                     </button>
                     <p className="text-[9px] text-gray-600 text-center">
@@ -609,27 +666,23 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
                       {!isArb && (
                         <li className="text-[9.5px] text-red-300/70 leading-relaxed flex items-start gap-1.5">
                           <span className="shrink-0 mt-[3px]">•</span>
-                          <span>Cross-chain deposits use <strong className="text-red-300/90">Stargate V2</strong> bridge. A small fee (~0.06%) + native gas applies.</span>
+                          <span>Cross-chain via <strong className="text-red-300/90">Stargate V2</strong>. ~0.06% fee + native gas.</span>
                         </li>
                       )}
                     </ul>
                   </div>
                 </div>
 
-                {/* ── Safety note ── */}
+                {/* ── Safety ── */}
                 <div className="rounded-xl p-3 flex items-start gap-2" style={{ background: "rgba(45,212,191,0.04)", border: "1px solid rgba(45,212,191,0.1)" }}>
                   <Shield size={12} className="text-teal-400 shrink-0 mt-0.5" />
                   <p className="text-[10px] text-gray-400 leading-relaxed">
-                    This is <span className="text-teal-400 font-semibold">your dedicated copy-trading wallet</span>. All positions are verifiable on-chain. Withdrawals only go to your connected wallet.
+                    <span className="text-teal-400 font-semibold">Your dedicated copy-trading wallet.</span> All positions verifiable on-chain. Withdrawals only to your connected wallet.
                   </p>
                 </div>
 
-                {/* Explorer link */}
-                <a
-                  href={`https://arbiscan.io/address/${wallet.address}`}
-                  target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 text-[10px] text-gray-500 hover:text-teal-400 transition-colors py-1"
-                >
+                <a href={`https://arbiscan.io/address/${wallet.address}`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 text-[10px] text-gray-500 hover:text-teal-400 transition-colors py-1">
                   View wallet on Arbiscan <ExternalLink size={10} />
                 </a>
               </div>
