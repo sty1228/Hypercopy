@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   X, Download, Loader2, Copy, CheckCircle,
   ExternalLink, Shield, RefreshCw, AlertTriangle,
-  ChevronDown, ArrowRight, Zap,
+  ChevronDown, Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ethers } from "ethers";
@@ -16,6 +16,17 @@ import {
   ERC20_ABI, USDC_DECIMALS, STARGATE_POOL_ABI,
   type ChainConfig,
 } from "@/config/chains";
+
+// ethers v5 compat — cast to any to avoid TS errors with dual v5/v6 types
+const _ethers = ethers as any;
+const JsonRpcProvider = _ethers.providers?.JsonRpcProvider ?? _ethers.JsonRpcProvider;
+const Web3Provider = _ethers.providers?.Web3Provider ?? _ethers.BrowserProvider;
+const ContractClass = _ethers.Contract;
+const parseUnitsFunc = _ethers.utils?.parseUnits ?? _ethers.parseUnits;
+const formatUnitsFunc = _ethers.utils?.formatUnits ?? _ethers.formatUnits;
+const formatEtherFunc = _ethers.utils?.formatEther ?? _ethers.formatEther;
+const hexZeroPadFunc = _ethers.utils?.hexZeroPad ?? _ethers.zeroPadValue;
+const MaxUint256 = _ethers.constants?.MaxUint256 ?? _ethers.MaxUint256;
 
 // ── Types ──
 
@@ -51,14 +62,14 @@ const STATUS_LABELS: Record<TxStatus, string> = {
 const fmt = (n: number, d = 2) => n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
 
 async function readUSDCBalance(chain: ChainConfig, address: string): Promise<number> {
-  const provider = new ethers.providers.JsonRpcProvider(chain.rpcUrl);
-  const contract = new ethers.Contract(chain.usdc, ERC20_ABI, provider);
+  const provider = new JsonRpcProvider(chain.rpcUrl);
+  const contract = new ContractClass(chain.usdc, ERC20_ABI, provider);
   const bal = await contract.balanceOf(address);
-  return parseFloat(ethers.utils.formatUnits(bal, USDC_DECIMALS));
+  return parseFloat(formatUnitsFunc(bal, USDC_DECIMALS));
 }
 
 function padAddress(addr: string): string {
-  return ethers.utils.hexZeroPad(addr, 32);
+  return hexZeroPadFunc(addr, 32);
 }
 
 // ── Component ──
@@ -102,7 +113,6 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
       abortRef.current = false;
     } else {
       setSheetVisible(false);
-      // Reset on close
       setTxStatus("idle");
       setTxHash("");
       setTxError("");
@@ -166,23 +176,23 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
 
   // ── Get signer on the selected chain ──
 
-  const getSignerOnChain = async (): Promise<ethers.Signer> => {
+  const getSignerOnChain = async () => {
     if (!privyWallet) throw new Error("Wallet not connected");
 
-    // Switch chain if needed
-    const currentChainId = await privyWallet.getEthereumProvider().then(
-      (p: any) => new ethers.providers.Web3Provider(p).getNetwork().then((n) => n.chainId)
-    );
+    const rawProvider = await privyWallet.getEthereumProvider();
+    const provider = new Web3Provider(rawProvider as any);
+    const network = await provider.getNetwork();
 
-    if (currentChainId !== selectedChain.chainId) {
+    if (network.chainId !== selectedChain.chainId) {
       setTxStatus("switching");
       await privyWallet.switchChain(selectedChain.chainId);
-      // Small delay for provider to settle after chain switch
       await new Promise((r) => setTimeout(r, 500));
+      // Re-get provider after chain switch
+      const newRaw = await privyWallet.getEthereumProvider();
+      const newProvider = new Web3Provider(newRaw as any);
+      return newProvider.getSigner();
     }
 
-    const rawProvider = await privyWallet.getEthereumProvider();
-    const provider = new ethers.providers.Web3Provider(rawProvider as any);
     return provider.getSigner();
   };
 
@@ -191,8 +201,8 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
   const depositArbitrum = async () => {
     if (!wallet?.address) return;
     const signer = await getSignerOnChain();
-    const usdc = new ethers.Contract(selectedChain.usdc, ERC20_ABI, signer);
-    const rawAmount = ethers.utils.parseUnits(amount, USDC_DECIMALS);
+    const rawAmount = parseUnitsFunc(amount, USDC_DECIMALS);
+    const usdc = new ContractClass(selectedChain.usdc, ERC20_ABI, signer);
 
     setTxStatus("sending");
     const tx = await usdc.transfer(wallet.address, rawAmount);
@@ -206,7 +216,7 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
   const depositStargate = async () => {
     if (!wallet?.address || !selectedChain.stargatePool) return;
     const signer = await getSignerOnChain();
-    const rawAmount = ethers.utils.parseUnits(amount, USDC_DECIMALS);
+    const rawAmount = parseUnitsFunc(amount, USDC_DECIMALS);
     const minAmount = rawAmount.mul(995).div(1000); // 0.5% slippage
     const toBytes32 = padAddress(wallet.address);
 
@@ -222,11 +232,11 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
 
     // 1. Approve USDC to Stargate pool
     setTxStatus("approving");
-    const usdc = new ethers.Contract(selectedChain.usdc, ERC20_ABI, signer);
+    const usdc = new ContractClass(selectedChain.usdc, ERC20_ABI, signer);
     const userAddr = await signer.getAddress();
     const allowance = await usdc.allowance(userAddr, selectedChain.stargatePool);
     if (allowance.lt(rawAmount)) {
-      const approveTx = await usdc.approve(selectedChain.stargatePool, ethers.constants.MaxUint256);
+      const approveTx = await usdc.approve(selectedChain.stargatePool, MaxUint256);
       await approveTx.wait();
     }
 
@@ -234,12 +244,11 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
 
     // 2. Quote bridge fee
     setTxStatus("quoting");
-    const pool = new ethers.Contract(selectedChain.stargatePool, STARGATE_POOL_ABI, signer);
+    const pool = new ContractClass(selectedChain.stargatePool, STARGATE_POOL_ABI, signer);
     const [msgFee] = await pool.quoteSend(sendParam, false);
-    // Add 10% buffer to native fee for safety
-    const nativeFee = msgFee.nativeFee.mul(110).div(100);
+    const nativeFee = msgFee.nativeFee.mul(110).div(100); // 10% buffer
     const fee = { nativeFee, lzTokenFee: 0 };
-    setBridgeFee(ethers.utils.formatEther(nativeFee));
+    setBridgeFee(formatEtherFunc(nativeFee));
 
     if (abortRef.current) return;
 
@@ -271,17 +280,14 @@ export default function DepositSheet({ isOpen, onClose, onSuccess }: DepositShee
 
     try {
       if (!selectedChain.stargatePool) {
-        // Arbitrum — direct transfer
         await depositArbitrum();
       } else {
-        // Cross-chain via Stargate V2
         await depositStargate();
       }
 
       setTxStatus("success");
       toast.success("Deposit sent! Funds will arrive in ~1-3 minutes.");
       onSuccess?.();
-      // Refresh balances
       loadSourceBalance();
       refreshBalance();
     } catch (e: any) {
