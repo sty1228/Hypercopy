@@ -30,7 +30,7 @@ const MaxUint256 = _e.constants?.MaxUint256 ?? _e.MaxUint256;
 
 // ── Chain Icons ──
 
-function ChainIcon({ chain, size = 20 }: { chain: ChainConfig; size?: number }) {
+export function ChainIcon({ chain, size = 20 }: { chain: ChainConfig; size?: number }) {
   const s = size;
   const icons: Record<string, React.ReactNode> = {
     arbitrum: (

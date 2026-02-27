@@ -125,8 +125,11 @@ export const getWalletDeposits = async (): Promise<unknown[]> => {
   return await get("/api/wallet/deposits");
 };
 
-export const withdrawFromWallet = async (amount: number): Promise<{ status: string; message: string }> => {
-  return await post("/api/wallet/withdraw", { amount });
+export const withdrawFromWallet = async (
+  amount: number,
+  chainId: number = 42161
+): Promise<{ status: string; message: string }> => {
+  return await post("/api/wallet/withdraw", { amount, chain_id: chainId });
 };
 
 // ─── Follow / Unfollow ──────────────────────────────────
@@ -506,12 +509,14 @@ export const claimFeeShare = async (amount?: number): Promise<ClaimResponse> => 
   });
 };
 
-// ★ Transaction History
+// ─── ★ Transaction History ──────────────────────────────
+
 export interface TransactionItem {
   id: string;
   type: "deposit" | "withdraw";
   amount: number;
   status: string;
+  target_chain_id: number | null;
   tx_hash: string | null;
   created_at: string;
   completed_at: string | null;
