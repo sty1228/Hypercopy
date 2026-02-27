@@ -16,15 +16,21 @@ const UserMenu = () => {
   const currentWallet = useCurrentWallet();
   const router = useRouter();
 
+  // ── Identity extraction ──
+  const twitterAccount = user?.twitter;
+  const hasTwitter = !!twitterAccount?.username;
+  const twitterPfp = (twitterAccount as any)?.profilePictureUrl || null;
+
+  // Determine if user has a real external wallet (not just Privy embedded)
   const walletAddress = currentWallet?.address || "";
+  const isEmbeddedWallet = currentWallet?.walletClientType === "privy";
+  const hasExternalWallet = !!walletAddress && !isEmbeddedWallet;
   const truncAddr = walletAddress
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : "";
 
-  // Extract linked X account info from Privy user
-  const twitterAccount = user?.twitter;
-  const hasTwitter = !!twitterAccount?.username;
-  const hasExternalWallet = !!walletAddress;
+  // Avatar: X pfp > wallet hex > fallback
+  const avatarLabel = walletAddress ? walletAddress.slice(2, 6).toUpperCase() : "?";
 
   const updatePosition = useCallback(() => {
     if (btnRef.current) {
@@ -94,13 +100,6 @@ const UserMenu = () => {
     }
   };
 
-  // Avatar display: show first 2 chars of wallet, or X initial, or ?
-  const avatarLabel = walletAddress
-    ? walletAddress.slice(2, 4).toUpperCase()
-    : twitterAccount?.username
-    ? twitterAccount.username.slice(0, 2).toUpperCase()
-    : "?";
-
   const dropdown = isOpen
     ? createPortal(
         <div
@@ -138,7 +137,54 @@ const UserMenu = () => {
                 </div>
               </div>
 
-              {/* ── Wallet Section ── */}
+              {/* ── X Account Section ── */}
+              {hasTwitter ? (
+                <div
+                  className="w-full px-4 py-3 flex items-center gap-3"
+                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+                    style={{ background: "rgba(255,255,255,0.06)" }}
+                  >
+                    {twitterPfp ? (
+                      <img src={twitterPfp} alt="pfp" className="w-full h-full object-cover" />
+                    ) : (
+                      <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs text-white font-medium">@{twitterAccount!.username}</p>
+                    <p className="text-[10px] text-gray-500">X account linked</p>
+                  </div>
+                  <div className="ml-auto">
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(34,197,94,0.15)" }}>
+                      <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={handleLinkTwitter}
+                  className="w-full px-4 py-3 flex items-center gap-3 transition-all duration-200 hover:bg-white/5 cursor-pointer"
+                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs text-white font-medium">Link X Account</p>
+                    <p className="text-[10px] text-gray-500">Earn KOL rewards & boost points</p>
+                  </div>
+                </button>
+              )}
+
+              {/* ── External Wallet Section ── */}
               {hasExternalWallet ? (
                 <button
                   onClick={handleCopyAddress}
@@ -173,48 +219,7 @@ const UserMenu = () => {
                   </div>
                   <div className="text-left">
                     <p className="text-xs text-teal-400 font-medium">Link Wallet</p>
-                    <p className="text-[10px] text-gray-500">Connect external wallet</p>
-                  </div>
-                </button>
-              )}
-
-              {/* ── X / Twitter Section ── */}
-              {hasTwitter ? (
-                <div
-                  className="w-full px-4 py-3 flex items-center gap-3"
-                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
-                >
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,255,255,0.06)" }}>
-                    <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                    </svg>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs text-white font-medium">@{twitterAccount!.username}</p>
-                    <p className="text-[10px] text-gray-500">X account linked</p>
-                  </div>
-                  <div className="ml-auto">
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(34,197,94,0.15)" }}>
-                      <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={handleLinkTwitter}
-                  className="w-full px-4 py-3 flex items-center gap-3 transition-all duration-200 hover:bg-white/5 cursor-pointer"
-                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
-                >
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,255,255,0.05)" }}>
-                    <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                    </svg>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs text-white font-medium">Link X Account</p>
-                    <p className="text-[10px] text-gray-500">Earn KOL rewards & boost points</p>
+                    <p className="text-[10px] text-gray-500">Connect MetaMask, Rabby, etc.</p>
                   </div>
                 </button>
               )}
@@ -249,7 +254,7 @@ const UserMenu = () => {
                   color: "rgba(45,212,191,1)",
                 }}
               >
-                Connect Wallet
+                Log In
               </button>
             </div>
           )}
@@ -265,14 +270,25 @@ const UserMenu = () => {
         onClick={toggleMenu}
         className="w-[38px] h-[38px] rounded-full flex items-center justify-center text-sm font-bold text-white cursor-pointer transition-all duration-200 hover:scale-105"
         style={{
-          backgroundColor: authenticated ? "#2528CA" : "rgba(255,255,255,0.1)",
+          backgroundColor: authenticated
+            ? twitterPfp ? "transparent" : "#2528CA"
+            : "rgba(255,255,255,0.1)",
           boxShadow: authenticated ? "0 0 25px rgba(59,130,246,0.4)" : "none",
-          border: authenticated ? "none" : "1px solid rgba(255,255,255,0.15)",
+          border: authenticated
+            ? twitterPfp ? "2px solid rgba(45,212,191,0.4)" : "none"
+            : "1px solid rgba(255,255,255,0.15)",
           position: "relative",
           zIndex: 10,
+          overflow: "hidden",
         }}
       >
-        {authenticated ? avatarLabel : (
+        {authenticated ? (
+          twitterPfp ? (
+            <img src={twitterPfp} alt="pfp" className="w-full h-full object-cover rounded-full" />
+          ) : (
+            <span className="text-[10px] font-bold tracking-wider">{avatarLabel}</span>
+          )
+        ) : (
           <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
