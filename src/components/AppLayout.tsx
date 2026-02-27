@@ -3,40 +3,23 @@
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import Navbar from "@/components/navbar";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { useContext, useEffect, useRef } from "react";
-import Onboarding from "@/app/onboarding/page";
+import { useContext } from "react";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { usePathname } from "next/navigation";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { authenticated, logout, ready } = usePrivy();
+  const { authenticated, ready } = usePrivy();
   const { ready: walletsReady } = useWallets();
   const { tradingEnabled, builderFeeApproved } = useContext(HyperLiquidContext);
   const currentWallet = useCurrentWallet();
   const pathname = usePathname();
-  const logoutTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isOnboardingPage = pathname === "/onboarding";
 
-  useEffect(() => {
-    if (logoutTimeoutRef.current) {
-      clearTimeout(logoutTimeoutRef.current);
-      logoutTimeoutRef.current = null;
-    }
-
-    if (ready && walletsReady && authenticated && !currentWallet?.address) {
-      logoutTimeoutRef.current = setTimeout(() => {
-        if (authenticated && !currentWallet?.address) {
-          logout();
-        }
-      }, 10_000);
-    }
-
-    return () => {
-      if (logoutTimeoutRef.current) {
-        clearTimeout(logoutTimeoutRef.current);
-      }
-    };
-  }, [authenticated, currentWallet, ready, walletsReady, logout]);
+  // NOTE: Removed the 10s auto-logout for users without wallet address.
+  // Twitter login users get an embedded wallet from Privy automatically
+  // (createOnLogin: "users-without-wallets"), so they will always have
+  // a wallet — but it may take a moment to initialize. The old timeout
+  // was too aggressive and would kick out Twitter-login users.
 
   return (
     <>

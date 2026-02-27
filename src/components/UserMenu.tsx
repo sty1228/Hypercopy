@@ -12,22 +12,24 @@ const UserMenu = () => {
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { authenticated, logout, login } = usePrivy();
+  const { authenticated, logout, login, user, linkTwitter, linkWallet } = usePrivy();
   const currentWallet = useCurrentWallet();
   const router = useRouter();
 
   const walletAddress = currentWallet?.address || "";
-  const truncatedAddress = walletAddress
+  const truncAddr = walletAddress
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : "";
 
+  // Extract linked X account info from Privy user
+  const twitterAccount = user?.twitter;
+  const hasTwitter = !!twitterAccount?.username;
+  const hasExternalWallet = !!walletAddress;
+
   const updatePosition = useCallback(() => {
     if (btnRef.current) {
-      const rect = btnRef.current.getBoundingClientRect();
-      setMenuPos({
-        top: rect.bottom + 8,
-        right: window.innerWidth - rect.right,
-      });
+      const r = btnRef.current.getBoundingClientRect();
+      setMenuPos({ top: r.bottom + 8, right: window.innerWidth - r.right });
     }
   }, []);
 
@@ -41,9 +43,7 @@ const UserMenu = () => {
       if (
         menuRef.current && !menuRef.current.contains(e.target as Node) &&
         btnRef.current && !btnRef.current.contains(e.target as Node)
-      ) {
-        setIsOpen(false);
-      }
+      ) setIsOpen(false);
     };
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
@@ -74,101 +74,189 @@ const UserMenu = () => {
     login();
   };
 
-  const dropdown = isOpen ? createPortal(
-    <div
-      ref={menuRef}
-      className="w-[240px] rounded-2xl overflow-hidden"
-      style={{
-        position: "fixed",
-        top: menuPos.top,
-        right: menuPos.right,
-        zIndex: 999999,
-        background: "linear-gradient(135deg, rgba(15,22,30,0.98) 0%, rgba(10,15,20,0.98) 100%)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        boxShadow: "0 10px 40px rgba(0,0,0,0.5), 0 0 20px rgba(0,0,0,0.3)",
-        backdropFilter: "blur(20px)",
-        animation: "userMenuFadeIn 0.2s ease-out",
-      }}
-    >
-      <style>{`
-        @keyframes userMenuFadeIn {
-          from { opacity: 0; transform: translateY(-8px) scale(0.95); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-      `}</style>
+  const handleLinkTwitter = async () => {
+    try {
+      await linkTwitter();
+      toast.success("X account linked!");
+    } catch (e: any) {
+      if (e?.message?.includes("cancelled") || e?.message?.includes("closed")) return;
+      toast.error("Failed to link X account");
+    }
+  };
 
-      {authenticated ? (
-        <>
-          {/* Connected header */}
-          <div className="px-4 pt-4 pb-3">
-            <div className="flex items-center gap-2">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ background: "#22c55e", boxShadow: "0 0 6px rgba(34,197,94,0.6)" }}
-              />
-              <span className="text-[11px] text-gray-400">Connected</span>
-            </div>
-          </div>
+  const handleLinkWallet = async () => {
+    try {
+      await linkWallet();
+      toast.success("Wallet linked!");
+    } catch (e: any) {
+      if (e?.message?.includes("cancelled") || e?.message?.includes("closed")) return;
+      toast.error("Failed to link wallet");
+    }
+  };
 
-          {/* Wallet Address */}
-          <button
-            onClick={handleCopyAddress}
-            className="w-full px-4 py-3 flex items-center justify-between transition-all duration-200 hover:bg-white/5 cursor-pointer"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(45,212,191,0.1)" }}>
-                <svg className="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
-                </svg>
+  // Avatar display: show first 2 chars of wallet, or X initial, or ?
+  const avatarLabel = walletAddress
+    ? walletAddress.slice(2, 4).toUpperCase()
+    : twitterAccount?.username
+    ? twitterAccount.username.slice(0, 2).toUpperCase()
+    : "?";
+
+  const dropdown = isOpen
+    ? createPortal(
+        <div
+          ref={menuRef}
+          className="w-[260px] rounded-2xl overflow-hidden"
+          style={{
+            position: "fixed",
+            top: menuPos.top,
+            right: menuPos.right,
+            zIndex: 999999,
+            background: "linear-gradient(135deg, rgba(15,22,30,0.98) 0%, rgba(10,15,20,0.98) 100%)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.5), 0 0 20px rgba(0,0,0,0.3)",
+            backdropFilter: "blur(20px)",
+            animation: "userMenuFadeIn 0.2s ease-out",
+          }}
+        >
+          <style>{`
+            @keyframes userMenuFadeIn {
+              from { opacity: 0; transform: translateY(-8px) scale(0.95); }
+              to { opacity: 1; transform: translateY(0) scale(1); }
+            }
+          `}</style>
+
+          {authenticated ? (
+            <>
+              {/* Header */}
+              <div className="px-4 pt-4 pb-3">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ background: "#22c55e", boxShadow: "0 0 6px rgba(34,197,94,0.6)" }}
+                  />
+                  <span className="text-[11px] text-gray-400">Connected</span>
+                </div>
               </div>
-              <div className="text-left">
-                <p className="text-xs text-white font-medium">{truncatedAddress}</p>
-                <p className="text-[10px] text-gray-500">Tap to copy</p>
-              </div>
-            </div>
-            <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
-            </svg>
-          </button>
 
-          {/* Disconnect */}
-          <button
-            onClick={handleLogout}
-            className="w-full px-4 py-3 flex items-center gap-3 transition-all duration-200 hover:bg-white/5 cursor-pointer"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(244,63,94,0.1)" }}>
-              <svg className="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-              </svg>
+              {/* ── Wallet Section ── */}
+              {hasExternalWallet ? (
+                <button
+                  onClick={handleCopyAddress}
+                  className="w-full px-4 py-3 flex items-center justify-between transition-all duration-200 hover:bg-white/5 cursor-pointer"
+                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(45,212,191,0.1)" }}>
+                      <svg className="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
+                      </svg>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-xs text-white font-medium">{truncAddr}</p>
+                      <p className="text-[10px] text-gray-500">Tap to copy</p>
+                    </div>
+                  </div>
+                  <svg className="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  onClick={handleLinkWallet}
+                  className="w-full px-4 py-3 flex items-center gap-3 transition-all duration-200 hover:bg-white/5 cursor-pointer"
+                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(45,212,191,0.08)" }}>
+                    <svg className="w-4 h-4 text-teal-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs text-teal-400 font-medium">Link Wallet</p>
+                    <p className="text-[10px] text-gray-500">Connect external wallet</p>
+                  </div>
+                </button>
+              )}
+
+              {/* ── X / Twitter Section ── */}
+              {hasTwitter ? (
+                <div
+                  className="w-full px-4 py-3 flex items-center gap-3"
+                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,255,255,0.06)" }}>
+                    <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs text-white font-medium">@{twitterAccount!.username}</p>
+                    <p className="text-[10px] text-gray-500">X account linked</p>
+                  </div>
+                  <div className="ml-auto">
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "rgba(34,197,94,0.15)" }}>
+                      <svg className="w-3 h-3 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={handleLinkTwitter}
+                  className="w-full px-4 py-3 flex items-center gap-3 transition-all duration-200 hover:bg-white/5 cursor-pointer"
+                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,255,255,0.05)" }}>
+                    <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <p className="text-xs text-white font-medium">Link X Account</p>
+                    <p className="text-[10px] text-gray-500">Earn KOL rewards & boost points</p>
+                  </div>
+                </button>
+              )}
+
+              {/* Disconnect */}
+              <button
+                onClick={handleLogout}
+                className="w-full px-4 py-3 flex items-center gap-3 transition-all duration-200 hover:bg-white/5 cursor-pointer"
+                style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(244,63,94,0.1)" }}>
+                  <svg className="w-4 h-4 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                  </svg>
+                </div>
+                <span className="text-xs text-rose-400 font-medium">Disconnect</span>
+              </button>
+              <div className="h-2" />
+            </>
+          ) : (
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-2 h-2 rounded-full" style={{ background: "rgba(255,255,255,0.3)" }} />
+                <span className="text-[11px] text-gray-400">Not connected</span>
+              </div>
+              <button
+                onClick={handleLogin}
+                className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                style={{
+                  background: "linear-gradient(135deg, rgba(45,212,191,0.2) 0%, rgba(45,212,191,0.1) 100%)",
+                  border: "1px solid rgba(45,212,191,0.3)",
+                  color: "rgba(45,212,191,1)",
+                }}
+              >
+                Connect Wallet
+              </button>
             </div>
-            <span className="text-xs text-rose-400 font-medium">Disconnect</span>
-          </button>
-          <div className="h-2" />
-        </>
-      ) : (
-        <div className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full" style={{ background: "rgba(255,255,255,0.3)" }} />
-            <span className="text-[11px] text-gray-400">Not connected</span>
-          </div>
-          <button
-            onClick={handleLogin}
-            className="w-full py-3 rounded-xl text-sm font-semibold transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-            style={{
-              background: "linear-gradient(135deg, rgba(45,212,191,0.2) 0%, rgba(45,212,191,0.1) 100%)",
-              border: "1px solid rgba(45,212,191,0.3)",
-              color: "rgba(45,212,191,1)",
-            }}
-          >
-            Connect Wallet
-          </button>
-        </div>
-      )}
-    </div>,
-    document.body
-  ) : null;
+          )}
+        </div>,
+        document.body
+      )
+    : null;
 
   return (
     <>
@@ -184,9 +272,7 @@ const UserMenu = () => {
           zIndex: 10,
         }}
       >
-        {authenticated ? (
-          walletAddress ? walletAddress.slice(2, 4).toUpperCase() : "?"
-        ) : (
+        {authenticated ? avatarLabel : (
           <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
