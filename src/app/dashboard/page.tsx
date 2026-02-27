@@ -27,13 +27,14 @@ import {
 } from "@/service";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
-import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Upload, RefreshCw, TrendingUp, Eye, EyeOff } from "lucide-react";
+import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Upload, RefreshCw, TrendingUp, Eye, EyeOff, Clock } from "lucide-react";
 import UserMenu from "@/components/UserMenu";
 import PositionDetail, { PositionDetailData, positionExtendedData } from "./components/PositionDetail";
 import CopyingSheet from "./components/CopyingSheet";
 import ActiveTradesSheet from "./components/ActiveTradesSheet";
 import DepositSheet from "./components/DepositSheet";
 import WithdrawSheet from "./components/WithdrawSheet";
+import TransactionHistorySheet from "./components/TransactionHistorySheet";
 import { KOLRewardsScreen } from "./components/KOLRewardsScreen";
 import { useRewards } from "@/providers/RewardsContext";
 import RewardsBanner from "@/components/RewardsBanner";
@@ -121,6 +122,7 @@ const Home = () => {
   const [showActiveTrades, setShowActiveTrades] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   // ── Derived from real-time wallet balance ──
   const totalBalance = walletBal ? walletBal.hl_equity + walletBal.arb_usdc : 0;
@@ -376,7 +378,7 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Row 3: Deposit / Withdraw */}
+            {/* Row 3: Deposit / Withdraw / History */}
             <div className="flex gap-2 mb-4">
               <Button onClick={() => authenticated ? setShowDeposit(true) : login()}
                 className="flex-1 bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-[12px] font-bold rounded-xl py-3 h-auto transition-all cursor-pointer gap-1.5"
@@ -389,6 +391,15 @@ const Home = () => {
                   style={{ border: "1px solid rgba(255,255,255,0.12)" }}>
                   <Upload size={14} /> Withdraw
                 </Button>
+              )}
+              {authenticated && (
+                <button
+                  onClick={() => setShowHistory(true)}
+                  className="w-[46px] shrink-0 rounded-xl flex items-center justify-center transition-all hover:bg-white/10 cursor-pointer"
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)" }}
+                >
+                  <Clock size={16} className="text-gray-400" />
+                </button>
               )}
             </div>
 
@@ -596,6 +607,10 @@ const Home = () => {
         onClose={() => { setShowWithdraw(false); refreshWalletBalance(); fetchPnlChart(timeRange); setTimeout(fetchDashboard, 60_000); }}
         availableBalance={availableToTrade}
         onSuccess={handleWithdrawSuccess} />
+      <TransactionHistorySheet
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+      />
     </div>
   );
 };

@@ -505,3 +505,18 @@ export const claimFeeShare = async (amount?: number): Promise<ClaimResponse> => 
     amount: amount || null,
   });
 };
+
+// ★ Transaction History
+export interface TransactionItem {
+  id: string;
+  type: "deposit" | "withdraw";
+  amount: number;
+  status: string;
+  tx_hash: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export const getTransactions = async (limit = 30): Promise<TransactionItem[]> => {
+  return await get(`/api/wallet/transactions?limit=${limit}`);
+};
