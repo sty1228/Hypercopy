@@ -4,8 +4,6 @@ import { createContext, useCallback, useEffect, useState } from "react";
 import * as hl from "@nktkas/hyperliquid";
 import { useCurrentWallet, useEthereumProvider } from "@/hooks/usePrivyData";
 import { ethers } from "ethers";
-import { BigNumber } from "bignumber.js";
-import { toast } from "sonner";
 
 const HyperLiquidContext = createContext({
   hyperLiquidTransport: null as hl.HttpTransport | null,
@@ -18,8 +16,10 @@ const HyperLiquidContext = createContext({
     [key: string]: number;
   },
   enableTrading: () => Promise.resolve(),
+  // Builder fee is now auto-approved by backend on first deposit.
+  // Kept in context for backward compat — always true, approveBuilderFee is a no-op.
   approveBuilderFee: () => Promise.resolve(),
-  builderFeeApproved: false as boolean,
+  builderFeeApproved: true as boolean,
   assetsInfoMap: {} as {
     [key: string]: {
       szDecimals: number;
@@ -31,22 +31,6 @@ const HyperLiquidContext = createContext({
 });
 
 const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
-  useEffect(() => {
-    console.log("process.env", process.env);
-    console.log(
-      "NEXT_PUBLIC_HL_BUILDER_ADDRESS",
-      process.env.NEXT_PUBLIC_HL_BUILDER_ADDRESS
-    );
-    console.log(
-      "NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS",
-      process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS
-    );
-    console.log(
-      "NEXT_PUBLIC_HL_DEFAULT_LEVERAGE",
-      process.env.NEXT_PUBLIC_HL_DEFAULT_LEVERAGE
-    );
-  }, []);
-
   const [hyperLiquidTransport, setHyperLiquidTransport] =
     useState<hl.HttpTransport | null>(null);
   const [infoClient, setInfoClient] = useState<hl.InfoClient | null>(null);
@@ -68,7 +52,11 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
       isDelisted?: true | undefined;
     };
   }>({});
-  const [builderFeeApproved, setBuilderFeeApproved] = useState<boolean>(false);
+
+  // Builder fee is auto-approved by backend on every deposit.
+  // Always true — no user action needed.
+  const builderFeeApproved = true;
+
   const currentWallet = useCurrentWallet();
   const ethereumProvider = useEthereumProvider();
 
@@ -93,7 +81,6 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
     if (!ethereumProvider || !hyperLiquidTransport) {
       return;
     }
-    // getSigner() is synchronous in ethers v5
     const signer = ethereumProvider.getSigner();
     if (!signer) {
       console.error("Failed to get signer");
@@ -108,7 +95,6 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     loadMarketAssetData();
-    checkBuilderFeeApproved();
     infoClient
       .extraAgents({
         user: currentWallet!.address,
@@ -184,59 +170,8 @@ const HyperLiquidProvider = ({ children }: { children: React.ReactNode }) => {
       });
   }, [mainExchClient, infoClient, agentWallet]);
 
-  const checkBuilderFeeApproved = async () => {
-    if (!infoClient || !currentWallet) {
-      return;
-    }
-    const builderFee = await infoClient
-      .maxBuilderFee({
-        builder: process.env.NEXT_PUBLIC_HL_BUILDER_ADDRESS!,
-        user: currentWallet.address!,
-      })
-      .catch(() => 0);
-    console.log(
-      "builderFee",
-      builderFee,
-      "NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS",
-      process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS,
-      new BigNumber(builderFee)
-        .dividedBy(10)
-        .isEqualTo(
-          new BigNumber(process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS!)
-        )
-    );
-    setBuilderFeeApproved(
-      new BigNumber(builderFee)
-        .dividedBy(10)
-        .isEqualTo(
-          new BigNumber(process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS!)
-        )
-    );
-  };
-
-  const approveBuilderFee = async () => {
-    if (!mainExchClient) {
-      return;
-    }
-    const maxFeeRate = process.env.NEXT_PUBLIC_HL_DEFAULT_BUILDER_BPS!;
-    const builderAddress = process.env.NEXT_PUBLIC_HL_BUILDER_ADDRESS;
-    if (!maxFeeRate || !builderAddress) {
-      toast.error("Builder fee config is not set");
-      return;
-    }
-    await mainExchClient
-      .approveBuilderFee({
-        maxFeeRate: `${new BigNumber(maxFeeRate).dividedBy(100).toString()}%`,
-        builder: builderAddress!,
-      })
-      .then(() => {
-        setBuilderFeeApproved(true);
-      })
-      .catch((e) => {
-        console.log("failed to approve builder fee", e);
-        setBuilderFeeApproved(false);
-      });
-  };
+  // No-op — builder fee is handled by backend automatically
+  const approveBuilderFee = useCallback(async () => {}, []);
 
   const loadMarketAssetData = async () => {
     if (!infoClient) {
