@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { LeaderboardItem } from "@/service";
 import { useRouter } from "next/navigation";
 import BigNumber from "bignumber.js";
@@ -26,6 +27,7 @@ export default function KolItem({
   index?: number;
 }) {
   const router = useRouter();
+  const [imgError, setImgError] = useState(false); // ★ FIX: state-based fallback
   const rank = data.rank || index + 1;
   const profit = data.results_pct || 0;
   const isPositive = profit >= 0;
@@ -40,6 +42,8 @@ export default function KolItem({
   };
 
   const rankStyle = getRankStyle();
+  const showImg = !!data.avatar_url && !imgError;
+  const displayName = data.display_name || data.x_handle;
 
   const formatPnl = (pct: number) => {
     const val = Math.abs(pct).toFixed(1);
@@ -60,8 +64,6 @@ export default function KolItem({
     onClick();
   };
 
-  const displayName = data.display_name || data.x_handle;
-
   return (
     <div
       onClick={handleProfileClick}
@@ -73,7 +75,6 @@ export default function KolItem({
         animation: `fadeInUp 0.5s ease-out ${index * 0.1}s both`,
       }}
     >
-      {/* Green glow effect */}
       <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15) 0%, transparent 60%)" }} />
 
       <div className="relative">
@@ -86,22 +87,23 @@ export default function KolItem({
             {rank}
           </div>
 
-          {/* Avatar: show image if available, otherwise letter initial */}
-          {data.avatar_url ? (
+          {/* ★ Avatar: conditional render via React state — no more infinite 404 retry */}
+          {showImg ? (
             <img
-              src={data.avatar_url}
+              src={data.avatar_url!}
               alt={displayName}
               className="w-10 h-10 rounded-xl object-cover shrink-0"
               style={{ border: rank <= 3 ? rankStyle.border : "none", animation: rank <= 3 ? rankStyle.animation : "none" }}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
+              onError={() => setImgError(true)}
             />
-          ) : null}
-          <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm text-white shrink-0 ${data.avatar_url ? 'hidden' : ''}`}
-            style={{ background: data.avatarColor || "linear-gradient(135deg, #06b6d4, #3b82f6)", border: rank <= 3 ? rankStyle.border : "none", animation: rank <= 3 ? rankStyle.animation : "none" }}
-          >
-            {(displayName)?.[0]?.toUpperCase() || "?"}
-          </div>
+          ) : (
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm text-white shrink-0"
+              style={{ background: data.avatarColor || "linear-gradient(135deg, #06b6d4, #3b82f6)", border: rank <= 3 ? rankStyle.border : "none", animation: rank <= 3 ? rankStyle.animation : "none" }}
+            >
+              {displayName?.[0]?.toUpperCase() || "?"}
+            </div>
+          )}
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
@@ -116,13 +118,12 @@ export default function KolItem({
             <div className="text-[10px] text-gray-500 truncate">@{data.x_handle}</div>
           </div>
 
-          {/* PnL with proper negative sign */}
           <div className={`text-sm font-bold shrink-0 ${isPositive ? "text-teal-400" : "text-rose-400"}`} style={{ textShadow: isPositive ? "0 0 10px rgba(45,212,191,0.3)" : "0 0 10px rgba(251,113,133,0.3)" }}>
             {formatPnl(profit)}
           </div>
         </div>
 
-        {/* Stats Grid - 3 cols × 2 rows */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-3 gap-x-4 gap-y-1.5">
           <div>
             <div className="text-[9px] text-gray-500 uppercase tracking-wide">Last Tweet</div>

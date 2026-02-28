@@ -13,14 +13,13 @@ import { randomColor } from "./components/kolItem";
 import UserMenu from "@/components/UserMenu";
 
 /* ── Filter → API param mapping ── */
-const FILTER_MAP: Record<string, { sortBy: string; verifiedOnly: boolean }> = {
-  earners:  { sortBy: "total_profit_usd", verifiedOnly: false },
-  copied:   { sortBy: "copiers_count",    verifiedOnly: false },
-  trending: { sortBy: "points",           verifiedOnly: false },
-  verified: { sortBy: "total_profit_usd", verifiedOnly: true  },
+const FILTER_MAP: Record<string, { sortBy: string; registeredOnly: boolean }> = {
+  earners:  { sortBy: "total_profit_usd",  registeredOnly: false },
+  copied:   { sortBy: "copiers_count",     registeredOnly: false },
+  trending: { sortBy: "trending_score",    registeredOnly: false },
+  verified: { sortBy: "total_profit_usd",  registeredOnly: true  },
 };
 
-/* ── Section header text per filter ── */
 const SECTION_TITLES: Record<string, string> = {
   earners:  "Top Earners",
   copied:   "Most Copied",
@@ -28,7 +27,14 @@ const SECTION_TITLES: Record<string, string> = {
   verified: "Verified Traders",
 };
 
-/* ── Tooltip wrapper (tap on mobile, hover on desktop) ── */
+const EMPTY_MESSAGES: Record<string, string> = {
+  earners:  "No trader data available for this time window.",
+  copied:   "No copied traders yet. Be the first to copy!",
+  trending: "No trending traders found for this time window.",
+  verified: "No verified traders found. Register to get verified!",
+};
+
+/* ── Tooltip wrapper ── */
 const IconWithTooltip = ({
   tooltip,
   children,
@@ -78,9 +84,9 @@ export default function CopyTrading() {
   const fetchLeaderboard = useCallback(async (window: string, filter: string) => {
     setLoading(true);
     setError(null);
-    const { sortBy, verifiedOnly } = FILTER_MAP[filter] || FILTER_MAP.earners;
+    const { sortBy, registeredOnly } = FILTER_MAP[filter] || FILTER_MAP.earners;
     try {
-      const response = (await leaderboard(window, sortBy, verifiedOnly)) as LeaderboardItem[];
+      const response = await leaderboard(window, sortBy, registeredOnly);
       if (response && response.length > 0) {
         const list = response.map((item: LeaderboardItem, index: number) => ({
           ...item,
@@ -92,11 +98,7 @@ export default function CopyTrading() {
       } else {
         setRawLeaderboardList([]);
         setLeaderboardList([]);
-        setError(
-          verifiedOnly
-            ? "No verified traders found for this time window."
-            : "No trader data available for this time window."
-        );
+        setError(EMPTY_MESSAGES[filter] || EMPTY_MESSAGES.earners);
       }
     } catch (e) {
       console.error("Leaderboard API error:", e);
@@ -108,12 +110,11 @@ export default function CopyTrading() {
     }
   }, []);
 
-  /* ── Refetch when filter OR time window changes ── */
   useEffect(() => {
     fetchLeaderboard(timeFilter, activeFilter);
   }, [timeFilter, activeFilter, fetchLeaderboard]);
 
-  /* ── Client-side search within current results ── */
+  /* ── Client-side search (name + handle) ── */
   const handleListSearch = () => {
     if (listSearchValue) {
       const q = listSearchValue.toLowerCase();
@@ -131,10 +132,6 @@ export default function CopyTrading() {
   const handleClickKOLItem = (item: LeaderboardItem) => {
     setClickItemData(item);
     setIsOpen(true);
-  };
-
-  const handleKOLDetailSheetClose = () => {
-    setIsOpen(false);
   };
 
   const filters = [
@@ -168,7 +165,6 @@ export default function CopyTrading() {
 
   return (
     <div className="min-h-screen text-white relative overflow-hidden" style={{ background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)" }}>
-      {/* Ambient glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-20 left-1/3 w-[300px] h-[300px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.08) 0%, transparent 60%)", filter: "blur(60px)" }} />
         <div className="absolute bottom-1/3 -right-20 w-[200px] h-[200px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)", filter: "blur(40px)" }} />
@@ -209,7 +205,6 @@ export default function CopyTrading() {
         </div>
       </div>
 
-      {/* Page Title */}
       <div className="relative z-10 px-3 pt-1 pb-2">
         <h1 className="text-base font-bold text-white">Leaderboard</h1>
       </div>
@@ -242,7 +237,7 @@ export default function CopyTrading() {
         </div>
       </div>
 
-      {/* Section Header — title changes with active filter */}
+      {/* Section Header */}
       <div className="relative z-10 px-3 mb-1.5 flex items-center justify-between">
         <span className="text-white text-xs font-semibold">
           {SECTION_TITLES[activeFilter] || "Top Traders"}
@@ -260,7 +255,7 @@ export default function CopyTrading() {
         </div>
       </div>
 
-      {/* Content area: loading / error / list */}
+      {/* Content */}
       <div className="relative z-10 flex-1 overflow-y-auto px-3 pb-20">
         {loading ? (
           <div className="flex flex-col items-center justify-center pt-20 gap-3">
@@ -299,7 +294,7 @@ export default function CopyTrading() {
       <KolDetailSheet
         data={clickItemData!}
         isOpen={isOpen}
-        handleClose={handleKOLDetailSheetClose}
+        handleClose={() => setIsOpen(false)}
       />
 
       <style jsx global>{`

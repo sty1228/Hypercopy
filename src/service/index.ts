@@ -266,10 +266,10 @@ export interface LeaderboardItem {
 export const leaderboard = async (
   window: string = "30d",
   sortBy: string = "total_profit_usd",
-  verifiedOnly: boolean = false
+  registeredOnly: boolean = false
 ): Promise<LeaderboardItem[]> => {
   const params = new URLSearchParams({ window, sort_by: sortBy });
-  if (verifiedOnly) params.set("verified_only", "true");
+  if (registeredOnly) params.set("registered_only", "true");
   return await get(`/api/leaderboard?${params.toString()}`);
 };
 
