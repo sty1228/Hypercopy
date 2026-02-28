@@ -60,6 +60,90 @@ const DataStreams = () => (
   </div>
 );
 
+/* ── TOS Bottom Sheet ── */
+const TermsSheet = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center" onClick={onClose}>
+      {/* backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      {/* sheet */}
+      <div
+        className="relative w-full max-w-[480px] max-h-[80vh] rounded-t-[20px] flex flex-col"
+        style={{ background: "linear-gradient(180deg, #131f25 0%, #0a1419 100%)", border: "1px solid rgba(80,210,193,0.15)", borderBottom: "none" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* handle */}
+        <div className="flex justify-center pt-3 pb-2">
+          <div className="w-10 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.2)" }} />
+        </div>
+        {/* header */}
+        <div className="px-6 pb-3 flex items-center justify-between">
+          <h2 className="text-[16px] font-bold" style={{ color: "rgba(80,210,193,1)", fontFamily: "var(--font-orbitron)", letterSpacing: "1px" }}>
+            Terms of Service
+          </h2>
+          <button onClick={onClose} className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.05)" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+        {/* content */}
+        <div className="px-6 pb-8 overflow-y-auto" style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px", lineHeight: "1.7" }}>
+          <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "11px", marginBottom: "16px" }}>
+            Last updated: February 28, 2026
+          </p>
+
+          <p style={{ marginBottom: "12px" }}>
+            By using HyperCopy (&quot;the Platform&quot;), you acknowledge and agree to the following terms. Please read them carefully before depositing funds or enabling copy trading.
+          </p>
+
+          <Section title="1. Custodial Wallet Arrangement">
+            When you create an account, HyperCopy generates a dedicated trading wallet on your behalf. The private keys for this wallet are encrypted and stored by the Platform. This means HyperCopy has custodial control over your deposited funds. While we implement encryption and security measures to protect your assets, you acknowledge that this custodial model carries inherent risk, including but not limited to potential loss of funds due to security breaches, technical failures, or operational errors.
+          </Section>
+
+          <Section title="2. Trading Risks">
+            Copy trading involves automatically replicating trades based on signals derived from public social media posts by Key Opinion Leaders (KOLs). You understand and accept that: (a) past performance of any KOL does not guarantee future results; (b) you may lose some or all of your deposited funds; (c) leveraged perpetual futures trading amplifies both gains and losses; (d) signal detection relies on AI analysis of tweets, which may be inaccurate, delayed, or misinterpreted; (e) market conditions, slippage, and execution timing may cause your results to differ significantly from the KOL&apos;s stated positions.
+          </Section>
+
+          <Section title="3. Fees">
+            HyperCopy charges a builder fee of 0.1% (10 basis points) on each trade executed through the Platform. This fee is automatically deducted at the time of trade execution. Deposits and withdrawals via the Platform&apos;s zero-fee path incur no additional charge, though cross-chain bridging (non-Arbitrum chains) may involve minimal network fees (~0.06%).
+          </Section>
+
+          <Section title="4. Not Investment Advice">
+            Nothing on the Platform constitutes financial, investment, legal, or tax advice. HyperCopy does not recommend, endorse, or guarantee the accuracy of any KOL&apos;s trading signals. All trading decisions — whether manually initiated or automatically copied — are made at your own risk and discretion. You should consult qualified professionals before making any financial decisions.
+          </Section>
+
+          <Section title="5. Eligibility">
+            By using the Platform, you represent that you are at least 18 years old and that the use of cryptocurrency trading platforms is not prohibited in your jurisdiction. It is your sole responsibility to ensure compliance with applicable local laws and regulations.
+          </Section>
+
+          <Section title="6. Service Availability">
+            HyperCopy is provided on an &quot;as is&quot; and &quot;as available&quot; basis. We do not guarantee uninterrupted or error-free operation. The Platform may be temporarily unavailable due to maintenance, upgrades, or circumstances beyond our control. We are not liable for any losses resulting from service interruptions.
+          </Section>
+
+          <Section title="7. Limitation of Liability">
+            To the maximum extent permitted by law, HyperCopy and its operators shall not be liable for any direct, indirect, incidental, consequential, or punitive damages arising from your use of the Platform, including but not limited to trading losses, wallet security incidents, or service downtime.
+          </Section>
+
+          <Section title="8. Changes to Terms">
+            HyperCopy reserves the right to modify these terms at any time. Continued use of the Platform after changes constitutes acceptance of the revised terms. Material changes will be communicated through the Platform interface.
+          </Section>
+
+          <p style={{ marginTop: "16px", color: "rgba(255,255,255,0.4)", fontSize: "11px" }}>
+            If you have questions about these terms, contact us at support@hypercopy.io.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div style={{ marginBottom: "16px" }}>
+    <p style={{ color: "rgba(80,210,193,0.85)", fontWeight: 600, fontSize: "13px", marginBottom: "4px" }}>{title}</p>
+    <p>{children}</p>
+  </div>
+);
+
 const OnboardingContent = () => {
   const { ready, login, authenticated } = usePrivy();
   const router = useRouter();
@@ -67,6 +151,7 @@ const OnboardingContent = () => {
 
   const [walletReady, setWalletReady] = useState(false);
   const [showDeposit, setShowDeposit] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [hasBalance, setHasBalance] = useState(false);
 
   useEffect(() => {
@@ -333,7 +418,15 @@ const OnboardingContent = () => {
       {/* ── terms ── */}
       <p className="mt-5 font-light text-xs w-[300px] mx-auto text-center relative z-10"
         style={{ color: "rgba(255, 255, 255, 0.7)", animation: "fadeIn 1s ease-out 0.9s both" }}>
-        By tap on the FINISH button you&apos;re agree to our Terms and Agreement.
+        By tapping the button below you agree to our{" "}
+        <span
+          onClick={() => setShowTerms(true)}
+          className="cursor-pointer underline underline-offset-2"
+          style={{ color: "rgba(80,210,193,0.9)" }}
+        >
+          Terms of Service
+        </span>
+        .
       </p>
 
       {/* ── CTA button ── */}
@@ -389,6 +482,9 @@ const OnboardingContent = () => {
         onClose={handleDepositClose}
         onSuccess={handleDepositSuccess}
       />
+
+      {/* ── Terms of Service overlay ── */}
+      <TermsSheet isOpen={showTerms} onClose={() => setShowTerms(false)} />
     </div>
   );
 };
