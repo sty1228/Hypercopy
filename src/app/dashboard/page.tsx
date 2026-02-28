@@ -88,7 +88,7 @@ const AVATAR_COLORS = ["#2dd4bf", "#a78bfa", "#f97316", "#3b82f6", "#ec4899", "#
 
 const Home = () => {
   const router = useRouter();
-  const { authenticated, login, logout } = usePrivy();
+  const { authenticated, login, logout, user } = usePrivy();
   const { wallets } = useWallets();
   const wallet = wallets?.[0];
 
@@ -103,12 +103,10 @@ const Home = () => {
   const [loading, setLoading] = useState(false);
   const [builderDismissed, setBuilderDismissed] = useState(false);
 
-  // ★ Real-time wallet balance
   const [walletBal, setWalletBal] = useState<WalletBalance | null>(null);
   const [balRefreshing, setBalRefreshing] = useState(false);
   const [hideBalance, setHideBalance] = useState(false);
 
-  // ★ P&L chart data (replaces old balance chart)
   const [timeRange, setTimeRange] = useState<TimeRange>("M");
   const [pnlChartData, setPnlChartData] = useState<BalanceChartData[]>([]);
   const [rangePnl, setRangePnl] = useState(0);
@@ -124,13 +122,13 @@ const Home = () => {
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  // ── Derived from real-time wallet balance ──
   const totalBalance = walletBal ? walletBal.hl_equity + walletBal.arb_usdc : 0;
   const availableToTrade = walletBal?.hl_withdrawable ?? 0;
   const pendingBalance = walletBal?.arb_usdc ?? 0;
   const openCount = summary?.open_positions ?? 0;
   const totalTrades = summary?.total_trades ?? 0;
   const copyingCount = profile?.followingCount ?? 0;
+  const copiersCount = profile?.followerCount ?? 0;
 
   // ── 1. Privy → Backend JWT sync ──
   useEffect(() => {
@@ -151,10 +149,11 @@ const Home = () => {
     if (!wallet?.address) return;
     const existing = localStorage.getItem("token");
     if (existing) { setAuthReady(true); return; }
-    connectWalletApi(wallet.address)
+    const twitterUsername = (user?.twitter as any)?.username || null;
+    connectWalletApi(wallet.address, twitterUsername)
       .then((res) => { localStorage.setItem("token", res.access_token); setAuthReady(true); })
       .catch((err) => console.error("Auth sync failed:", err));
-  }, [authenticated, wallet?.address]);
+  }, [authenticated, wallet?.address, user]);
 
   // ── 2. Fetch real-time balance ──
   const refreshWalletBalance = useCallback(async () => {
@@ -196,7 +195,7 @@ const Home = () => {
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  // ── 4. ★ P&L chart data (replaces old balanceHistory) ──
+  // ── 4. P&L chart data ──
   const fetchPnlChart = useCallback(async (tr: TimeRange = "M") => {
     if (!authReady) {
       setPnlChartData([]);
@@ -267,7 +266,6 @@ const Home = () => {
     if (ext) setSelectedPos({ ...pos, color: ext.color, currentPrice: ext.currentPrice, txs: ext.txs });
   };
 
-  // ── Determine P&L color direction ──
   const pnlPositive = rangePnl >= 0;
 
   return (
@@ -323,14 +321,13 @@ const Home = () => {
       </div>
 
       {/* ═══════════════════════════════════════════════
-           PORTFOLIO CARD — Polymarket-style P&L
+           PORTFOLIO CARD
           ═══════════════════════════════════════════════ */}
       <div className="relative z-10 px-3">
         <div className="rounded-xl overflow-hidden mb-3" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.05) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(45,212,191,0.15)", boxShadow: "0 0 30px rgba(45,212,191,0.08)" }}>
           <div className="absolute inset-0 rounded-xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.12) 0%, transparent 60%)" }} />
 
           <div className="relative z-10 p-4">
-            {/* Row 1: Portfolio label + eye toggle + refresh */}
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
                 <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">Portfolio</p>
@@ -344,13 +341,11 @@ const Home = () => {
               </button>
             </div>
 
-            {/* Row 2: Main balance + Available to trade */}
             <div className="flex justify-between items-start mb-3">
               <div>
                 <p className="text-3xl font-bold text-white tracking-tight tabular-nums" style={{ textShadow: "0 0 20px rgba(45,212,191,0.2)" }}>
                   {authenticated ? (hideBalance ? "••••••" : `$${fmt(totalBalance)}`) : "—"}
                 </p>
-                {/* ★ Range P&L — changes with time tab */}
                 {authenticated && pnlChartData.length > 0 && (
                   <div className="flex items-center gap-2 mt-1">
                     <span className={`text-[12px] font-bold tabular-nums ${pnlPositive ? "text-teal-400" : "text-rose-400"}`}>
@@ -364,7 +359,6 @@ const Home = () => {
                 )}
               </div>
 
-              {/* Available to trade */}
               <div className="text-right">
                 <p className="text-[10px] text-gray-500 mb-0.5">Available to trade</p>
                 <p className="text-lg font-bold text-white tabular-nums">
@@ -378,7 +372,6 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Row 3: Deposit / Withdraw / History */}
             <div className="flex gap-2 mb-4">
               <Button onClick={() => authenticated ? setShowDeposit(true) : login()}
                 className="flex-1 bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-[12px] font-bold rounded-xl py-3 h-auto transition-all cursor-pointer gap-1.5"
@@ -403,13 +396,11 @@ const Home = () => {
               )}
             </div>
 
-            {/* Row 4: P&L Chart header + tabs */}
             <div className="flex justify-between items-center mb-2">
               <div className="flex items-center gap-1.5">
                 <TrendingUp size={12} className="text-teal-400" />
                 <span className="text-[11px] text-gray-400 font-medium">Profit/Loss</span>
               </div>
-              {/* ★ Removed "Y" — matching Polymarket: D, W, M, ALL */}
               <div className="flex gap-0.5">
                 {(["D", "W", "M", "ALL"] as TimeRange[]).map((t) => (
                   <TimeRangeTab key={t} label={t === "D" ? "1D" : t === "W" ? "1W" : t === "M" ? "1M" : "ALL"} isActive={timeRange === t} onClick={() => setTimeRange(t)} />
@@ -417,7 +408,6 @@ const Home = () => {
               </div>
             </div>
 
-            {/* ★ Big P&L number above chart — Polymarket style */}
             {authenticated && pnlChartData.length > 0 && (
               <div className="mb-2">
                 <p className={`text-2xl font-bold tabular-nums ${pnlPositive ? "text-teal-400" : "text-rose-400"}`}>
@@ -429,7 +419,6 @@ const Home = () => {
               </div>
             )}
 
-            {/* ★ P&L Chart — mode="pnl" enables zero baseline + dynamic color */}
             <div className="relative h-28 mb-1">
               <BalanceChart timeRange={timeRange} chartData={pnlChartData} mode="pnl" />
             </div>
@@ -442,7 +431,7 @@ const Home = () => {
         <div className="flex flex-1 gap-2">
           {[
             { icon: Copy, label: "Copying", value: String(copyingCount), color: "teal", action: () => setShowCopying(true) },
-            { icon: Users, label: "Copiers", value: "0", color: "purple", action: () => setShowCopiers(true) },
+            { icon: Users, label: "Copiers", value: String(copiersCount), color: "purple", action: () => setShowCopiers(true) },
           ].map((stat, i) => (
             <div key={i} onClick={() => stat.action()} className="flex-1 rounded-xl p-3 cursor-pointer transition-all duration-300 hover:scale-[1.02]" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div className="flex flex-col items-center">

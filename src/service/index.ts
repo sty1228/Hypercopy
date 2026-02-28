@@ -3,10 +3,12 @@ import { get, post, put, del, patch } from "@/lib/axios";
 // ─── Auth ───────────────────────────────────────────────
 
 export const connectWalletApi = async (
-  walletAddress: string
+  walletAddress: string,
+  twitterUsername?: string | null
 ): Promise<{ access_token: string; user: Record<string, unknown> }> => {
   return await post("/api/auth/connect-wallet", {
     wallet_address: walletAddress,
+    twitter_username: twitterUsername || null,
   });
 };
 
@@ -63,7 +65,7 @@ export const balanceHistory = async (
   return await get(`/api/portfolio/balance-history?timeRange=${timeRange}`);
 };
 
-// ─── ★ NEW: P&L History (deposits/withdrawals stripped) ──
+// ─── ★ P&L History (deposits/withdrawals stripped) ──
 
 export interface PnlHistoryItem {
   timestamp: number;
@@ -337,9 +339,8 @@ export interface TradersCopyingItem {
 }
 
 export const getProfileTradersCopyingList = async (): Promise<TradersCopyingItem[]> => {
-  return await get(
-    "https://mock.apidog.com/m1/1147892-1140449-default/api/copyingList?apidogToken=PbNG_tQ6mXqOpxO8CvYsp"
-  );
+  // TODO: implement real endpoint when copiers API is built
+  return [];
 };
 
 // ─── Settings ───────────────────────────────────────────

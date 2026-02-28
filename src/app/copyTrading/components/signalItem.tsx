@@ -3,7 +3,7 @@
 import { UserSignalItem } from "@/service";
 import { numberToPercentageString } from "@/lib/number";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import BigNumber from "bignumber.js";
@@ -14,6 +14,8 @@ const SIDE_MAP: { [key: string]: "long" | "short" } = {
   bullish: "long",
   bearish: "short",
 };
+
+const TRADE_SIZE_USD = 20;
 
 export default function SignalItem({
   data,
@@ -29,6 +31,8 @@ export default function SignalItem({
   const { tradingEnabled, builderFeeApproved, placeOrderAssets, exchClient, infoClient, assetsInfoMap } = useContext(HyperLiquidContext);
   const { authenticated } = usePrivy();
   const router = useRouter();
+  const [placing, setPlacing] = useState(false);
+
   const symbol = data?.ticker?.replaceAll("USDT", "") || "";
   const assetInfo = assetsInfoMap?.[symbol];
   const isExpanded = currentClickItemId === data.signal_id;
@@ -42,41 +46,67 @@ export default function SignalItem({
       router.push(`/onboarding?from=${encodeURIComponent("orderPlace")}`);
       return;
     }
-    const tradeSide = SIDE_MAP[side === "copy" ? data.bull_or_bear : data.bull_or_bear === "bearish" ? "bullish" : "bearish"];
-    const realtimeOrderbook = await infoClient!.l2Book({ coin: symbol });
-    const { levels } = realtimeOrderbook!;
-    const [bids, asks] = levels || [];
-    const orderPrice = tradeSide === "long" ? bids[0].px : asks[0].px;
-    const placeOrderAssetId = placeOrderAssets[symbol.toUpperCase()];
-    const priceDecimals = Number(orderPrice).toString().includes(".") ? orderPrice.toString().split(".")[1].length : 0;
-    const tpPrice = new BigNumber(orderPrice).multipliedBy(tradeSide === "long" ? 1.1 : 0.9).toFixed(priceDecimals);
-    const slPrice = new BigNumber(orderPrice).multipliedBy(tradeSide === "long" ? 0.9 : 1.1).toFixed(priceDecimals);
+    if (placing) return;
+    setPlacing(true);
 
-    const orderParams: OrderParams = {
-      side: tradeSide,
-      price: orderPrice,
-      size: 0.1,
-      coin: placeOrderAssetId,
-      leverage: 1,
-      takeProfit: { price: tpPrice, grouping: OrderGrouping.NormalTpsl },
-      stopLoss: { price: slPrice, grouping: OrderGrouping.NormalTpsl },
-    };
+    try {
+      const tradeSide = SIDE_MAP[side === "copy" ? data.bull_or_bear : data.bull_or_bear === "bearish" ? "bullish" : "bearish"];
+      const realtimeOrderbook = await infoClient!.l2Book({ coin: symbol });
+      const { levels } = realtimeOrderbook!;
+      const [bids, asks] = levels || [];
 
-    const mockPrice = tradeSide === "long"
-      ? new BigNumber(orderPrice).multipliedBy(0.95).toFixed(priceDecimals)
-      : new BigNumber(orderPrice).multipliedBy(1.05).toFixed(priceDecimals);
-    const mockSize = new BigNumber(20).dividedBy(mockPrice).decimalPlaces(assetInfo?.szDecimals || 2, BigNumber.ROUND_DOWN).toNumber();
-    const mockOrderParams = {
-      ...orderParams,
-      price: mockPrice,
-      size: mockSize,
-      takeProfit: { price: new BigNumber(mockPrice).multipliedBy(tradeSide === "long" ? 1.1 : 0.9).toFixed(priceDecimals), grouping: OrderGrouping.NormalTpsl },
-      stopLoss: { price: new BigNumber(mockPrice).multipliedBy(tradeSide === "long" ? 0.9 : 1.1).toFixed(priceDecimals), grouping: OrderGrouping.NormalTpsl },
-    };
+      if (!bids?.length || !asks?.length) {
+        toast.error("Orderbook unavailable");
+        return;
+      }
 
-    const res = confirm(`Order confirm: ${JSON.stringify(orderParams)}. \n⚠️ For testing, will place order with mock order params: ${JSON.stringify(mockOrderParams)}`);
-    if (!(res && exchClient)) return;
-    await placeOrder({ exchClient, orderParams: mockOrderParams });
+      const orderPrice = tradeSide === "long" ? bids[0].px : asks[0].px;
+      const placeOrderAssetId = placeOrderAssets[symbol.toUpperCase()];
+      const priceDecimals = Number(orderPrice).toString().includes(".")
+        ? orderPrice.toString().split(".")[1].length
+        : 0;
+      const szDecimals = assetInfo?.szDecimals || 2;
+
+      const size = new BigNumber(TRADE_SIZE_USD)
+        .dividedBy(orderPrice)
+        .decimalPlaces(szDecimals, BigNumber.ROUND_DOWN)
+        .toNumber();
+
+      if (size <= 0) {
+        toast.error("Trade size too small");
+        return;
+      }
+
+      const tpPrice = new BigNumber(orderPrice)
+        .multipliedBy(tradeSide === "long" ? 1.1 : 0.9)
+        .toFixed(priceDecimals);
+      const slPrice = new BigNumber(orderPrice)
+        .multipliedBy(tradeSide === "long" ? 0.9 : 1.1)
+        .toFixed(priceDecimals);
+
+      const orderParams: OrderParams = {
+        side: tradeSide,
+        price: orderPrice,
+        size,
+        coin: placeOrderAssetId,
+        leverage: 1,
+        takeProfit: { price: tpPrice, grouping: OrderGrouping.NormalTpsl },
+        stopLoss: { price: slPrice, grouping: OrderGrouping.NormalTpsl },
+      };
+
+      if (!exchClient) {
+        toast.error("Exchange client not ready");
+        return;
+      }
+
+      await placeOrder({ exchClient, orderParams });
+      toast.success(`${tradeSide === "long" ? "Long" : "Short"} ${symbol} placed`);
+    } catch (err: any) {
+      console.error("Trade error:", err);
+      toast.error(err?.message || "Failed to place order");
+    } finally {
+      setPlacing(false);
+    }
   };
 
   return (
@@ -100,7 +130,7 @@ export default function SignalItem({
         animation: `fadeInUp 0.5s ease-out ${index * 0.08}s both`,
       }}
     >
-      {/* Left color bar - 展开时变宽变亮 */}
+      {/* Left color bar */}
       <div
         className="absolute left-0 top-0 bottom-0 rounded-l-2xl transition-all duration-300"
         style={{
@@ -120,7 +150,6 @@ export default function SignalItem({
         {/* Header */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            {/* Time with icon */}
             <div className="flex items-center gap-1.5 text-xs text-gray-400">
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <circle cx="12" cy="12" r="10" />
@@ -128,7 +157,6 @@ export default function SignalItem({
               </svg>
               <span>{data.updateTime}</span>
             </div>
-            {/* Direction badge */}
             <div
               className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-300 ${isBullish ? "text-teal-400" : "text-rose-400"}`}
               style={{
@@ -152,7 +180,7 @@ export default function SignalItem({
         {/* Content */}
         <p className="text-sm text-gray-200 leading-relaxed mb-2">{data?.content || ""}</p>
 
-        {/* Stats Row - ticker & change 放右边 */}
+        {/* Stats Row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 text-gray-500 text-xs">
             <span className="flex items-center gap-1.5 hover:text-gray-300 transition-colors">
@@ -174,7 +202,6 @@ export default function SignalItem({
               {data?.likesCount ?? 0}
             </span>
           </div>
-          {/* Ticker & Change - 右下角 */}
           <div className="flex items-center gap-1.5">
             <span
               className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
@@ -203,31 +230,31 @@ export default function SignalItem({
         {isExpanded ? (
           <div
             className="flex gap-3 mt-3 pt-3 border-t border-white/10"
-            style={{
-              animation: "slideUp 0.3s ease-out",
-            }}
+            style={{ animation: "slideUp 0.3s ease-out" }}
           >
             <button
               onClick={(e) => { e.stopPropagation(); handleTrade("counter"); }}
-              className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]"
+              disabled={placing}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] disabled:opacity-50"
               style={{
                 background: "rgba(244,63,94,0.15)",
                 border: "1px solid rgba(244,63,94,0.3)",
                 animation: "slideUp 0.3s ease-out 0.05s both",
               }}
             >
-              <span className="text-rose-400">Counter</span>
+              <span className="text-rose-400">{placing ? "Placing..." : "Counter"}</span>
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); handleTrade("copy"); }}
-              className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-200 hover:scale-[1.03] active:scale-[0.97]"
+              disabled={placing}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] disabled:opacity-50"
               style={{
                 background: "rgba(45,212,191,0.15)",
                 border: "1px solid rgba(45,212,191,0.3)",
                 animation: "slideUp 0.3s ease-out 0.1s both",
               }}
             >
-              <span className="text-teal-400">Copy</span>
+              <span className="text-teal-400">{placing ? "Placing..." : "Copy"}</span>
             </button>
           </div>
         ) : (
@@ -239,17 +266,10 @@ export default function SignalItem({
         )}
       </div>
 
-      {/* CSS for animations */}
       <style jsx>{`
         @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(8px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>
