@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import profileIcon from "@/assets/icons/profile.png";
 import copyCountIcon from "@/assets/icons/copy-count.png";
@@ -11,6 +11,22 @@ import KolList from "./components/kolList";
 import KolDetailSheet from "./components/kolDetailSheet";
 import { randomColor } from "./components/kolItem";
 import UserMenu from "@/components/UserMenu";
+
+/* ── Filter → API param mapping ── */
+const FILTER_MAP: Record<string, { sortBy: string; verifiedOnly: boolean }> = {
+  earners:  { sortBy: "total_profit_usd", verifiedOnly: false },
+  copied:   { sortBy: "copiers_count",    verifiedOnly: false },
+  trending: { sortBy: "points",           verifiedOnly: false },
+  verified: { sortBy: "total_profit_usd", verifiedOnly: true  },
+};
+
+/* ── Section header text per filter ── */
+const SECTION_TITLES: Record<string, string> = {
+  earners:  "Top Earners",
+  copied:   "Most Copied",
+  trending: "Trending",
+  verified: "Verified Traders",
+};
 
 /* ── Tooltip wrapper (tap on mobile, hover on desktop) ── */
 const IconWithTooltip = ({
@@ -59,15 +75,12 @@ export default function CopyTrading() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchLeaderboard(timeFilter);
-  }, [timeFilter]);
-
-  const fetchLeaderboard = async (window: string) => {
+  const fetchLeaderboard = useCallback(async (window: string, filter: string) => {
     setLoading(true);
     setError(null);
+    const { sortBy, verifiedOnly } = FILTER_MAP[filter] || FILTER_MAP.earners;
     try {
-      const response = (await leaderboard(window)) as LeaderboardItem[];
+      const response = (await leaderboard(window, sortBy, verifiedOnly)) as LeaderboardItem[];
       if (response && response.length > 0) {
         const list = response.map((item: LeaderboardItem, index: number) => ({
           ...item,
@@ -79,7 +92,11 @@ export default function CopyTrading() {
       } else {
         setRawLeaderboardList([]);
         setLeaderboardList([]);
-        setError("No trader data available for this time window.");
+        setError(
+          verifiedOnly
+            ? "No verified traders found for this time window."
+            : "No trader data available for this time window."
+        );
       }
     } catch (e) {
       console.error("Leaderboard API error:", e);
@@ -89,14 +106,23 @@ export default function CopyTrading() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
+  /* ── Refetch when filter OR time window changes ── */
+  useEffect(() => {
+    fetchLeaderboard(timeFilter, activeFilter);
+  }, [timeFilter, activeFilter, fetchLeaderboard]);
+
+  /* ── Client-side search within current results ── */
   const handleListSearch = () => {
     if (listSearchValue) {
-      const filteredList = rawLeaderboardList.filter((item) =>
-        item.x_handle.toLowerCase().includes(listSearchValue.toLowerCase())
+      const q = listSearchValue.toLowerCase();
+      const filtered = rawLeaderboardList.filter(
+        (item) =>
+          item.x_handle.toLowerCase().includes(q) ||
+          (item.display_name && item.display_name.toLowerCase().includes(q))
       );
-      setLeaderboardList(filteredList);
+      setLeaderboardList(filtered);
     } else {
       setLeaderboardList(rawLeaderboardList);
     }
@@ -216,9 +242,11 @@ export default function CopyTrading() {
         </div>
       </div>
 
-      {/* Section Header */}
+      {/* Section Header — title changes with active filter */}
       <div className="relative z-10 px-3 mb-1.5 flex items-center justify-between">
-        <span className="text-white text-xs font-semibold">Top Traders</span>
+        <span className="text-white text-xs font-semibold">
+          {SECTION_TITLES[activeFilter] || "Top Traders"}
+        </span>
         <div className="flex gap-0.5">
           {["24h", "7d", "30d"].map((t) => (
             <button
@@ -256,7 +284,7 @@ export default function CopyTrading() {
             </div>
             <span className="text-xs text-gray-400 text-center max-w-[250px]">{error}</span>
             <button
-              onClick={() => fetchLeaderboard(timeFilter)}
+              onClick={() => fetchLeaderboard(timeFilter, activeFilter)}
               className="px-4 py-2 rounded-lg text-xs font-medium text-teal-400 transition-all hover:bg-teal-400/10"
               style={{ border: "1px solid rgba(45,212,191,0.3)" }}
             >

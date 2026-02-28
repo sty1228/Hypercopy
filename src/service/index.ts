@@ -263,8 +263,14 @@ export interface LeaderboardItem {
   copiers?: number;
 }
 
-export const leaderboard = async (window: string = "30d"): Promise<LeaderboardItem[]> => {
-  return await get(`/api/leaderboard?window=${window}`);
+export const leaderboard = async (
+  window: string = "30d",
+  sortBy: string = "total_profit_usd",
+  verifiedOnly: boolean = false
+): Promise<LeaderboardItem[]> => {
+  const params = new URLSearchParams({ window, sort_by: sortBy });
+  if (verifiedOnly) params.set("verified_only", "true");
+  return await get(`/api/leaderboard?${params.toString()}`);
 };
 
 // ─── User Signals ───────────────────────────────────────
