@@ -32,6 +32,7 @@ export default function SignalItem({
   const { authenticated } = usePrivy();
   const router = useRouter();
   const [placing, setPlacing] = useState(false);
+  const [tweetImgError, setTweetImgError] = useState(false); // ★ image fallback
 
   const symbol = data?.ticker?.replaceAll("USDT", "") || "";
   const assetInfo = assetsInfoMap?.[symbol];
@@ -39,6 +40,9 @@ export default function SignalItem({
   const change = data?.change_since_tweet || 0;
   const isPositiveChange = change >= 0;
   const isBullish = data.bull_or_bear === "bullish";
+
+  // ★ Check for tweet image
+  const tweetImage = data.tweet_image_url && !tweetImgError ? data.tweet_image_url : null;
 
   const handleTrade = async (side: "copy" | "counter") => {
     if (!(tradingEnabled && authenticated && builderFeeApproved)) {
@@ -55,50 +59,27 @@ export default function SignalItem({
       const { levels } = realtimeOrderbook!;
       const [bids, asks] = levels || [];
 
-      if (!bids?.length || !asks?.length) {
-        toast.error("Orderbook unavailable");
-        return;
-      }
+      if (!bids?.length || !asks?.length) { toast.error("Orderbook unavailable"); return; }
 
       const orderPrice = tradeSide === "long" ? bids[0].px : asks[0].px;
       const placeOrderAssetId = placeOrderAssets[symbol.toUpperCase()];
       const priceDecimals = Number(orderPrice).toString().includes(".")
-        ? orderPrice.toString().split(".")[1].length
-        : 0;
+        ? orderPrice.toString().split(".")[1].length : 0;
       const szDecimals = assetInfo?.szDecimals || 2;
 
-      const size = new BigNumber(TRADE_SIZE_USD)
-        .dividedBy(orderPrice)
-        .decimalPlaces(szDecimals, BigNumber.ROUND_DOWN)
-        .toNumber();
+      const size = new BigNumber(TRADE_SIZE_USD).dividedBy(orderPrice).decimalPlaces(szDecimals, BigNumber.ROUND_DOWN).toNumber();
+      if (size <= 0) { toast.error("Trade size too small"); return; }
 
-      if (size <= 0) {
-        toast.error("Trade size too small");
-        return;
-      }
-
-      const tpPrice = new BigNumber(orderPrice)
-        .multipliedBy(tradeSide === "long" ? 1.1 : 0.9)
-        .toFixed(priceDecimals);
-      const slPrice = new BigNumber(orderPrice)
-        .multipliedBy(tradeSide === "long" ? 0.9 : 1.1)
-        .toFixed(priceDecimals);
+      const tpPrice = new BigNumber(orderPrice).multipliedBy(tradeSide === "long" ? 1.1 : 0.9).toFixed(priceDecimals);
+      const slPrice = new BigNumber(orderPrice).multipliedBy(tradeSide === "long" ? 0.9 : 1.1).toFixed(priceDecimals);
 
       const orderParams: OrderParams = {
-        side: tradeSide,
-        price: orderPrice,
-        size,
-        coin: placeOrderAssetId,
-        leverage: 1,
+        side: tradeSide, price: orderPrice, size, coin: placeOrderAssetId, leverage: 1,
         takeProfit: { price: tpPrice, grouping: OrderGrouping.NormalTpsl },
         stopLoss: { price: slPrice, grouping: OrderGrouping.NormalTpsl },
       };
 
-      if (!exchClient) {
-        toast.error("Exchange client not ready");
-        return;
-      }
-
+      if (!exchClient) { toast.error("Exchange client not ready"); return; }
       await placeOrder({ exchClient, orderParams });
       toast.success(`${tradeSide === "long" ? "Long" : "Short"} ${symbol} placed`);
     } catch (err: any) {
@@ -119,12 +100,8 @@ export default function SignalItem({
           : isBullish
             ? "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.02) 100%)"
             : "linear-gradient(135deg, rgba(251,113,133,0.06) 0%, rgba(251,113,133,0.02) 100%)",
-        border: isExpanded
-          ? "1px solid rgba(255,255,255,0.25)"
-          : "1px solid rgba(255,255,255,0.06)",
-        boxShadow: isExpanded
-          ? "0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1), inset 0 1px 0 rgba(255,255,255,0.1)"
-          : "none",
+        border: isExpanded ? "1px solid rgba(255,255,255,0.25)" : "1px solid rgba(255,255,255,0.06)",
+        boxShadow: isExpanded ? "0 8px 32px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.1), inset 0 1px 0 rgba(255,255,255,0.1)" : "none",
         transform: isExpanded ? "scale(1.02) translateY(-2px)" : "scale(1) translateY(0)",
         transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
         animation: `fadeInUp 0.5s ease-out ${index * 0.08}s both`,
@@ -135,14 +112,8 @@ export default function SignalItem({
         className="absolute left-0 top-0 bottom-0 rounded-l-2xl transition-all duration-300"
         style={{
           width: isExpanded ? "4px" : "3px",
-          background: isBullish
-            ? "linear-gradient(180deg, #2dd4bf 0%, #14b8a6 100%)"
-            : "linear-gradient(180deg, #fb7185 0%, #f43f5e 100%)",
-          boxShadow: isExpanded
-            ? isBullish
-              ? "0 0 12px rgba(45,212,191,0.6)"
-              : "0 0 12px rgba(251,113,133,0.6)"
-            : "none",
+          background: isBullish ? "linear-gradient(180deg, #2dd4bf 0%, #14b8a6 100%)" : "linear-gradient(180deg, #fb7185 0%, #f43f5e 100%)",
+          boxShadow: isExpanded ? (isBullish ? "0 0 12px rgba(45,212,191,0.6)" : "0 0 12px rgba(251,113,133,0.6)") : "none",
         }}
       />
 
@@ -152,8 +123,7 @@ export default function SignalItem({
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 text-xs text-gray-400">
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
               </svg>
               <span>{data.updateTime}</span>
             </div>
@@ -161,11 +131,7 @@ export default function SignalItem({
               className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all duration-300 ${isBullish ? "text-teal-400" : "text-rose-400"}`}
               style={{
                 background: isBullish ? "rgba(45,212,191,0.15)" : "rgba(251,113,133,0.15)",
-                boxShadow: isExpanded
-                  ? isBullish
-                    ? "0 0 8px rgba(45,212,191,0.4)"
-                    : "0 0 8px rgba(251,113,133,0.4)"
-                  : "none",
+                boxShadow: isExpanded ? (isBullish ? "0 0 8px rgba(45,212,191,0.4)" : "0 0 8px rgba(251,113,133,0.4)") : "none",
               }}
             >
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
@@ -179,6 +145,19 @@ export default function SignalItem({
 
         {/* Content */}
         <p className="text-sm text-gray-200 leading-relaxed mb-2">{data?.content || ""}</p>
+
+        {/* ★ Tweet Image (only renders when URL exists and hasn't errored) */}
+        {tweetImage && (
+          <div className="mb-2 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+            <img
+              src={tweetImage}
+              alt="Tweet image"
+              className="w-full max-h-48 object-cover"
+              loading="lazy"
+              onError={() => setTweetImgError(true)}
+            />
+          </div>
+        )}
 
         {/* Stats Row */}
         <div className="flex items-center justify-between">
@@ -203,14 +182,7 @@ export default function SignalItem({
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span
-              className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
-              style={{
-                background: "rgba(251,191,36,0.12)",
-                border: "1px solid rgba(251,191,36,0.25)",
-                color: "#fbbf24",
-              }}
-            >
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.25)", color: "#fbbf24" }}>
               ${data?.ticker || "-"}
             </span>
             <span
@@ -228,19 +200,12 @@ export default function SignalItem({
 
         {/* Expand/Collapse */}
         {isExpanded ? (
-          <div
-            className="flex gap-3 mt-3 pt-3 border-t border-white/10"
-            style={{ animation: "slideUp 0.3s ease-out" }}
-          >
+          <div className="flex gap-3 mt-3 pt-3 border-t border-white/10" style={{ animation: "slideUp 0.3s ease-out" }}>
             <button
               onClick={(e) => { e.stopPropagation(); handleTrade("counter"); }}
               disabled={placing}
               className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] disabled:opacity-50"
-              style={{
-                background: "rgba(244,63,94,0.15)",
-                border: "1px solid rgba(244,63,94,0.3)",
-                animation: "slideUp 0.3s ease-out 0.05s both",
-              }}
+              style={{ background: "rgba(244,63,94,0.15)", border: "1px solid rgba(244,63,94,0.3)", animation: "slideUp 0.3s ease-out 0.05s both" }}
             >
               <span className="text-rose-400">{placing ? "Placing..." : "Counter"}</span>
             </button>
@@ -248,11 +213,7 @@ export default function SignalItem({
               onClick={(e) => { e.stopPropagation(); handleTrade("copy"); }}
               disabled={placing}
               className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-200 hover:scale-[1.03] active:scale-[0.97] disabled:opacity-50"
-              style={{
-                background: "rgba(45,212,191,0.15)",
-                border: "1px solid rgba(45,212,191,0.3)",
-                animation: "slideUp 0.3s ease-out 0.1s both",
-              }}
+              style={{ background: "rgba(45,212,191,0.15)", border: "1px solid rgba(45,212,191,0.3)", animation: "slideUp 0.3s ease-out 0.1s both" }}
             >
               <span className="text-teal-400">{placing ? "Placing..." : "Copy"}</span>
             </button>

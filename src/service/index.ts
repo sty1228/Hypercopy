@@ -275,6 +275,7 @@ export const leaderboard = async (
 
 // ─── User Signals ───────────────────────────────────────
 
+
 export interface UserSignalItem {
   x_handle: string;
   profit_grade: number | null;
@@ -292,6 +293,7 @@ export interface UserSignalItem {
   retweetsCount: number;
   likesCount: number;
   change_since_tweet: number;
+  tweet_image_url?: string | null;  // ★ NEW
 }
 
 export interface UserSignalResponse {
