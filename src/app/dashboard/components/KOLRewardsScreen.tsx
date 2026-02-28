@@ -244,7 +244,14 @@ export function KOLRewardsScreen({ onClose, initialPhase = "beta" }: Props) {
     setSharing(type);
     try {
       await logShare(type);
-      // TODO: Open X share dialog with pre-filled text
+      const text = type === "pnl_card"
+        ? `Check out my copy trading performance on @HyperCopyIO 🔥\n\nAI-powered KOL signal trading on @HyperliquidX\n\nhypercopy.io`
+        : `Top KOL traders ranked by AI signal accuracy on @HyperCopyIO 📊\n\nCopy the best traders on @HyperliquidX\n\nhypercopy.io`;
+      window.open(
+        `https://x.com/intent/tweet?text=${encodeURIComponent(text)}`,
+        "_blank",
+        "width=550,height=420"
+      );
     } catch (e) {
       console.error("Share failed:", e);
     } finally {
