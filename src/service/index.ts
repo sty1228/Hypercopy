@@ -498,6 +498,69 @@ export interface StyleTraderItem {
   streak: number;
 }
 
+// ─── Explore: Search + Styles + Token Detail (追加到 Explore 区块末尾) ───
+
+export interface SearchTraderItem {
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  profit_grade: string | null;
+  win_rate: number;
+  avg_return_pct: number;
+  total_signals: number;
+  copiers_count: number;
+}
+
+export interface StyleTraderItem {
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  profit_grade: string | null;
+  win_rate: number;
+  avg_return_pct: number;
+  total_profit_usd: number;
+  total_signals: number;
+  copiers_count: number;
+  streak: number;
+}
+
+export interface TokenSignalRow {
+  signal_id: string;
+  trader_username: string;
+  trader_display_name: string | null;
+  trader_avatar_url: string | null;
+  direction: string;
+  sentiment: string;
+  entry_price: number | null;
+  current_price: number | null;
+  pct_change: number | null;
+  tweet_text: string | null;
+  created_at: string;
+}
+
+export interface TokenTopTrader {
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  profit_grade: string | null;
+  signal_count: number;
+  avg_pnl: number;
+  win_count: number;
+  win_rate: number;
+}
+
+export interface TokenDetailResponse {
+  ticker: string;
+  total_signals: number;
+  bull_count: number;
+  bear_count: number;
+  bull_pct: number;
+  avg_pnl: number;
+  latest_price: number | null;
+  recent_signals: TokenSignalRow[];
+  top_traders: TokenTopTrader[];
+}
+
 export const searchTraders = async (
   q: string,
   limit = 10
@@ -514,6 +577,15 @@ export const getTradersByStyle = async (
 ): Promise<StyleTraderItem[]> => {
   return await get(
     `/api/explore/styles/${style}?limit=${limit}&window=${window}`
+  );
+};
+
+export const getTokenDetail = async (
+  ticker: string,
+  days = 30
+): Promise<TokenDetailResponse> => {
+  return await get(
+    `/api/explore/token/${encodeURIComponent(ticker)}?days=${days}`
   );
 };
 
