@@ -388,8 +388,51 @@ export const updateTraderSettings = async (
 
 // ─── Trades History ─────────────────────────────────────
 
-export const getTradeHistory = async (): Promise<unknown[]> => {
-  return await get("/api/trades");
+// ─── Trades History ─────────────────────────────────────
+
+export interface TradeHistoryItem {
+  id: string;
+  ticker: string;
+  direction: "long" | "short";
+  entry_price: number;
+  exit_price: number | null;
+  size_usd: number;
+  size_qty: number;
+  leverage: number;
+  pnl_usd: number | null;
+  pnl_pct: number | null;
+  status: string;
+  source: string;
+  trader_username: string | null;
+  opened_at: string;
+  closed_at: string | null;
+}
+
+export interface TradesSummary {
+  total: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  total_pnl: number;
+  best_trade: number;
+  worst_trade: number;
+}
+
+export interface TradesPageResponse {
+  trades: TradeHistoryItem[];
+  summary: TradesSummary;
+  total_count: number;
+}
+
+export const getTradeHistory = async (
+  status: "all" | "open" | "closed" = "all",
+  direction: "all" | "long" | "short" = "all",
+  limit = 50,
+  offset = 0
+): Promise<TradesPageResponse> => {
+  return await get(
+    `/api/trades?status=${status}&direction=${direction}&limit=${limit}&offset=${offset}`
+  );
 };
 
 // ─── Explore ────────────────────────────────────────────

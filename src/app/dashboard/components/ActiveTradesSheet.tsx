@@ -5,23 +5,12 @@ import Image from "next/image";
 import copyCountIcon from "@/assets/icons/copy-count.png";
 import copyRankIcon from "@/assets/icons/copy-rank.png";
 import { ChevronLeft, ArrowUpDown, TrendingUp, TrendingDown, Filter } from "lucide-react";
-
-interface Position {
-  id: number;
-  token: string;
-  pair: string;
-  iconUrl: string;
-  size: number;
-  sizeUsd: number;
-  pnl: number;
-  pnlPercent: number;
-  entry: number;
-}
+import { PositionItem } from "@/service";
 
 interface ActiveTradesSheetProps {
-  positions: Position[];
+  positions: PositionItem[];
   onClose: () => void;
-  onSelectPosition: (pos: Position) => void;
+  onSelectPosition: (pos: PositionItem) => void;
 }
 
 const cardStyle = {
@@ -69,7 +58,7 @@ const WinRateRing = ({ pct }: { pct: number }) => {
 };
 
 const ActiveTradesSheet = ({ positions, onClose, onSelectPosition }: ActiveTradesSheetProps) => {
-  const [filter, setFilter] = useState<"all" | "profit" | "loss">("all");
+  const [filter, setFilter] = useState<"all" | "long" | "short">("all");
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -84,15 +73,14 @@ const ActiveTradesSheet = ({ positions, onClose, onSelectPosition }: ActiveTrade
   };
 
   const filtered = positions.filter((p) => {
-    if (filter === "profit") return p.pnl >= 0;
-    if (filter === "loss") return p.pnl < 0;
+    if (filter === "long") return p.direction === "long";
+    if (filter === "short") return p.direction === "short";
     return true;
   });
 
-  const totalPnl = positions.reduce((s, p) => s + p.pnl, 0);
-  const totalSize = positions.reduce((s, p) => s + p.sizeUsd, 0);
-  const profitCount = positions.filter((p) => p.pnl >= 0).length;
-  const lossCount = positions.filter((p) => p.pnl < 0).length;
+  const totalPnl = positions.reduce((s, p) => s + (p.pnl_usd ?? 0), 0);
+  const totalSize = positions.reduce((s, p) => s + p.size_usd, 0);
+  const profitCount = positions.filter((p) => (p.pnl_usd ?? 0) >= 0).length;
   const winRate = positions.length > 0 ? Math.round((profitCount / positions.length) * 100) : 0;
 
   return (
@@ -183,22 +171,22 @@ const ActiveTradesSheet = ({ positions, onClose, onSelectPosition }: ActiveTrade
         </div>
       </div>
 
-      {/* Filter */}
+      {/* Filter — ★ now filters by direction, not by pnl */}
       <div className="relative z-10 px-4 mb-3 flex items-center justify-between fade-up" style={{ animationDelay: "0.35s" }}>
         <div className="flex items-center gap-1.5">
           <Filter size={12} className="text-gray-500" />
-          {(["all", "profit", "loss"] as const).map((f) => (
+          {(["all", "long", "short"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className="px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all duration-200 capitalize cursor-pointer active:scale-95"
               style={{
-                background: filter === f ? (f === "loss" ? "rgba(244,63,94,0.15)" : "rgba(45,212,191,0.15)") : "rgba(255,255,255,0.03)",
-                color: filter === f ? (f === "loss" ? "#f43f5e" : "#2dd4bf") : "rgba(255,255,255,0.4)",
-                border: filter === f ? (f === "loss" ? "1px solid rgba(244,63,94,0.3)" : "1px solid rgba(45,212,191,0.3)") : "1px solid rgba(255,255,255,0.06)",
+                background: filter === f ? (f === "short" ? "rgba(244,63,94,0.15)" : "rgba(45,212,191,0.15)") : "rgba(255,255,255,0.03)",
+                color: filter === f ? (f === "short" ? "#f43f5e" : "#2dd4bf") : "rgba(255,255,255,0.4)",
+                border: filter === f ? (f === "short" ? "1px solid rgba(244,63,94,0.3)" : "1px solid rgba(45,212,191,0.3)") : "1px solid rgba(255,255,255,0.06)",
               }}
             >
-              {f === "all" ? "All" : f === "profit" ? "Long" : "Short"}
+              {f === "all" ? "All" : f === "long" ? "Long" : "Short"}
             </button>
           ))}
         </div>
@@ -209,7 +197,10 @@ const ActiveTradesSheet = ({ positions, onClose, onSelectPosition }: ActiveTrade
       <div className="relative z-10 px-4 pb-24">
         <div className="space-y-2">
           {filtered.map((pos, idx) => {
-            const isWin = pos.pnl >= 0;
+            const pnl = pos.pnl_usd ?? 0;
+            const pnlPct = pos.pnl_pct ?? 0;
+            const isWin = pnl >= 0;
+            const isLong = pos.direction === "long";
             return (
               <div
                 key={pos.id}
@@ -219,28 +210,33 @@ const ActiveTradesSheet = ({ positions, onClose, onSelectPosition }: ActiveTrade
               >
                 <div className="px-3 py-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isWin ? "bg-teal-400/10" : "bg-rose-400/10"}`}>
-                      {isWin
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isLong ? "bg-teal-400/10" : "bg-rose-400/10"}`}>
+                      {isLong
                         ? <TrendingUp size={14} className="text-teal-400" />
                         : <TrendingDown size={14} className="text-rose-400" />
                       }
                     </div>
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-white">{pos.token}</span>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${isWin ? "bg-teal-400/10 text-teal-400" : "bg-rose-400/10 text-rose-400"}`}>
-                          {isWin ? "Long" : "Short"}
+                        <span className="text-sm font-semibold text-white">{pos.ticker}</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium capitalize ${isLong ? "bg-teal-400/10 text-teal-400" : "bg-rose-400/10 text-rose-400"}`}>
+                          {pos.direction}
                         </span>
+                        {pos.trader_username && (
+                          <span className="text-[9px] px-1.5 py-0.5 rounded text-gray-400" style={{ background: "rgba(255,255,255,0.05)" }}>
+                            via @{pos.trader_username}
+                          </span>
+                        )}
                       </div>
-                      <span className="text-[10px] text-gray-500">{pos.size} {pos.token} · Entry ${pos.entry.toLocaleString()}</span>
+                      <span className="text-[10px] text-gray-500">{pos.size_qty} {pos.ticker} · Entry ${pos.entry_price.toLocaleString()}</span>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className={`text-sm font-bold ${isWin ? "text-teal-400" : "text-rose-400"}`}>
-                      {isWin ? "+" : "-"}${Math.abs(pos.pnl).toLocaleString("en-US", { minimumFractionDigits: 1 })}
+                      {isWin ? "+" : "-"}${Math.abs(pnl).toLocaleString("en-US", { minimumFractionDigits: 1 })}
                     </p>
                     <p className={`text-[10px] ${isWin ? "text-teal-400/70" : "text-rose-400/70"}`}>
-                      {pos.pnlPercent >= 0 ? "+" : ""}{pos.pnlPercent}%
+                      {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
                     </p>
                   </div>
                 </div>
@@ -252,7 +248,7 @@ const ActiveTradesSheet = ({ positions, onClose, onSelectPosition }: ActiveTrade
         {filtered.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16">
             <ArrowUpDown size={32} className="text-gray-600 mb-3" />
-            <p className="text-sm text-gray-500">No {filter} trades</p>
+            <p className="text-sm text-gray-500">No {filter === "all" ? "" : filter + " "}trades</p>
           </div>
         )}
       </div>
