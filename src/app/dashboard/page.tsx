@@ -585,8 +585,24 @@ const Home = () => {
       {showCopying && <CopyingSheet mode="copying" onClose={() => setShowCopying(false)} />}
       {showCopiers && <CopyingSheet mode="copiers" onClose={() => setShowCopiers(false)} />}
       {showActiveTrades && (
-        <ActiveTradesSheet positions={currentPositions} onClose={() => setShowActiveTrades(false)}
-          onSelectPosition={(pos: (typeof currentPositions)[0]) => handleSelectPosition(pos)} />
+        <ActiveTradesSheet positions={positions} onClose={() => setShowActiveTrades(false)}
+          onSelectPosition={(pos: PositionItem) => {
+            const ext = positionExtendedData[pos.ticker];
+            if (ext) setSelectedPos({
+              id: Number(pos.id) || 0,
+              token: pos.ticker,
+              pair: `${pos.ticker}/USDT`,
+              iconUrl: "",
+              size: pos.size_qty,
+              sizeUsd: pos.size_usd,
+              pnl: pos.pnl_usd ?? 0,
+              pnlPercent: pos.pnl_pct ?? 0,
+              entry: pos.entry_price,
+              color: ext.color,
+              currentPrice: ext.currentPrice,
+              txs: ext.txs,
+            });
+          }} />
       )}
       {selectedPos && <PositionDetail pos={selectedPos} onClose={() => setSelectedPos(null)} />}
       <DepositSheet isOpen={showDeposit}
