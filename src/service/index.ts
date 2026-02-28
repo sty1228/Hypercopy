@@ -65,7 +65,7 @@ export const balanceHistory = async (
   return await get(`/api/portfolio/balance-history?timeRange=${timeRange}`);
 };
 
-// ─── ★ P&L History (deposits/withdrawals stripped) ──
+// ─── P&L History ────────────────────────────────────────
 
 export interface PnlHistoryItem {
   timestamp: number;
@@ -263,6 +263,7 @@ export interface LeaderboardItem {
   copiers?: number;
 }
 
+// ★ Updated: supports sortBy + registeredOnly for filter tabs
 export const leaderboard = async (
   window: string = "30d",
   sortBy: string = "total_profit_usd",
@@ -274,7 +275,6 @@ export const leaderboard = async (
 };
 
 // ─── User Signals ───────────────────────────────────────
-
 
 export interface UserSignalItem {
   x_handle: string;
@@ -293,7 +293,7 @@ export interface UserSignalItem {
   retweetsCount: number;
   likesCount: number;
   change_since_tweet: number;
-  tweet_image_url?: string | null;  // ★ NEW
+  tweet_image_url?: string | null; // ★ NEW: tweet image
 }
 
 export interface UserSignalResponse {
@@ -347,7 +347,6 @@ export interface TradersCopyingItem {
 }
 
 export const getProfileTradersCopyingList = async (): Promise<TradersCopyingItem[]> => {
-  // TODO: implement real endpoint when copiers API is built
   return [];
 };
 
@@ -393,8 +392,6 @@ export const updateTraderSettings = async (
 ): Promise<DefaultFollowSettings> => {
   return await put(`/api/settings/trader/${traderUsername}`, settings);
 };
-
-// ─── Trades History ─────────────────────────────────────
 
 // ─── Trades History ─────────────────────────────────────
 
@@ -473,6 +470,51 @@ export const getTokenSentiment = async (days = 30): Promise<TokenSentimentItem[]
 
 export const getRisingTraders = async (limit = 6): Promise<RisingTraderItem[]> => {
   return await get(`/api/explore/rising?limit=${limit}`);
+};
+
+// ─── Explore: Search + Styles (追加到 Explore 区块末尾) ───
+
+export interface SearchTraderItem {
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  profit_grade: string | null;
+  win_rate: number;
+  avg_return_pct: number;
+  total_signals: number;
+  copiers_count: number;
+}
+
+export interface StyleTraderItem {
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  profit_grade: string | null;
+  win_rate: number;
+  avg_return_pct: number;
+  total_profit_usd: number;
+  total_signals: number;
+  copiers_count: number;
+  streak: number;
+}
+
+export const searchTraders = async (
+  q: string,
+  limit = 10
+): Promise<SearchTraderItem[]> => {
+  return await get(
+    `/api/explore/search?q=${encodeURIComponent(q)}&limit=${limit}`
+  );
+};
+
+export const getTradersByStyle = async (
+  style: string,
+  limit = 10,
+  window = "30d"
+): Promise<StyleTraderItem[]> => {
+  return await get(
+    `/api/explore/styles/${style}?limit=${limit}&window=${window}`
+  );
 };
 
 // ─── KOL Rewards ────────────────────────────────────────
@@ -561,7 +603,7 @@ export const claimFeeShare = async (amount?: number): Promise<ClaimResponse> => 
   });
 };
 
-// ─── ★ Transaction History ──────────────────────────────
+// ─── Transaction History ────────────────────────────────
 
 export interface TransactionItem {
   id: string;
