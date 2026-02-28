@@ -55,7 +55,7 @@ export const getOpenPositions = async (): Promise<PositionItem[]> => {
 };
 
 export interface BalanceHistoryResponse {
-  acconutValue: number;
+  accountValue: number;
   timestamp: number;
 }
 
