@@ -38,6 +38,7 @@ import TransactionHistorySheet from "./components/TransactionHistorySheet";
 import { KOLRewardsScreen } from "./components/KOLRewardsScreen";
 import { useRewards } from "@/providers/RewardsContext";
 import RewardsBanner from "@/components/RewardsBanner";
+import { getToken, setToken, removeToken } from "@/lib/token";
 
 export interface BalanceChartData {
   label: string;
@@ -133,7 +134,7 @@ const Home = () => {
   // ── 1. Privy → Backend JWT sync ──
   useEffect(() => {
     if (!authenticated) {
-      localStorage.removeItem("token");
+      removeToken();
       setAuthReady(false);
       setSummary(null);
       setProfile(null);
@@ -147,11 +148,11 @@ const Home = () => {
       return;
     }
     if (!wallet?.address) return;
-    const existing = localStorage.getItem("token");
+    const existing = getToken();
     if (existing) { setAuthReady(true); return; }
     const twitterUsername = (user?.twitter as any)?.username || null;
     connectWalletApi(wallet.address, twitterUsername)
-      .then((res) => { localStorage.setItem("token", res.access_token); setAuthReady(true); })
+      .then((res) => { setToken(res.access_token); setAuthReady(true); })
       .catch((err) => console.error("Auth sync failed:", err));
   }, [authenticated, wallet?.address, user]);
 
@@ -259,7 +260,7 @@ const Home = () => {
     entry: p.entry_price,
   }));
 
-  const handleLogout = async () => { localStorage.removeItem("token"); await logout(); router.push("/"); };
+  const handleLogout = async () => { removeToken(); await logout(); router.push("/"); };
 
   const handleSelectPosition = (pos: (typeof currentPositions)[0]) => {
     const ext = positionExtendedData[pos.token];

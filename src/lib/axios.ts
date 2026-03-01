@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from "axios";
+import { getToken } from "@/lib/token";
 
-// 创建 axios 实例
 const instance: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "https://api.hypercopy.io",
   timeout: 10000,
@@ -9,11 +9,9 @@ const instance: AxiosInstance = axios.create({
   },
 });
 
-// 请求拦截器
 instance.interceptors.request.use(
   (config) => {
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -24,7 +22,6 @@ instance.interceptors.request.use(
   }
 );
 
-// 响应拦截器
 instance.interceptors.response.use(
   (response) => {
     return response.data;
@@ -56,49 +53,24 @@ instance.interceptors.response.use(
   }
 );
 
-// 封装 GET 请求
-export const get = <T>(
-  url: string,
-  params?: unknown,
-  config?: AxiosRequestConfig
-): Promise<T> => {
+export const get = <T>(url: string, params?: unknown, config?: AxiosRequestConfig): Promise<T> => {
   return instance.get(url, { params, ...config });
 };
 
-// 封装 POST 请求
-export const post = <T>(
-  url: string,
-  data?: unknown,
-  config?: AxiosRequestConfig
-): Promise<T> => {
+export const post = <T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => {
   return instance.post(url, data, config);
 };
 
-// 封装 PUT 请求
-export const put = <T>(
-  url: string,
-  data?: unknown,
-  config?: AxiosRequestConfig
-): Promise<T> => {
+export const put = <T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => {
   return instance.put(url, data, config);
 };
 
-// 封装 DELETE 请求
-export const del = <T>(
-  url: string,
-  config?: AxiosRequestConfig
-): Promise<T> => {
+export const del = <T>(url: string, config?: AxiosRequestConfig): Promise<T> => {
   return instance.delete(url, config);
 };
 
-// 封装 PATCH 请求
-export const patch = <T>(
-  url: string,
-  data?: unknown,
-  config?: AxiosRequestConfig
-): Promise<T> => {
+export const patch = <T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> => {
   return instance.patch(url, data, config);
 };
 
-// 导出 axios 实例
 export default instance;
