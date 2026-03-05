@@ -535,7 +535,22 @@ const Home = () => {
       </div>
 
       {/* Overlays */}
-      {showRewards && <KOLRewardsScreen onClose={closeRewards} />}
+      {showRewards && (
+        <div
+          className="fixed inset-0 z-[100]"
+          style={{
+            animation: "rewardsFadeIn 0.35s ease-out both",
+          }}
+        >
+          <style jsx>{`
+            @keyframes rewardsFadeIn {
+              from { opacity: 0; transform: translateY(12px) scale(0.98); }
+              to { opacity: 1; transform: translateY(0) scale(1); }
+            }
+          `}</style>
+          <KOLRewardsScreen onClose={closeRewards} />
+        </div>
+      )}
       {showCopying && <CopyingSheet mode="copying" onClose={() => setShowCopying(false)} />}
       {showCopiers && <CopyingSheet mode="copiers" onClose={() => setShowCopiers(false)} />}
       {showActiveTrades && (

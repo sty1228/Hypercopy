@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import UserMenu from "@/components/UserMenu";
 
@@ -27,27 +27,62 @@ const PersonIcon = () => (
   </svg>
 );
 
-/* ── Tooltip wrapper ── */
-const IconWithTooltip = ({
-  tooltip,
+/* ── Tooltip wrapper ──
+   Desktop: show on mouseEnter, hide on mouseLeave
+   Mobile: show on tap for 2s
+*/
+const Tip = ({
+  text,
+  align = "right",
   children,
 }: {
-  tooltip: string;
+  text: string;
+  align?: "left" | "right" | "center";
   children: React.ReactNode;
 }) => {
   const [show, setShow] = useState(false);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (!show) return;
-    const timer = setTimeout(() => setShow(false), 2000);
-    return () => clearTimeout(timer);
-  }, [show]);
+  const clear = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+  };
+
+  // Desktop hover
+  const onEnter = () => {
+    clear();
+    setShow(true);
+  };
+  const onLeave = () => {
+    clear();
+    setShow(false);
+  };
+
+  // Mobile tap
+  const onTap = () => {
+    clear();
+    setShow(true);
+    hideTimer.current = setTimeout(() => setShow(false), 2000);
+  };
+
+  useEffect(() => () => clear(), []);
+
+  const alignClass =
+    align === "left"
+      ? "left-0"
+      : align === "center"
+      ? "left-1/2 -translate-x-1/2"
+      : "right-0";
 
   return (
-    <div className="relative" onClick={() => setShow((p) => !p)}>
+    <div
+      className="relative"
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      onTouchStart={onTap}
+    >
       {children}
       <div
-        className="absolute top-full right-0 mt-1.5 px-2.5 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-medium pointer-events-none transition-all duration-200 z-50"
+        className={`absolute top-full ${alignClass} mt-1.5 px-2.5 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-medium pointer-events-none transition-all duration-200 z-[999]`}
         style={{
           background: "rgba(15,20,25,0.95)",
           border: "1px solid rgba(45,212,191,0.3)",
@@ -57,7 +92,7 @@ const IconWithTooltip = ({
           transform: show ? "translateY(0)" : "translateY(-4px)",
         }}
       >
-        {tooltip}
+        {text}
       </div>
     </div>
   );
@@ -65,15 +100,15 @@ const IconWithTooltip = ({
 
 /* ── Types ── */
 export interface TopBarProps {
-  /** Number of currently open trades */
   activeTrades?: number;
-  /** User's leaderboard rank */
   rank?: number | string | null;
-  /** Reward points to show next to coin */
   rewardsPoints?: number;
-  /** Handler when coin icon is clicked (e.g. open rewards overlay) */
   onCoinClick?: () => void;
-  /** Extra elements inserted before UserMenu on the right */
+  /**
+   * Set to "win" or "loss" momentarily when a trade closes.
+   * The dot will flash green or red then revert to yellow.
+   */
+  flashState?: "win" | "loss" | null;
   extraRight?: React.ReactNode;
 }
 
@@ -82,81 +117,137 @@ export default function TopBar({
   rank,
   rewardsPoints = 0,
   onCoinClick,
+  flashState = null,
   extraRight,
 }: TopBarProps) {
   const router = useRouter();
+  const [flash, setFlash] = useState<"win" | "loss" | null>(null);
+  const prevCount = useRef(activeTrades);
+
+  /* Flash on explicit prop */
+  useEffect(() => {
+    if (flashState) {
+      setFlash(flashState);
+      const t = setTimeout(() => setFlash(null), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [flashState]);
+
+  /* Auto-detect trade close (count drops) */
+  useEffect(() => {
+    if (prevCount.current > activeTrades && activeTrades >= 0 && !flashState) {
+      setFlash("win");
+      const t = setTimeout(() => setFlash(null), 1500);
+      prevCount.current = activeTrades;
+      return () => clearTimeout(t);
+    }
+    prevCount.current = activeTrades;
+  }, [activeTrades, flashState]);
 
   const handleCoinClick = () => {
     if (onCoinClick) onCoinClick();
     else router.push("/dashboard");
   };
 
+  const dotColor =
+    flash === "win" ? "#22c55e" : flash === "loss" ? "#ef4444" : "#eab308";
+
   return (
-    <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
-      {/* ═══ LEFT: Coin (Rewards points) ═══ */}
-      <div className="flex items-center gap-1.5">
-        <IconWithTooltip tooltip="Rewards Points">
-          <div
-            onClick={handleCoinClick}
-            className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-amber-400/10 active:scale-95"
-            style={{
-              background: "rgba(234,179,8,0.06)",
-              border: "1px solid rgba(234,179,8,0.15)",
-            }}
-          >
-            <CoinIcon />
-            <span
-              className="text-[10px] font-semibold"
-              style={{ color: "#d4a017" }}
+    <>
+      <style jsx global>{`
+        @keyframes topbarPulseDot {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.4); opacity: 0.5; }
+        }
+        @keyframes topbarFlashPing {
+          0% { transform: scale(1); opacity: 0.7; }
+          100% { transform: scale(3.5); opacity: 0; }
+        }
+      `}</style>
+
+      <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
+        {/* ═══ LEFT: Coin ═══ */}
+        <div className="flex items-center gap-1.5">
+          <Tip text="Rewards Points" align="left">
+            <div
+              onClick={handleCoinClick}
+              className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-amber-400/10 active:scale-95"
+              style={{
+                background: "rgba(234,179,8,0.06)",
+                border: "1px solid rgba(234,179,8,0.15)",
+              }}
             >
-              {rewardsPoints.toLocaleString()}
-            </span>
-          </div>
-        </IconWithTooltip>
+              <CoinIcon />
+              <span className="text-[10px] font-semibold" style={{ color: "#d4a017" }}>
+                {rewardsPoints.toLocaleString()}
+              </span>
+            </div>
+          </Tip>
+        </div>
+
+        {/* ═══ RIGHT ═══ */}
+        <div className="flex items-center gap-1.5">
+          {/* Active Trades — yellow dot + number */}
+          <Tip text="Active Trades">
+            <div
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+              }}
+            >
+              {/* Dot container */}
+              <div className="relative flex items-center justify-center" style={{ width: 10, height: 10 }}>
+                {/* Main pulsing dot */}
+                <div
+                  className="w-[7px] h-[7px] rounded-full"
+                  style={{
+                    background: dotColor,
+                    boxShadow: `0 0 4px ${dotColor}, 0 0 8px ${dotColor}50`,
+                    animation: flash
+                      ? "none"
+                      : "topbarPulseDot 2s ease-in-out infinite",
+                    transition: "background 0.3s ease, box-shadow 0.3s ease",
+                  }}
+                />
+                {/* Flash ping ring on trade close */}
+                {flash && (
+                  <div
+                    className="absolute w-[7px] h-[7px] rounded-full"
+                    style={{
+                      background: dotColor,
+                      animation: "topbarFlashPing 0.8s ease-out forwards",
+                    }}
+                  />
+                )}
+              </div>
+              <span className="text-[10px] font-semibold text-teal-400 tabular-nums">
+                {activeTrades}
+              </span>
+            </div>
+          </Tip>
+
+          {/* Rank — person icon */}
+          <Tip text="Your Rank">
+            <div
+              className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10"
+              style={{
+                background: "linear-gradient(135deg, rgba(45,212,191,0.15), rgba(45,212,191,0.08))",
+                border: "1px solid rgba(45,212,191,0.25)",
+                boxShadow: "0 0 15px rgba(45,212,191,0.2)",
+              }}
+            >
+              <PersonIcon />
+              <span className="text-[10px] font-semibold text-teal-400">
+                #{rank ?? "—"}
+              </span>
+            </div>
+          </Tip>
+
+          {extraRight}
+          <UserMenu />
+        </div>
       </div>
-
-      {/* ═══ RIGHT: Active Trades + Rank + extras + UserMenu ═══ */}
-      <div className="flex items-center gap-1.5">
-        {/* Active Trades */}
-        <IconWithTooltip tooltip="Active Trades">
-          <div
-            className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10"
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-            }}
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(45,212,191,1)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-              <polyline points="17 6 23 6 23 12" />
-            </svg>
-            <span className="text-[10px] font-semibold text-teal-400 tabular-nums">
-              {activeTrades}
-            </span>
-          </div>
-        </IconWithTooltip>
-
-        {/* Rank — person icon */}
-        <IconWithTooltip tooltip="Your Rank">
-          <div
-            className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(45,212,191,0.15), rgba(45,212,191,0.08))",
-              border: "1px solid rgba(45,212,191,0.25)",
-              boxShadow: "0 0 15px rgba(45,212,191,0.2)",
-            }}
-          >
-            <PersonIcon />
-            <span className="text-[10px] font-semibold text-teal-400">
-              #{rank ?? "—"}
-            </span>
-          </div>
-        </IconWithTooltip>
-
-        {extraRight}
-        <UserMenu />
-      </div>
-    </div>
+    </>
   );
 }
