@@ -443,7 +443,7 @@ export default function ExplorePage() {
       </div>
 
       {/* ── Header ── */}
-      <TopBar activeTrades={activeTrades} rank={null} />
+      <TopBar activeTrades={activeTrades} rank={64} />
 
       {/* ── Search ── */}
       <div className="relative z-20 px-3 mb-2" ref={searchRef}>

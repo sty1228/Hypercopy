@@ -71,7 +71,7 @@ const Home = () => {
   const wallet = wallets?.[0];
 
   const { builderFeeApproved } = useContext(HyperLiquidContext);
-  const { showRewards, closeRewards } = useRewards();
+  const { showRewards, closeRewards, viewRewardsFromPrompt } = useRewards();
 
   const [authReady, setAuthReady] = useState(false);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
@@ -279,8 +279,8 @@ const Home = () => {
 
       <TopBar
         activeTrades={openCount}
-        showBack={false}
         rank={64}
+        onCoinClick={() => viewRewardsFromPrompt()}
       />
 
       {/* PORTFOLIO CARD */}

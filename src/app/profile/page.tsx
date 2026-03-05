@@ -364,7 +364,6 @@ function KOLProfileContent() {
       <TopBar
         activeTrades={trader.total_signals}
         rank={rank > 0 ? rank : null}
-        onBackClick={() => router.back()}
         extraRight={
           isXConnected ? (
             <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg" style={{ background: "rgba(45,212,191,0.08)", border: "1px solid rgba(45,212,191,0.2)" }}>
