@@ -100,24 +100,25 @@ const FlatState = ({ hasData }: { hasData: boolean }) => (
     <style dangerouslySetInnerHTML={{ __html: `
       @keyframes flatLineDraw { from { stroke-dashoffset: 600; } to { stroke-dashoffset: 0; } }
       @keyframes flatPulse { 0%,100% { opacity: 0.3; } 50% { opacity: 0.6; } }
-      @keyframes flatDotMove { 0% { cx: 10; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { cx: 390; opacity: 0; } }
     `}} />
     <svg width="100%" height="100%" viewBox="0 0 400 100" preserveAspectRatio="none" className="absolute inset-0">
       <defs>
         <linearGradient id="flatLineGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor={TEAL} stopOpacity="0" />
-          <stop offset="20%" stopColor={TEAL} stopOpacity="0.25" />
-          <stop offset="50%" stopColor={TEAL} stopOpacity="0.35" />
-          <stop offset="80%" stopColor={TEAL} stopOpacity="0.25" />
+          <stop offset="0%"   stopColor={TEAL} stopOpacity="0" />
+          <stop offset="20%"  stopColor={TEAL} stopOpacity="0.25" />
+          <stop offset="50%"  stopColor={TEAL} stopOpacity="0.35" />
+          <stop offset="80%"  stopColor={TEAL} stopOpacity="0.25" />
           <stop offset="100%" stopColor={TEAL} stopOpacity="0" />
         </linearGradient>
         <linearGradient id="flatGlow" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={TEAL} stopOpacity="0.06" />
+          <stop offset="0%"   stopColor={TEAL} stopOpacity="0.06" />
           <stop offset="100%" stopColor={TEAL} stopOpacity="0" />
         </linearGradient>
       </defs>
+
       {/* Subtle gradient below the line */}
       <rect x="0" y="50" width="400" height="50" fill="url(#flatGlow)" style={{ animation: "flatPulse 4s ease-in-out infinite" }} />
+
       {/* Dashed center line */}
       <line
         x1="10" y1="50" x2="390" y2="50"
@@ -127,15 +128,20 @@ const FlatState = ({ hasData }: { hasData: boolean }) => (
         vectorEffect="non-scaling-stroke"
         style={{ animation: "flatLineDraw 2s ease-out forwards" }}
       />
-      {/* Moving dot */}
-      <circle r="3" cy="50" fill={TEAL} opacity="0.6" style={{ animation: "flatDotMove 4s ease-in-out infinite" }}>
-        <animate attributeName="cx" values="10;390" dur="4s" repeatCount="indefinite" />
+
+      {/* Moving dot — small solid core only */}
+      <circle cy="50" r="2" fill={TEAL} opacity="0.85">
+        <animate attributeName="cx" values="10;390;10" dur="5s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1; 0.4 0 0.6 1" />
+        <animate attributeName="opacity" values="0;0.85;0.85;0.85;0" dur="5s" repeatCount="indefinite" keyTimes="0;0.05;0.5;0.95;1" />
       </circle>
-      {/* Glow around moving dot */}
-      <circle r="8" cy="50" fill={TEAL} opacity="0.15" style={{ animation: "flatDotMove 4s ease-in-out infinite" }}>
-        <animate attributeName="cx" values="10;390" dur="4s" repeatCount="indefinite" />
+
+      {/* Soft glow behind moving dot — kept tight */}
+      <circle cy="50" r="4" fill={TEAL} opacity="0.18">
+        <animate attributeName="cx" values="10;390;10" dur="5s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1; 0.4 0 0.6 1" />
+        <animate attributeName="opacity" values="0;0.18;0.18;0.18;0" dur="5s" repeatCount="indefinite" keyTimes="0;0.05;0.5;0.95;1" />
       </circle>
     </svg>
+
     <p className="relative z-10 text-[10px] text-gray-500 mt-2">
       {hasData ? "No change in this period" : "Start trading to see your P&L"}
     </p>
@@ -216,8 +222,8 @@ const BalanceChart = ({ timeRange = "M", chartData, mode = "balance" }: BalanceC
               </feMerge>
             </filter>
             <linearGradient id={`areaGrad-${uid}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={mainColor} stopOpacity={0.2} />
-              <stop offset="40%" stopColor={mainColor} stopOpacity={0.08} />
+              <stop offset="0%"   stopColor={mainColor} stopOpacity={0.2} />
+              <stop offset="40%"  stopColor={mainColor} stopOpacity={0.08} />
               <stop offset="100%" stopColor={mainColor} stopOpacity={0} />
             </linearGradient>
           </defs>
