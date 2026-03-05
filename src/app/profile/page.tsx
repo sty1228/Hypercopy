@@ -1078,15 +1078,15 @@ function KOLProfileContent() {
                 </button>
               </div>
 
-              {/* Follow + Share */}
-              <div className="grid grid-cols-2 gap-1.5">
+              {/* Follow + icon actions */}
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={handleFollow}
                   disabled={followLoading}
                   onPointerDown={() => setFollowPressed(true)}
                   onPointerUp={() => setFollowPressed(false)}
                   onPointerLeave={() => setFollowPressed(false)}
-                  className="py-2 rounded-xl text-[10px] font-semibold transition-all duration-300 cursor-pointer flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2 rounded-xl text-[10px] font-semibold transition-all duration-300 cursor-pointer flex items-center justify-center gap-1.5"
                   style={
                     isFollowing
                       ? { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)", transform: followPressed ? "scale(0.95)" : "scale(1)" }
@@ -1096,13 +1096,17 @@ function KOLProfileContent() {
                   {followLoading ? <Loader2 size={11} style={{ animation: "spin 1s linear infinite" }} /> : isFollowing ? <UserCheck size={11} /> : <UserPlus size={11} />}
                   <span>{isFollowing ? "Following" : "Follow"}</span>
                 </button>
+
+                {/* Icon actions — add more here as needed */}
                 <button
                   onClick={() => setShowShareSheet(true)}
-                  className="py-2 rounded-xl text-[10px] font-medium cursor-pointer transition-all duration-200 active:scale-95 flex items-center justify-center gap-1.5"
-                  style={{ background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.45)", border: "1px solid rgba(255,255,255,0.07)" }}
+                  title="Share"
+                  className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-200 active:scale-90 hover:scale-105"
+                  style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.07)" }}
                 >
-                  <Share2 size={11} /><span>Share</span>
+                  <Share2 size={14} />
                 </button>
+                {/* future icon buttons slot ↓ */}
               </div>
             </div>
           </div>
