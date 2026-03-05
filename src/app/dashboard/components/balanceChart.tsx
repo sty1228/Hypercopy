@@ -12,13 +12,11 @@ import { BalanceChartData } from "../page";
 
 export type TimeRange = "D" | "W" | "M" | "Y" | "ALL";
 
-/* ─── Color constants ─── */
 const TEAL = "#2dd4bf";
 const ROSE = "#fb7185";
 const TEAL_RGBA = "rgba(45,212,191,";
 const ROSE_RGBA = "rgba(251,113,133,";
 
-/* ─── Tooltip ─── */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CustomTooltip = ({ active, payload, mode, color }: any) => {
   if (active && payload && payload.length) {
@@ -29,19 +27,16 @@ const CustomTooltip = ({ active, payload, mode, color }: any) => {
     const display = isPnl
       ? Math.abs(val).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : val?.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
     return (
       <div
         className="px-3 py-2 rounded-xl shadow-lg backdrop-blur-md"
         style={{
           background: "linear-gradient(135deg, rgba(23,42,48,0.95) 0%, rgba(15,30,35,0.95) 100%)",
           border: `1px solid ${color === ROSE ? "rgba(251,113,133,0.35)" : "rgba(80,210,193,0.35)"}`,
-          boxShadow: `0 4px 20px ${color === ROSE ? "rgba(251,113,133,0.15)" : "rgba(45,212,191,0.15)"}, 0 0 10px ${color === ROSE ? "rgba(251,113,133,0.08)" : "rgba(45,212,191,0.08)"}`,
+          boxShadow: `0 4px 20px ${color === ROSE ? "rgba(251,113,133,0.15)" : "rgba(45,212,191,0.15)"}`,
         }}
       >
-        <p className="text-[10px] mb-0.5" style={{ color: "rgba(165,176,176,0.8)" }}>
-          {d.payload.label}
-        </p>
+        <p className="text-[10px] mb-0.5" style={{ color: "rgba(165,176,176,0.8)" }}>{d.payload.label}</p>
         <p className="text-sm font-bold tracking-tight" style={{ color, textShadow: `0 0 8px ${color === ROSE ? "rgba(251,113,133,0.4)" : "rgba(45,212,191,0.4)"}` }}>
           {prefix}{display}
         </p>
@@ -51,7 +46,6 @@ const CustomTooltip = ({ active, payload, mode, color }: any) => {
   return null;
 };
 
-/* ─── Glow dots ─── */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const GlowDot = (props: any) => {
   const { cx, cy, index, color } = props;
@@ -100,46 +94,80 @@ const ActiveGlowDot = (props: any) => {
   );
 };
 
+/* ─── Flat / empty state ─── */
+const FlatState = ({ hasData }: { hasData: boolean }) => (
+  <div className="w-full h-full flex flex-col items-center justify-center relative">
+    <style dangerouslySetInnerHTML={{ __html: `
+      @keyframes flatLineDraw { from { stroke-dashoffset: 600; } to { stroke-dashoffset: 0; } }
+      @keyframes flatPulse { 0%,100% { opacity: 0.3; } 50% { opacity: 0.6; } }
+      @keyframes flatDotMove { 0% { cx: 10; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { cx: 390; opacity: 0; } }
+    `}} />
+    <svg width="100%" height="100%" viewBox="0 0 400 100" preserveAspectRatio="none" className="absolute inset-0">
+      <defs>
+        <linearGradient id="flatLineGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor={TEAL} stopOpacity="0" />
+          <stop offset="20%" stopColor={TEAL} stopOpacity="0.25" />
+          <stop offset="50%" stopColor={TEAL} stopOpacity="0.35" />
+          <stop offset="80%" stopColor={TEAL} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={TEAL} stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="flatGlow" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={TEAL} stopOpacity="0.06" />
+          <stop offset="100%" stopColor={TEAL} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      {/* Subtle gradient below the line */}
+      <rect x="0" y="50" width="400" height="50" fill="url(#flatGlow)" style={{ animation: "flatPulse 4s ease-in-out infinite" }} />
+      {/* Dashed center line */}
+      <line
+        x1="10" y1="50" x2="390" y2="50"
+        stroke="url(#flatLineGrad)"
+        strokeWidth="1.5"
+        strokeDasharray="8 6"
+        vectorEffect="non-scaling-stroke"
+        style={{ animation: "flatLineDraw 2s ease-out forwards" }}
+      />
+      {/* Moving dot */}
+      <circle r="3" cy="50" fill={TEAL} opacity="0.6" style={{ animation: "flatDotMove 4s ease-in-out infinite" }}>
+        <animate attributeName="cx" values="10;390" dur="4s" repeatCount="indefinite" />
+      </circle>
+      {/* Glow around moving dot */}
+      <circle r="8" cy="50" fill={TEAL} opacity="0.15" style={{ animation: "flatDotMove 4s ease-in-out infinite" }}>
+        <animate attributeName="cx" values="10;390" dur="4s" repeatCount="indefinite" />
+      </circle>
+    </svg>
+    <p className="relative z-10 text-[10px] text-gray-500 mt-2">
+      {hasData ? "No change in this period" : "Start trading to see your P&L"}
+    </p>
+  </div>
+);
+
 /* ─── Main component ─── */
 interface BalanceChartProps {
   timeRange?: TimeRange;
   chartData: BalanceChartData[];
-  /** "balance" = classic account value chart; "pnl" = P&L with zero baseline */
   mode?: "balance" | "pnl";
 }
 
 const BalanceChart = ({ timeRange = "M", chartData, mode = "balance" }: BalanceChartProps) => {
   const isPnl = mode === "pnl";
 
-  /* ─── Empty state ─── */
+  /* ─── Empty: no data at all ─── */
   if (!chartData || chartData.length === 0) {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <svg width="100%" height="100%" viewBox="0 0 100 80" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="emptyGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={TEAL} stopOpacity="0.06" />
-              <stop offset="100%" stopColor={TEAL} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <line x1="0" y1="40" x2="100" y2="40" stroke={TEAL} strokeWidth="0.5" vectorEffect="non-scaling-stroke" opacity="0.3" />
-          <rect x="0" y="40" width="100" height="40" fill="url(#emptyGrad)" />
-          <circle cx="0" cy="40" r="1.5" fill={TEAL} opacity="0.4" />
-          <circle cx="100" cy="40" r="1.5" fill={TEAL} opacity="0.4" />
-        </svg>
-      </div>
-    );
+    return <FlatState hasData={false} />;
+  }
+
+  /* ─── Flat: all values are the same (e.g. all 0) ─── */
+  const allSame = chartData.every((d) => d.value === chartData[0].value);
+  if (allSame) {
+    return <FlatState hasData={chartData[0].value !== 0} />;
   }
 
   /* ─── Color logic ─── */
-  // P&L mode: color based on last value (positive = teal, negative = rose)
-  // Balance mode: always teal
   const lastVal = chartData[chartData.length - 1]?.value ?? 0;
   const isPositive = isPnl ? lastVal >= 0 : true;
   const mainColor = isPositive ? TEAL : ROSE;
   const mainRgba = isPositive ? TEAL_RGBA : ROSE_RGBA;
-
-  // Reference line: y=0 for P&L, y=first value for balance
   const refValue = isPnl ? 0 : (chartData[0]?.value ?? 0);
 
   /* ─── Tick label logic ─── */
@@ -152,7 +180,6 @@ const BalanceChart = ({ timeRange = "M", chartData, mode = "balance" }: BalanceC
     for (let i = 0; i < len; i += step) visibleLabels.add(i);
     visibleLabels.add(len - 1);
   }
-
   const seenLabels = new Set<string>();
   const finalLabels = new Set<number>();
   for (const idx of Array.from(visibleLabels).sort((a, b) => a - b)) {
@@ -163,7 +190,6 @@ const BalanceChart = ({ timeRange = "M", chartData, mode = "balance" }: BalanceC
     }
   }
 
-  /* ─── Unique IDs to avoid SVG filter/gradient collisions ─── */
   const uid = isPnl ? "pnl" : "bal";
 
   return (
@@ -189,7 +215,6 @@ const BalanceChart = ({ timeRange = "M", chartData, mode = "balance" }: BalanceC
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
-
             <linearGradient id={`areaGrad-${uid}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={mainColor} stopOpacity={0.2} />
               <stop offset="40%" stopColor={mainColor} stopOpacity={0.08} />
@@ -207,14 +232,7 @@ const BalanceChart = ({ timeRange = "M", chartData, mode = "balance" }: BalanceC
               const { x, y, index, payload } = props;
               if (!finalLabels.has(index)) return <g />;
               return (
-                <text
-                  x={Number(x)}
-                  y={Number(y) + 10}
-                  textAnchor="middle"
-                  fill="rgba(165,176,176,0.5)"
-                  fontSize={9}
-                  fontWeight={400}
-                >
+                <text x={Number(x)} y={Number(y) + 10} textAnchor="middle" fill="rgba(165,176,176,0.5)" fontSize={9} fontWeight={400}>
                   {payload.value}
                 </text>
               );
@@ -223,14 +241,9 @@ const BalanceChart = ({ timeRange = "M", chartData, mode = "balance" }: BalanceC
 
           <Tooltip
             content={(props) => <CustomTooltip {...props} mode={mode} color={mainColor} />}
-            cursor={{
-              stroke: `${mainRgba}0.25)`,
-              strokeWidth: 1,
-              strokeDasharray: "4 4",
-            }}
+            cursor={{ stroke: `${mainRgba}0.25)`, strokeWidth: 1, strokeDasharray: "4 4" }}
           />
 
-          {/* Reference line: y=0 for P&L, y=first balance for balance mode */}
           <ReferenceLine
             y={refValue}
             stroke={isPnl ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.12)"}

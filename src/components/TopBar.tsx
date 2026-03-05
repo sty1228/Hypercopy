@@ -104,6 +104,8 @@ export interface TopBarProps {
   rank?: number | string | null;
   rewardsPoints?: number;
   onCoinClick?: () => void;
+  /** Handler when active trades element is clicked */
+  onActiveTradesClick?: () => void;
   /**
    * Set to "win" or "loss" momentarily when a trade closes.
    * The dot will flash green or red then revert to yellow.
@@ -117,6 +119,7 @@ export default function TopBar({
   rank,
   rewardsPoints = 0,
   onCoinClick,
+  onActiveTradesClick,
   flashState = null,
   extraRight,
 }: TopBarProps) {
@@ -190,6 +193,10 @@ export default function TopBar({
           {/* Active Trades — yellow dot + number */}
           <Tip text="Active Trades">
             <div
+              onClick={() => {
+                if (onActiveTradesClick) onActiveTradesClick();
+                else router.push("/dashboard");
+              }}
               className="flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10"
               style={{
                 background: "rgba(255,255,255,0.05)",

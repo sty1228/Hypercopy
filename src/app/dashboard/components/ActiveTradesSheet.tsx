@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
-import copyCountIcon from "@/assets/icons/copy-count.png";
-import copyRankIcon from "@/assets/icons/copy-rank.png";
 import { ChevronLeft, ArrowUpDown, TrendingUp, TrendingDown, Filter } from "lucide-react";
 import { PositionItem } from "@/service";
+import TopBar from "@/components/TopBar";
 
 interface ActiveTradesSheetProps {
   positions: PositionItem[];
@@ -94,12 +92,8 @@ const ActiveTradesSheet = ({ positions, onClose, onSelectPosition }: ActiveTrade
     >
       <style jsx>{`
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes fadeInLeft { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
-        @keyframes slideInRight { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes scaleIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
         .fade-up { opacity: 0; animation: fadeInUp 0.5s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
-        .fade-left { opacity: 0; animation: fadeInLeft 0.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
-        .slide-right { opacity: 0; animation: slideInRight 0.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
         .scale-in { opacity: 0; animation: scaleIn 0.4s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
         .trade-row { opacity: 0; animation: fadeInUp 0.45s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
         .trade-row:hover { background: rgba(255,255,255,0.02); }
@@ -114,29 +108,35 @@ const ActiveTradesSheet = ({ positions, onClose, onSelectPosition }: ActiveTrade
         <div className="absolute bottom-1/3 -right-20 w-[200px] h-[200px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.04) 0%, transparent 60%)", filter: "blur(40px)" }} />
       </div>
 
-      {/* Header */}
-      <div className="relative z-10 mt-4 mb-3 flex items-center justify-between px-4">
-        <div
-          onClick={handleClose}
-          className="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all duration-200 hover:bg-white/10 active:scale-90 fade-left"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", animationDelay: "0.05s" }}
-        >
-          <ChevronLeft size={18} className="text-gray-400" />
+      {/* Header — using shared TopBar + back button on left */}
+      <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
+        {/* Left: back + coin */}
+        <div className="flex items-center gap-1.5">
+          <div
+            onClick={handleClose}
+            className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10 active:scale-95"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+          >
+            <ChevronLeft size={14} className="text-gray-400" />
+          </div>
         </div>
-        <div className="flex items-center gap-3 slide-right" style={{ animationDelay: "0.1s" }}>
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <Image src={copyCountIcon} alt="copy-count" width={16} height={16} />
-            <span className="text-[13px] font-semibold text-teal-400">4</span>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.15) 0%, rgba(45,212,191,0.08) 100%)", border: "1px solid rgba(45,212,191,0.25)", boxShadow: "0 0 15px rgba(45,212,191,0.2)" }}>
-            <Image src={copyRankIcon} alt="copy-rank" width={16} height={16} />
-            <span className="text-[13px] font-semibold text-teal-400">#64</span>
-          </div>
-          <div className="w-[38px] h-[38px] rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ backgroundColor: "#2528CA", boxShadow: "0 0 25px rgba(59,130,246,0.4)" }}>
-            J
+        {/* Right: reuse TopBar's right side pattern — but this is an overlay so keep it minimal */}
+        <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <div className="relative flex items-center justify-center" style={{ width: 10, height: 10 }}>
+              <div className="w-[7px] h-[7px] rounded-full" style={{ background: "#eab308", boxShadow: "0 0 4px #eab308, 0 0 8px #eab30850", animation: "pulseDotAT 2s ease-in-out infinite" }} />
+            </div>
+            <span className="text-[10px] font-semibold text-teal-400 tabular-nums">{positions.length}</span>
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes pulseDotAT {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.4); opacity: 0.5; }
+        }
+      `}</style>
 
       {/* Title */}
       <div className="relative z-10 px-4 mb-3 fade-up" style={{ animationDelay: "0.12s" }}>
@@ -171,7 +171,7 @@ const ActiveTradesSheet = ({ positions, onClose, onSelectPosition }: ActiveTrade
         </div>
       </div>
 
-      {/* Filter — ★ now filters by direction, not by pnl */}
+      {/* Filter */}
       <div className="relative z-10 px-4 mb-3 flex items-center justify-between fade-up" style={{ animationDelay: "0.35s" }}>
         <div className="flex items-center gap-1.5">
           <Filter size={12} className="text-gray-500" />
