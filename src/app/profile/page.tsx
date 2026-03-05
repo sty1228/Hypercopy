@@ -24,6 +24,7 @@ import {
   type TraderProfile, type RadarData, type UserSignalItem, type DefaultFollowSettings,
 } from "@/service";
 import { useRewards } from "@/providers/RewardsContext";
+import { usePrivy } from "@privy-io/react-auth";
 import TopBar from "@/components/TopBar";
 
 /* ─── First-time trade localStorage helpers ─── */
@@ -610,7 +611,7 @@ function ProfileTradeSuccessSheet({
 }) {
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
-  const accent = mode === "counter" ? "#f43f5e" : "#2dd4bf";
+  const accent = mode === "counter" ? "#f59e0b" : "#2dd4bf";
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
@@ -659,7 +660,7 @@ function ProfileTradeSuccessSheet({
             <p className="m-0" style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>Earn on every trade · Top performers share platform fees</p>
           </div>
           <div style={{ opacity: step >= 3 ? 1 : 0, transform: step >= 3 ? "translateY(0)" : "translateY(8px)", transition: "all 0.4s ease-out" }}>
-            <button onClick={handleRewards} className="w-full py-3.5 rounded-xl text-[13px] font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]" style={{ background: `linear-gradient(135deg, ${accent}, ${mode === "counter" ? "#be123c" : "#14b8a6"})`, color: "#000", border: "none", boxShadow: `0 4px 24px ${accent}30` }}>View Rewards Program</button>
+            <button onClick={handleRewards} className="w-full py-3.5 rounded-xl text-[13px] font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"             style={{ background: `linear-gradient(135deg, ${accent}, ${mode === "counter" ? "#d97706" : "#14b8a6"})`, color: "#000", border: "none", boxShadow: `0 4px 24px ${accent}30` }}>View Rewards Program</button>
             <button onClick={handleDone} className="w-full mt-2 py-2.5 text-[11px] transition-all" style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.2)" }}>Done</button>
           </div>
         </div>
@@ -715,6 +716,7 @@ function KOLProfileContent() {
   const [tradeMode, setTradeMode] = useState<TradeMode>("copy"); // ★ NEW
 
   const { triggerFirstCopyTrade, viewRewardsFromPrompt } = useRewards();
+  const { authenticated, login } = usePrivy();
 
   // ── Load profile ─────────────────────────────────────
   useEffect(() => {
@@ -753,8 +755,15 @@ function KOLProfileContent() {
     return () => { cancelled = true; };
   }, [handle, isXConnected]);
 
+  // ── Auth guard — call before any protected action ────
+  const requireAuth = useCallback((): boolean => {
+    if (!authenticated) { login(); return false; }
+    return true;
+  }, [authenticated, login]);
+
   // ── Follow handler ───────────────────────────────────
   const handleFollow = useCallback(async () => {
+    if (!requireAuth()) return;
     if (followLoading || !trader) return;
     setFollowLoading(true);
     try {
@@ -778,6 +787,7 @@ function KOLProfileContent() {
 
   // ── Copy trade handler ───────────────────────────────
   const handleCopyToggle = useCallback(async () => {
+    if (!requireAuth()) return;
     if (copyLoading || !trader) return;
     if (isCopying) {
       setCopyLoading(true);
@@ -811,6 +821,7 @@ function KOLProfileContent() {
 
   // ── Counter trade handler ★ NEW ──────────────────────
   const handleCounterToggle = useCallback(async () => {
+    if (!requireAuth()) return;
     if (copyLoading || !trader) return;
     if (isCounterTrading) {
       setCopyLoading(true);
