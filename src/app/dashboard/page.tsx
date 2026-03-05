@@ -247,6 +247,7 @@ const Home = () => {
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
         .row-animate { animation: slideIn 0.3s ease-out forwards; }
+        @keyframes rewardsFadeIn { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
       `}</style>
 
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -542,12 +543,6 @@ const Home = () => {
             animation: "rewardsFadeIn 0.35s ease-out both",
           }}
         >
-          <style jsx>{`
-            @keyframes rewardsFadeIn {
-              from { opacity: 0; transform: translateY(12px) scale(0.98); }
-              to { opacity: 1; transform: translateY(0) scale(1); }
-            }
-          `}</style>
           <KOLRewardsScreen onClose={closeRewards} />
         </div>
       )}
