@@ -142,6 +142,7 @@ export interface FollowedTrader {
   display_name: string | null;
   avatar_url: string | null;
   is_copy_trading: boolean;
+  is_counter_trading: boolean; // ★ NEW
   created_at: string;
   win_rate: number;
   total_profit_usd: number;
@@ -153,19 +154,32 @@ export interface FollowedTrader {
 export interface FollowStatus {
   is_following: boolean;
   is_copy_trading: boolean;
+  is_counter_trading: boolean; // ★ NEW
 }
 
 export const getFollowedTraders = async (window = "30d"): Promise<FollowedTrader[]> => {
   return await get(`/api/follows?window=${window}`);
 };
 
+// ★ Updated: accepts isCounterTrading (mutually exclusive with isCopyTrading)
 export const followTrader = async (
   traderUsername: string,
-  isCopyTrading = false
-): Promise<{ id: string; trader_username: string; is_copy_trading: boolean; created_at: string }> => {
+  isCopyTrading = false,
+  isCounterTrading = false,
+): Promise<{
+  id: string;
+  trader_username: string;
+  is_copy_trading: boolean;
+  is_counter_trading: boolean;
+  created_at: string;
+}> => {
+  if (isCopyTrading && isCounterTrading) {
+    throw new Error("isCopyTrading and isCounterTrading are mutually exclusive");
+  }
   return await post("/api/follow", {
     trader_username: traderUsername,
     is_copy_trading: isCopyTrading,
+    is_counter_trading: isCounterTrading,
   });
 };
 
@@ -175,8 +189,15 @@ export const unfollowTrader = async (traderUsername: string): Promise<{ message:
 
 export const toggleCopyTrading = async (
   traderUsername: string
-): Promise<{ is_copy_trading: boolean }> => {
+): Promise<{ is_copy_trading: boolean; is_counter_trading: boolean }> => {
   return await patch(`/api/follow/${traderUsername}/copy-trading`, {});
+};
+
+// ★ NEW
+export const toggleCounterTrading = async (
+  traderUsername: string
+): Promise<{ is_counter_trading: boolean; is_copy_trading: boolean }> => {
+  return await patch(`/api/follow/${traderUsername}/counter-trading`, {});
 };
 
 export const checkFollowStatus = async (traderUsername: string): Promise<FollowStatus> => {
@@ -224,6 +245,7 @@ export interface TraderProfile {
   radar: RadarData;
   is_followed: boolean;
   is_copy_trading: boolean;
+  is_counter_trading: boolean; // ★ NEW
   best_signal: BestWorstSignal | null;
   worst_signal: BestWorstSignal | null;
 }
@@ -263,7 +285,6 @@ export interface LeaderboardItem {
   copiers?: number;
 }
 
-// ★ Updated: supports sortBy + registeredOnly for filter tabs
 export const leaderboard = async (
   window: string = "30d",
   sortBy: string = "total_profit_usd",
@@ -293,7 +314,7 @@ export interface UserSignalItem {
   retweetsCount: number;
   likesCount: number;
   change_since_tweet: number;
-  tweet_image_url?: string | null; // ★ NEW: tweet image
+  tweet_image_url?: string | null;
 }
 
 export interface UserSignalResponse {
@@ -472,33 +493,7 @@ export const getRisingTraders = async (limit = 6): Promise<RisingTraderItem[]> =
   return await get(`/api/explore/rising?limit=${limit}`);
 };
 
-// ─── Explore: Search + Styles (追加到 Explore 区块末尾) ───
-
-export interface SearchTraderItem {
-  username: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  profit_grade: string | null;
-  win_rate: number;
-  avg_return_pct: number;
-  total_signals: number;
-  copiers_count: number;
-}
-
-export interface StyleTraderItem {
-  username: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  profit_grade: string | null;
-  win_rate: number;
-  avg_return_pct: number;
-  total_profit_usd: number;
-  total_signals: number;
-  copiers_count: number;
-  streak: number;
-}
-
-// ─── Explore: Search + Styles + Token Detail (追加到 Explore 区块末尾) ───
+// ─── Explore: Search + Styles + Token Detail ────────────
 
 export interface SearchTraderItem {
   username: string;
@@ -565,9 +560,7 @@ export const searchTraders = async (
   q: string,
   limit = 10
 ): Promise<SearchTraderItem[]> => {
-  return await get(
-    `/api/explore/search?q=${encodeURIComponent(q)}&limit=${limit}`
-  );
+  return await get(`/api/explore/search?q=${encodeURIComponent(q)}&limit=${limit}`);
 };
 
 export const getTradersByStyle = async (
@@ -575,18 +568,14 @@ export const getTradersByStyle = async (
   limit = 10,
   window = "30d"
 ): Promise<StyleTraderItem[]> => {
-  return await get(
-    `/api/explore/styles/${style}?limit=${limit}&window=${window}`
-  );
+  return await get(`/api/explore/styles/${style}?limit=${limit}&window=${window}`);
 };
 
 export const getTokenDetail = async (
   ticker: string,
   days = 30
 ): Promise<TokenDetailResponse> => {
-  return await get(
-    `/api/explore/token/${encodeURIComponent(ticker)}?days=${days}`
-  );
+  return await get(`/api/explore/token/${encodeURIComponent(ticker)}?days=${days}`);
 };
 
 // ─── KOL Rewards ────────────────────────────────────────
