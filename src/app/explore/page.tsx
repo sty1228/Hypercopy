@@ -1,20 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import profileIcon from "@/assets/icons/profile.png";
-import copyCountIcon from "@/assets/icons/copy-count.png";
-import copyRankIcon from "@/assets/icons/copy-rank.png";
 import {
   Search, TrendingUp, TrendingDown, Flame, Target, Users,
   Zap, ChevronRight, Loader2, Trophy, X,
   BarChart3, Diamond, Anchor, Compass,
   Crosshair, Activity, ArrowUpRight, Sparkles, Copy,
-  UserPlus, Grid3X3, RefreshCw, ArrowLeft, Clock,
-  MessageSquare,
+  UserPlus, Grid3X3, RefreshCw, Clock,
 } from "lucide-react";
-import UserMenu from "@/components/UserMenu";
+import TopBar from "@/components/TopBar";
 import {
   leaderboard, getFollowedTraders, getTokenSentiment, getRisingTraders,
   searchTraders, getTradersByStyle, getTokenDetail, getDashboardSummary,
@@ -103,20 +98,6 @@ const Empty = ({ text }: { text: string }) => (
   <div className="rounded-xl p-6 text-center" style={{ background: CB, border: CBR }}><p className="text-[11px] text-gray-500">{text}</p></div>
 );
 
-const IconTip = ({ tooltip, children }: { tooltip: string; children: React.ReactNode }) => {
-  const [s, setS] = useState(false);
-  useEffect(() => { if (s) { const t = setTimeout(() => setS(false), 2000); return () => clearTimeout(t); } }, [s]);
-  return (
-    <div className="relative" onClick={() => setS(p => !p)}>
-      {children}
-      <div className="absolute top-full right-0 mt-1.5 px-2.5 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-medium pointer-events-none transition-all duration-200 z-50"
-        style={{ background: "rgba(15,20,25,0.95)", border: "1px solid rgba(45,212,191,0.3)", color: "rgba(255,255,255,0.9)", boxShadow: "0 4px 12px rgba(0,0,0,0.4)", opacity: s ? 1 : 0, transform: s ? "translateY(0)" : "translateY(-4px)" }}>
-        {tooltip}
-      </div>
-    </div>
-  );
-};
-
 /* ─────────────── Bottom Sheet wrapper ───── */
 
 function BottomSheet({ onClose, title, subtitle, headerIcon, children }: {
@@ -128,9 +109,7 @@ function BottomSheet({ onClose, title, subtitle, headerIcon, children }: {
       <div className="min-h-[10vh]" onClick={onClose} />
       <div className="flex-1 flex flex-col rounded-t-2xl overflow-hidden animate-slide-up"
         style={{ background: "#0d1117", borderTop: "1px solid rgba(255,255,255,0.1)", maxHeight: "88vh" }}>
-        {/* drag handle */}
         <div className="flex justify-center pt-2 pb-1"><div className="w-8 h-1 rounded-full" style={{ background: "rgba(255,255,255,0.15)" }} /></div>
-        {/* header */}
         <div className="flex items-center justify-between px-4 py-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="flex items-center gap-2">
             {headerIcon}
@@ -143,7 +122,6 @@ function BottomSheet({ onClose, title, subtitle, headerIcon, children }: {
             <X size={14} className="text-gray-400" />
           </div>
         </div>
-        {/* body — scrollable */}
         <div className="flex-1 overflow-y-auto pb-20">{children}</div>
       </div>
     </div>
@@ -184,8 +162,6 @@ function TokenSheet({ ticker, onClose, goTrader }: { ticker: string; onClose: ()
         </div>
       ) : data ? (
         <div className="px-4 pt-3">
-
-          {/* ── Sentiment Card ── */}
           <div className="rounded-xl p-3 mb-4" style={{ background: CB, border: CBR }}>
             <div className="flex justify-between items-center mb-2">
               <span className="text-[11px] font-semibold text-gray-400">Sentiment Breakdown</span>
@@ -215,7 +191,6 @@ function TokenSheet({ ticker, onClose, goTrader }: { ticker: string; onClose: ()
             </div>
           </div>
 
-          {/* ── Top Traders for token ── */}
           {data.top_traders.length > 0 && (
             <div className="mb-4">
               <Hdr icon={<Trophy size={13} className="text-yellow-400" />} title={`Top ${ticker} Traders`} />
@@ -246,10 +221,8 @@ function TokenSheet({ ticker, onClose, goTrader }: { ticker: string; onClose: ()
             </div>
           )}
 
-          {/* ── Recent Signals ── */}
           <div className="mb-4">
             <Hdr icon={<Activity size={13} className="text-teal-400" />} title="Recent Signals" />
-            {/* filter */}
             <div className="flex gap-1.5 mb-2">
               {(["all","bullish","bearish"] as const).map(k => (
                 <div key={k} onClick={() => setSigTab(k)}
@@ -386,14 +359,12 @@ export default function ExplorePage() {
   const [tab, setTab] = useState<"discover" | "mytraders">("discover");
   const [subTab, setSubTab] = useState<"copying" | "following">("copying");
 
-  /* search */
   const [searchText, setSearchText] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchTraderItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const showDropdown = searchFocused && searchText.trim().length > 0;
 
-  /* data */
   const [sentiment, setSentiment] = useState<TokenSentimentItem[]>([]);
   const [sentimentLoading, setSentimentLoading] = useState(true);
   const [topTraders, setTopTraders] = useState<LeaderboardItem[]>([]);
@@ -404,11 +375,9 @@ export default function ExplorePage() {
   const [followsLoading, setFollowsLoading] = useState(false);
   const [activeTrades, setActiveTrades] = useState(0);
 
-  /* overlays */
   const [activeStyle, setActiveStyle] = useState<(typeof STYLES)[number] | null>(null);
   const [activeTicker, setActiveTicker] = useState<string | null>(null);
 
-  /* fetch discover */
   const fetchDiscover = useCallback(() => {
     setSentimentLoading(true);
     getTokenSentiment(30).then(setSentiment).catch(() => setSentiment([])).finally(() => setSentimentLoading(false));
@@ -420,14 +389,12 @@ export default function ExplorePage() {
   }, []);
   useEffect(() => { fetchDiscover(); }, [fetchDiscover]);
 
-  /* fetch follows */
   useEffect(() => {
     if (tab !== "mytraders") return;
     setFollowsLoading(true);
     getFollowedTraders("30d").then(setFollows).catch(() => setFollows([])).finally(() => setFollowsLoading(false));
   }, [tab]);
 
-  /* debounced search */
   useEffect(() => {
     const q = searchText.trim();
     if (!q) { setSearchResults([]); return; }
@@ -438,7 +405,6 @@ export default function ExplorePage() {
     return () => clearTimeout(t);
   }, [searchText]);
 
-  /* close search on outside click */
   useEffect(() => {
     const h = (e: MouseEvent) => { if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchFocused(false); };
     document.addEventListener("mousedown", h);
@@ -477,31 +443,7 @@ export default function ExplorePage() {
       </div>
 
       {/* ── Header ── */}
-      <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
-        <div className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-          onClick={() => router.push("/dashboard")}>
-          <Image src={profileIcon} alt="profile" width={12} height={12} />
-        </div>
-        <div className="flex items-center gap-1.5">
-          <IconTip tooltip="Active Trades">
-            <div className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-              onClick={() => router.push("/dashboard")}>
-              <Image src={copyCountIcon} alt="active" width={11} height={11} />
-              <span className="text-[10px] font-semibold text-teal-400">{activeTrades}</span>
-            </div>
-          </IconTip>
-          <IconTip tooltip="Your Rank">
-            <div className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10"
-              style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.15), rgba(45,212,191,0.08))", border: "1px solid rgba(45,212,191,0.25)", boxShadow: "0 0 15px rgba(45,212,191,0.2)" }}>
-              <Image src={copyRankIcon} alt="rank" width={11} height={11} />
-              <span className="text-[10px] font-semibold text-teal-400">#—</span>
-            </div>
-          </IconTip>
-          <UserMenu />
-        </div>
-      </div>
+      <TopBar activeTrades={activeTrades} rank={null} />
 
       {/* ── Search ── */}
       <div className="relative z-20 px-3 mb-2" ref={searchRef}>
@@ -569,15 +511,12 @@ export default function ExplorePage() {
       {/* ══════════ DISCOVER ══════════ */}
       {tab === "discover" && (
         <div className="relative z-10 pb-24">
-
-          {/* Token Sentiment */}
           <div className="px-3 mb-4 fade-in fade-in-1">
             <Hdr icon={<BarChart3 size={14} className="text-teal-400" />} title="Token Sentiment" action="By KOL signals" />
             {sentimentLoading ? <Spin /> : sentiment.length === 0 ? <Empty text="No signal data available yet" /> : (
               <div className="grid grid-cols-2 gap-2">
                 {sentiment.slice(0, 8).map(tk => (
-                  <div key={tk.ticker}
-                    onClick={() => setActiveTicker(tk.ticker)}
+                  <div key={tk.ticker} onClick={() => setActiveTicker(tk.ticker)}
                     className="rounded-xl p-2.5 relative overflow-hidden cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                     style={{ background: CB, border: CBR }}>
                     <div className="flex items-center justify-between mb-1.5">
@@ -602,7 +541,6 @@ export default function ExplorePage() {
             )}
           </div>
 
-          {/* Top Traders */}
           <div className="px-3 mb-4 fade-in fade-in-2">
             <Hdr icon={<Trophy size={14} className="text-yellow-400" />} title="Top Traders" action="Leaderboard" onAction={goLeaderboard} />
             {topLoading ? <Spin /> : topTraders.length === 0 ? <Empty text="No traders found" /> : (
@@ -641,7 +579,6 @@ export default function ExplorePage() {
             )}
           </div>
 
-          {/* Rising */}
           <div className="px-3 mb-4 fade-in fade-in-3">
             <Hdr icon={<ArrowUpRight size={14} className="text-green-400" />} title="Rising This Week" />
             {risingLoading ? <Spin /> : rising.length === 0 ? <Empty text="Not enough data yet" /> : (
@@ -675,7 +612,6 @@ export default function ExplorePage() {
             )}
           </div>
 
-          {/* Browse by Style */}
           <div className="px-3 mb-4 fade-in fade-in-4">
             <Hdr icon={<Grid3X3 size={14} className="text-purple-400" />} title="Browse by Style" />
             <div className="grid grid-cols-3 gap-1.5">

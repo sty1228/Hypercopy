@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback, useContext, useMemo } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
-import profileIcon from "@/assets/icons/profile.png";
-import copyCountIcon from "@/assets/icons/copy-count.png";
 import { Button } from "@/components/ui/button";
 import TimeRangeTab from "./components/TimeRangeTab";
 import BalanceChart from "./components/balanceChart";
@@ -28,7 +25,6 @@ import {
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
 import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Upload, RefreshCw, TrendingUp, Eye, EyeOff, Clock } from "lucide-react";
-import UserMenu from "@/components/UserMenu";
 import PositionDetail, { PositionDetailData, positionExtendedData } from "./components/PositionDetail";
 import CopyingSheet from "./components/CopyingSheet";
 import ActiveTradesSheet from "./components/ActiveTradesSheet";
@@ -39,31 +35,12 @@ import { KOLRewardsScreen } from "./components/KOLRewardsScreen";
 import { useRewards } from "@/providers/RewardsContext";
 import RewardsBanner from "@/components/RewardsBanner";
 import { getToken, setToken, removeToken } from "@/lib/token";
+import TopBar from "@/components/TopBar";
 
 export interface BalanceChartData {
   label: string;
   value: number;
 }
-
-const IconWithTooltip = ({ tooltip, children }: { tooltip: string; children: React.ReactNode }) => {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    if (!show) return;
-    const timer = setTimeout(() => setShow(false), 2000);
-    return () => clearTimeout(timer);
-  }, [show]);
-  return (
-    <div className="relative" onClick={() => setShow((p) => !p)}>
-      {children}
-      <div
-        className="absolute top-full right-0 mt-1.5 px-2.5 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-medium pointer-events-none transition-all duration-200 z-50"
-        style={{ background: "rgba(15,20,25,0.95)", border: "1px solid rgba(45,212,191,0.3)", color: "rgba(255,255,255,0.9)", boxShadow: "0 4px 12px rgba(0,0,0,0.4)", opacity: show ? 1 : 0, transform: show ? "translateY(0)" : "translateY(-4px)" }}
-      >
-        {tooltip}
-      </div>
-    </div>
-  );
-};
 
 const formatLabel = (ts: number, tr: TimeRange): string => {
   const d = new Date(ts > 1e12 ? ts : ts * 1000);
@@ -131,7 +108,6 @@ const Home = () => {
   const copyingCount = profile?.followingCount ?? 0;
   const copiersCount = profile?.followerCount ?? 0;
 
-  // ── 1. Privy → Backend JWT sync ──
   useEffect(() => {
     if (!authenticated) {
       removeToken();
@@ -156,7 +132,6 @@ const Home = () => {
       .catch((err) => console.error("Auth sync failed:", err));
   }, [authenticated, wallet?.address, user]);
 
-  // ── 2. Fetch real-time balance ──
   const refreshWalletBalance = useCallback(async () => {
     if (!authReady) return;
     setBalRefreshing(true);
@@ -172,7 +147,6 @@ const Home = () => {
     return () => clearInterval(iv);
   }, [authReady, refreshWalletBalance]);
 
-  // ── 3. Fetch dashboard data ──
   const fetchDashboard = useCallback(async () => {
     if (!authReady) return;
     setLoading(true);
@@ -196,7 +170,6 @@ const Home = () => {
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-  // ── 4. P&L chart data ──
   const fetchPnlChart = useCallback(async (tr: TimeRange = "M") => {
     if (!authReady) {
       setPnlChartData([]);
@@ -226,7 +199,6 @@ const Home = () => {
 
   useEffect(() => { fetchPnlChart(timeRange); }, [timeRange, fetchPnlChart]);
 
-  // ── 5. Sheet close / deposit success ──
   const handleSheetClose = useCallback((setter: (v: boolean) => void) => {
     setter(false);
     refreshWalletBalance();
@@ -305,25 +277,13 @@ const Home = () => {
 
       <RewardsBanner />
 
-      {/* ── Top bar ── */}
-      <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
-        <div className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }} onClick={handleLogout}>
-          <Image src={profileIcon} alt="profile" width={12} height={12} />
-        </div>
-        <div className="flex items-center gap-1.5">
-          <IconWithTooltip tooltip="Active Trades">
-            <div className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-              <Image src={copyCountIcon} alt="active-trades" width={11} height={11} />
-              <span className="text-[10px] font-semibold text-teal-400">{openCount}</span>
-            </div>
-          </IconWithTooltip>
-          <UserMenu />
-        </div>
-      </div>
+      <TopBar
+        activeTrades={openCount}
+        showBack={false}
+        rank={64}
+      />
 
-      {/* ═══════════════════════════════════════════════
-           PORTFOLIO CARD
-          ═══════════════════════════════════════════════ */}
+      {/* PORTFOLIO CARD */}
       <div className="relative z-10 px-3">
         <div className="rounded-xl overflow-hidden mb-3" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.05) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(45,212,191,0.15)", boxShadow: "0 0 30px rgba(45,212,191,0.08)" }}>
           <div className="absolute inset-0 rounded-xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.12) 0%, transparent 60%)" }} />
@@ -359,16 +319,13 @@ const Home = () => {
                   </div>
                 )}
               </div>
-
               <div className="text-right">
                 <p className="text-[10px] text-gray-500 mb-0.5">Available to trade</p>
                 <p className="text-lg font-bold text-white tabular-nums">
                   {authenticated ? (hideBalance ? "••••" : `$${fmt(availableToTrade)}`) : "—"}
                 </p>
                 {pendingBalance > 0.01 && (
-                  <p className="text-[9px] text-yellow-400/70 mt-0.5">
-                    +${fmt(pendingBalance)} bridging
-                  </p>
+                  <p className="text-[9px] text-yellow-400/70 mt-0.5">+${fmt(pendingBalance)} bridging</p>
                 )}
               </div>
             </div>
@@ -387,11 +344,9 @@ const Home = () => {
                 </Button>
               )}
               {authenticated && (
-                <button
-                  onClick={() => setShowHistory(true)}
+                <button onClick={() => setShowHistory(true)}
                   className="w-[46px] shrink-0 rounded-xl flex items-center justify-center transition-all hover:bg-white/10 cursor-pointer"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)" }}
-                >
+                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)" }}>
                   <Clock size={16} className="text-gray-400" />
                 </button>
               )}
@@ -414,9 +369,7 @@ const Home = () => {
                 <p className={`text-2xl font-bold tabular-nums ${pnlPositive ? "text-teal-400" : "text-rose-400"}`}>
                   {hideBalance ? "••••••" : `${rangePnl >= 0 ? "+" : "-"}$${fmt(Math.abs(rangePnl))}`}
                 </p>
-                <p className="text-[10px] text-gray-500 capitalize">
-                  {TIME_RANGE_LABELS[timeRange] || ""}
-                </p>
+                <p className="text-[10px] text-gray-500 capitalize">{TIME_RANGE_LABELS[timeRange] || ""}</p>
               </div>
             )}
 
@@ -427,7 +380,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ── Stats grid ── */}
+      {/* Stats grid */}
       <div className="relative z-10 flex px-3 mt-2.5 gap-2">
         <div className="flex flex-1 gap-2">
           {[
@@ -463,7 +416,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ── Followed / Positions tabs ── */}
+      {/* Followed / Positions tabs */}
       <div className="relative z-10 px-3 mt-3 mb-24">
         <div className="rounded-xl overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <div className="relative flex border-b border-white/10">
@@ -581,7 +534,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ── Overlays ── */}
+      {/* Overlays */}
       {showRewards && <KOLRewardsScreen onClose={closeRewards} />}
       {showCopying && <CopyingSheet mode="copying" onClose={() => setShowCopying(false)} />}
       {showCopiers && <CopyingSheet mode="copiers" onClose={() => setShowCopiers(false)} />}
@@ -590,33 +543,18 @@ const Home = () => {
           onSelectPosition={(pos: PositionItem) => {
             const ext = positionExtendedData[pos.ticker];
             if (ext) setSelectedPos({
-              id: Number(pos.id) || 0,
-              token: pos.ticker,
-              pair: `${pos.ticker}/USDT`,
-              iconUrl: "",
-              size: pos.size_qty,
-              sizeUsd: pos.size_usd,
-              pnl: pos.pnl_usd ?? 0,
-              pnlPercent: pos.pnl_pct ?? 0,
-              entry: pos.entry_price,
-              color: ext.color,
-              currentPrice: ext.currentPrice,
-              txs: ext.txs,
+              id: Number(pos.id) || 0, token: pos.ticker, pair: `${pos.ticker}/USDT`, iconUrl: "",
+              size: pos.size_qty, sizeUsd: pos.size_usd, pnl: pos.pnl_usd ?? 0, pnlPercent: pos.pnl_pct ?? 0,
+              entry: pos.entry_price, color: ext.color, currentPrice: ext.currentPrice, txs: ext.txs,
             });
           }} />
       )}
       {selectedPos && <PositionDetail pos={selectedPos} onClose={() => setSelectedPos(null)} />}
-      <DepositSheet isOpen={showDeposit}
-        onClose={() => handleSheetClose(setShowDeposit)}
-        onSuccess={handleDepositSuccess} />
+      <DepositSheet isOpen={showDeposit} onClose={() => handleSheetClose(setShowDeposit)} onSuccess={handleDepositSuccess} />
       <WithdrawSheet isOpen={showWithdraw}
         onClose={() => { setShowWithdraw(false); refreshWalletBalance(); fetchPnlChart(timeRange); setTimeout(fetchDashboard, 60_000); }}
-        availableBalance={availableToTrade}
-        onSuccess={handleWithdrawSuccess} />
-      <TransactionHistorySheet
-        isOpen={showHistory}
-        onClose={() => setShowHistory(false)}
-      />
+        availableBalance={availableToTrade} onSuccess={handleWithdrawSuccess} />
+      <TransactionHistorySheet isOpen={showHistory} onClose={() => setShowHistory(false)} />
     </div>
   );
 };
