@@ -417,21 +417,17 @@ function ProfileTradeSettingsSheet({
   onClose: () => void;
 }) {
   const [sizeVal, setSizeVal] = useState(50);
-  const [sizeType, setSizeType] = useState<"USD" | "PCT">("USD"); // default $
+  const [sizeType, setSizeType] = useState<"USD" | "PCT">("USD");
   const [leverage, setLeverage] = useState(8);
   const [tpVal, setTpVal] = useState(15);
-  const [tpType, setTpType] = useState<"USD" | "PCT">("USD");   // default $
+  const [tpType, setTpType] = useState<"USD" | "PCT">("USD");
   const [slVal, setSlVal] = useState(35);
-  const [slType, setSlType] = useState<"USD" | "PCT">("USD");   // default $
+  const [slType, setSlType] = useState<"USD" | "PCT">("USD");
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  // Accent color: teal for copy, amber for counter
   const ac = mode === "counter" ? "#f59e0b" : "#2dd4bf";
-  const acRgba = mode === "counter" ? "rgba(245,158,11,1)" : "rgba(45,212,191,1)";
   const acShadow = mode === "counter" ? "rgba(245,158,11,0.3)" : "rgba(45,212,191,0.3)";
-  const acBg = mode === "counter" ? "rgba(245,158,11,0.08)" : "rgba(45,212,191,0.08)";
-  const title = mode === "counter" ? `Counter @${traderName}` : `Copy @${traderName}`;
   const subtitle = mode === "counter"
     ? "We'll open the opposite direction of their trades automatically."
     : "We'll auto-mirror their trades for you. Defaults apply to all future copies.";
@@ -464,8 +460,6 @@ function ProfileTradeSettingsSheet({
         <div style={{ height: 3, borderRadius: "20px 20px 0 0", background: `linear-gradient(90deg, transparent, ${ac}, transparent)`, opacity: 0.5 }} />
         <div className="px-5 pt-4 pb-7">
           <div className="w-9 h-[3px] rounded-full mx-auto mb-5" style={{ background: "rgba(255,255,255,0.1)" }} />
-
-          {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-[10px] font-medium uppercase tracking-widest mb-1" style={{ color: ac, opacity: 0.7 }}>
@@ -480,20 +474,14 @@ function ProfileTradeSettingsSheet({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" /></svg>
             </button>
           </div>
-
           <p className="text-[11px] leading-relaxed mb-5" style={{ color: "rgba(255,255,255,0.3)" }}>{subtitle}</p>
-
-          {/* Mode badge */}
           {mode === "counter" && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl mb-4" style={{ background: "rgba(244,63,94,0.06)", border: "1px solid rgba(244,63,94,0.15)" }}>
               <RefreshCw size={11} className="text-rose-400" />
               <p className="text-[10px] text-rose-400">Their LONG → your SHORT &nbsp;·&nbsp; Their SHORT → your LONG</p>
             </div>
           )}
-
-          {/* Settings rows */}
           <div className="rounded-2xl overflow-hidden mb-4" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
-            {/* Size */}
             <div className="flex items-center justify-between px-4 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
               <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.5)" }}>Size</span>
               <div className="flex items-center gap-2.5">
@@ -501,8 +489,6 @@ function ProfileTradeSettingsSheet({
                 <TypeToggle val={sizeType} onChange={setSizeType} color={ac} />
               </div>
             </div>
-
-            {/* Leverage */}
             <div className="px-4 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
               <div className="flex justify-between items-center mb-3">
                 <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.5)" }}>Leverage</span>
@@ -513,8 +499,6 @@ function ProfileTradeSettingsSheet({
                 <span>1x</span><span>5x</span><span>10x</span><span>15x</span><span>20x</span>
               </div>
             </div>
-
-            {/* Stop Loss */}
             <div className="flex items-center justify-between px-4 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
               <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.5)" }}>Stop Loss</span>
               <div className="flex items-center gap-2.5">
@@ -522,8 +506,6 @@ function ProfileTradeSettingsSheet({
                 <TypeToggle val={slType} onChange={setSlType} color="#fb7185" />
               </div>
             </div>
-
-            {/* Take Profit */}
             <div className="flex items-center justify-between px-4 py-3.5">
               <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.5)" }}>Take Profit</span>
               <div className="flex items-center gap-2.5">
@@ -532,14 +514,10 @@ function ProfileTradeSettingsSheet({
               </div>
             </div>
           </div>
-
-          {/* Summary */}
           <div className="text-center text-[11px] mb-5" style={{ color: "rgba(255,255,255,0.2)" }}>
             {sizeType === "PCT" ? `${sizeVal}%` : `$${sizeVal}`} per trade · {leverage}x leverage · SL {slType === "PCT" ? `${slVal}%` : `$${slVal}`} · TP {tpType === "PCT" ? `${tpVal}%` : `$${tpVal}`}
           </div>
-
-          {/* CTA */}
-          <button onClick={handleConfirm} disabled={loading} className="w-full py-3.5 rounded-xl text-[13px] font-bold transition-all duration-300"             style={{ background: loading ? "rgba(255,255,255,0.05)" : `linear-gradient(135deg, ${ac}, ${mode === "counter" ? "#d97706" : "#14b8a6"})`, color: loading ? "rgba(255,255,255,0.3)" : "#000", border: "none", cursor: loading ? "not-allowed" : "pointer", boxShadow: loading ? "none" : `0 4px 20px ${acShadow}` }}>
+          <button onClick={handleConfirm} disabled={loading} className="w-full py-3.5 rounded-xl text-[13px] font-bold transition-all duration-300" style={{ background: loading ? "rgba(255,255,255,0.05)" : `linear-gradient(135deg, ${ac}, ${mode === "counter" ? "#d97706" : "#14b8a6"})`, color: loading ? "rgba(255,255,255,0.3)" : "#000", border: "none", cursor: loading ? "not-allowed" : "pointer", boxShadow: loading ? "none" : `0 4px 20px ${acShadow}` }}>
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" /><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>
@@ -547,8 +525,6 @@ function ProfileTradeSettingsSheet({
               </span>
             ) : mode === "counter" ? "Start Countering" : "Start Copying"}
           </button>
-
-          {/* Future scripts message */}
           <div className="mt-4 px-3 py-3 rounded-xl" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
             <div className="flex items-start gap-2">
               <Zap size={11} className="shrink-0 mt-0.5" style={{ color: ac }} />
@@ -557,7 +533,6 @@ function ProfileTradeSettingsSheet({
               </p>
             </div>
           </div>
-
           <p className="text-center mt-3" style={{ fontSize: 9, color: "rgba(255,255,255,0.15)" }}>
             Editable anytime in Settings · Past performance ≠ future results
           </p>
@@ -660,7 +635,7 @@ function ProfileTradeSuccessSheet({
             <p className="m-0" style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>Earn on every trade · Top performers share platform fees</p>
           </div>
           <div style={{ opacity: step >= 3 ? 1 : 0, transform: step >= 3 ? "translateY(0)" : "translateY(8px)", transition: "all 0.4s ease-out" }}>
-            <button onClick={handleRewards} className="w-full py-3.5 rounded-xl text-[13px] font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"             style={{ background: `linear-gradient(135deg, ${accent}, ${mode === "counter" ? "#d97706" : "#14b8a6"})`, color: "#000", border: "none", boxShadow: `0 4px 24px ${accent}30` }}>View Rewards Program</button>
+            <button onClick={handleRewards} className="w-full py-3.5 rounded-xl text-[13px] font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]" style={{ background: `linear-gradient(135deg, ${accent}, ${mode === "counter" ? "#d97706" : "#14b8a6"})`, color: "#000", border: "none", boxShadow: `0 4px 24px ${accent}30` }}>View Rewards Program</button>
             <button onClick={handleDone} className="w-full mt-2 py-2.5 text-[11px] transition-all" style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.2)" }}>Done</button>
           </div>
         </div>
@@ -695,9 +670,12 @@ function KOLProfileContent() {
   // ── Follow / trade state ─────────────────────────────
   const [isFollowing, setIsFollowing] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
-  const [isCounterTrading, setIsCounterTrading] = useState(false); // ★ NEW
+  const [isCounterTrading, setIsCounterTrading] = useState(false);
+
+  // ── ★ 独立 loading 状态（修复：原来共用 copyLoading 导致互相干扰）
   const [followLoading, setFollowLoading] = useState(false);
   const [copyLoading, setCopyLoading] = useState(false);
+  const [counterLoading, setCounterLoading] = useState(false);
 
   // ── UI state ─────────────────────────────────────────
   const [showFollowingSheet, setShowFollowingSheet] = useState(false);
@@ -710,10 +688,10 @@ function KOLProfileContent() {
   const [privacySettings, setPrivacySettings] = useState({ hideCopyTrades: false, hidePositions: false, hidePnl: false });
   const [followPressed, setFollowPressed] = useState(false);
   const [copyPressed, setCopyPressed] = useState(false);
-  const [counterPressed, setCounterPressed] = useState(false); // ★ NEW
+  const [counterPressed, setCounterPressed] = useState(false);
   const [showTradeSettings, setShowTradeSettings] = useState(false);
   const [showTradeSuccess, setShowTradeSuccess] = useState(false);
-  const [tradeMode, setTradeMode] = useState<TradeMode>("copy"); // ★ NEW
+  const [tradeMode, setTradeMode] = useState<TradeMode>("copy");
 
   const { triggerFirstCopyTrade, viewRewardsFromPrompt } = useRewards();
   const { authenticated, login } = usePrivy();
@@ -730,7 +708,7 @@ function KOLProfileContent() {
         setTrader(data);
         setIsFollowing(data.is_followed);
         setIsCopying(data.is_copy_trading);
-        setIsCounterTrading((data as any).is_counter_trading ?? false); // ★ NEW
+        setIsCounterTrading((data as any).is_counter_trading ?? false);
       } catch (err: any) {
         if (cancelled) return;
         setError(err?.response?.status === 404 ? "Trader not found" : "Failed to load profile");
@@ -755,7 +733,7 @@ function KOLProfileContent() {
     return () => { cancelled = true; };
   }, [handle, isXConnected]);
 
-  // ── Auth guard — call before any protected action ────
+  // ── ★ Auth guard — 未登录时弹 Privy 登录框并立即返回 false ──
   const requireAuth = useCallback((): boolean => {
     if (!authenticated) { login(); return false; }
     return true;
@@ -763,7 +741,7 @@ function KOLProfileContent() {
 
   // ── Follow handler ───────────────────────────────────
   const handleFollow = useCallback(async () => {
-    if (!requireAuth()) return;
+    if (!requireAuth()) return;   // ★ 未登录 → 弹登录框
     if (followLoading || !trader) return;
     setFollowLoading(true);
     try {
@@ -783,12 +761,13 @@ function KOLProfileContent() {
       if (err?.response?.status === 404) setIsFollowing(false);
       else console.error("Follow toggle failed:", err);
     } finally { setFollowLoading(false); }
-  }, [isFollowing, followLoading, trader]);
+  }, [isFollowing, followLoading, trader, requireAuth]);
 
   // ── Copy trade handler ───────────────────────────────
   const handleCopyToggle = useCallback(async () => {
-    if (!requireAuth()) return;
+    if (!requireAuth()) return;   // ★ 未登录 → 弹登录框
     if (copyLoading || !trader) return;
+
     if (isCopying) {
       setCopyLoading(true);
       try {
@@ -800,58 +779,63 @@ function KOLProfileContent() {
       } finally { setCopyLoading(false); }
       return;
     }
+
     if (!hasEverTraded()) {
       setTradeMode("copy");
       setShowTradeSettings(true);
       return;
     }
+
     setCopyLoading(true);
     try {
       await followTrader(trader.username, true, false);
       setIsCopying(true);
       setIsFollowing(true);
-      setIsCounterTrading(false); // mutual exclusivity
+      setIsCounterTrading(false);
     } catch (err: any) {
       if (err?.response?.status === 400) {
         try { await toggleCopyTrading(trader.username); } catch { }
         setIsCopying(true); setIsFollowing(true); setIsCounterTrading(false);
       } else { console.error("Copy trade failed:", err); }
     } finally { setCopyLoading(false); }
-  }, [isCopying, copyLoading, trader]);
+  }, [isCopying, copyLoading, trader, requireAuth]);
 
-  // ── Counter trade handler ★ NEW ──────────────────────
+  // ── Counter trade handler ────────────────────────────
   const handleCounterToggle = useCallback(async () => {
-    if (!requireAuth()) return;
-    if (copyLoading || !trader) return;
+    if (!requireAuth()) return;   // ★ 未登录 → 弹登录框
+    if (counterLoading || !trader) return;
+
     if (isCounterTrading) {
-      setCopyLoading(true);
+      setCounterLoading(true);
       try {
         await toggleCounterTrading(trader.username);
         setIsCounterTrading(false);
       } catch (err: any) {
         if (err?.response?.status === 404) { setIsCounterTrading(false); setIsFollowing(false); }
         else console.error("Counter toggle off failed:", err);
-      } finally { setCopyLoading(false); }
+      } finally { setCounterLoading(false); }
       return;
     }
+
     if (!hasEverTraded()) {
       setTradeMode("counter");
       setShowTradeSettings(true);
       return;
     }
-    setCopyLoading(true);
+
+    setCounterLoading(true);
     try {
       await followTrader(trader.username, false, true);
       setIsCounterTrading(true);
       setIsFollowing(true);
-      setIsCopying(false); // mutual exclusivity
+      setIsCopying(false);
     } catch (err: any) {
       if (err?.response?.status === 400) {
         try { await toggleCounterTrading(trader.username); } catch { }
         setIsCounterTrading(true); setIsFollowing(true); setIsCopying(false);
       } else { console.error("Counter trade failed:", err); }
-    } finally { setCopyLoading(false); }
-  }, [isCounterTrading, isCopying, copyLoading, trader]);
+    } finally { setCounterLoading(false); }
+  }, [isCounterTrading, counterLoading, trader, requireAuth]);
 
   // ── Settings confirm handler ─────────────────────────
   const handleTradeSettingsConfirm = async (cfg: any) => {
@@ -911,7 +895,6 @@ function KOLProfileContent() {
   const bestSignal = trader.best_signal;
   const worstSignal = trader.worst_signal;
 
-  // Derived button states
   const canCopy = !isCounterTrading;
   const canCounter = !isCopying;
 
@@ -972,7 +955,6 @@ function KOLProfileContent() {
       <ScrollReveal delay={0.1} direction="up" distance={28} duration={0.6}>
         <div className="relative z-10 px-4 pt-1 pb-2">
           <div className="rounded-2xl p-3 relative overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.08), rgba(45,212,191,0.02))", border: "1px solid rgba(45,212,191,0.2)", animation: "cardGlowPulse 4s ease-in-out infinite" }}>
-            {/* Corner accents */}
             {[["top-1.5 left-1.5 border-t border-l rounded-tl-sm", "tl"], ["top-1.5 right-1.5 border-t border-r rounded-tr-sm", "tr"], ["bottom-1.5 left-1.5 border-b border-l rounded-bl-sm", "bl"], ["bottom-1.5 right-1.5 border-b border-r rounded-br-sm", "br"]].map(([cls]) => (
               <div key={cls} className={`absolute w-3 h-3 pointer-events-none z-20 ${cls}`} style={{ borderColor: "rgba(45,212,191,0.3)" }} />
             ))}
@@ -1038,7 +1020,7 @@ function KOLProfileContent() {
                 )}
               </div>
 
-              {/* ★ NEW: Copy + Counter Trade buttons (side by side) */}
+              {/* ── Copy + Counter Trade 按钮 ── */}
               <div className="grid grid-cols-2 gap-2 mb-2">
                 {/* Copy Trade */}
                 <button
@@ -1060,7 +1042,7 @@ function KOLProfileContent() {
                     <div className="absolute inset-0" style={{ background: "linear-gradient(90deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%)", backgroundSize: "200% 100%", animation: "copyShimmer 3s ease-in-out infinite" }} />
                   )}
                   <span className="relative z-10 flex items-center justify-center gap-1.5">
-                    {copyLoading && isCopying === false && isCounterTrading === false
+                    {copyLoading
                       ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
                       : isCopying
                         ? <><CheckCircle size={12} /><span>Copying ✓</span></>
@@ -1069,10 +1051,10 @@ function KOLProfileContent() {
                   </span>
                 </button>
 
-                {/* Counter Trade ★ NEW */}
+                {/* Counter Trade */}
                 <button
                   onClick={handleCounterToggle}
-                  disabled={copyLoading || !canCounter}
+                  disabled={counterLoading || !canCounter}
                   onPointerDown={() => setCounterPressed(true)}
                   onPointerUp={() => setCounterPressed(false)}
                   onPointerLeave={() => setCounterPressed(false)}
@@ -1082,11 +1064,11 @@ function KOLProfileContent() {
                       ? { background: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.25)", transform: counterPressed ? "scale(0.97)" : "scale(1)" }
                       : !canCounter
                         ? { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.06)", cursor: "not-allowed" }
-                        : { background: "rgba(245,158,11,0.08)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.2)", transform: counterPressed ? "scale(0.97)" : "scale(1)", opacity: copyLoading ? 0.7 : 1 }
+                        : { background: "rgba(245,158,11,0.08)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.2)", transform: counterPressed ? "scale(0.97)" : "scale(1)", opacity: counterLoading ? 0.7 : 1 }
                   }
                 >
                   <span className="relative z-10 flex items-center justify-center gap-1.5">
-                    {copyLoading && isCounterTrading === false && isCopying === false
+                    {counterLoading
                       ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
                       : isCounterTrading
                         ? <><CheckCircle size={12} /><span>Countering ✓</span></>
