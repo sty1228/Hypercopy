@@ -425,11 +425,11 @@ function ProfileTradeSettingsSheet({
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  // Accent color: teal for copy, rose for counter
-  const ac = mode === "counter" ? "#f43f5e" : "#2dd4bf";
-  const acRgba = mode === "counter" ? "rgba(244,63,94,1)" : "rgba(45,212,191,1)";
-  const acShadow = mode === "counter" ? "rgba(244,63,94,0.3)" : "rgba(45,212,191,0.3)";
-  const acBg = mode === "counter" ? "rgba(244,63,94,0.08)" : "rgba(45,212,191,0.08)";
+  // Accent color: teal for copy, amber for counter
+  const ac = mode === "counter" ? "#f59e0b" : "#2dd4bf";
+  const acRgba = mode === "counter" ? "rgba(245,158,11,1)" : "rgba(45,212,191,1)";
+  const acShadow = mode === "counter" ? "rgba(245,158,11,0.3)" : "rgba(45,212,191,0.3)";
+  const acBg = mode === "counter" ? "rgba(245,158,11,0.08)" : "rgba(45,212,191,0.08)";
   const title = mode === "counter" ? `Counter @${traderName}` : `Copy @${traderName}`;
   const subtitle = mode === "counter"
     ? "We'll open the opposite direction of their trades automatically."
@@ -538,7 +538,7 @@ function ProfileTradeSettingsSheet({
           </div>
 
           {/* CTA */}
-          <button onClick={handleConfirm} disabled={loading} className="w-full py-3.5 rounded-xl text-[13px] font-bold transition-all duration-300" style={{ background: loading ? "rgba(255,255,255,0.05)" : `linear-gradient(135deg, ${ac}, ${mode === "counter" ? "#be123c" : "#14b8a6"})`, color: loading ? "rgba(255,255,255,0.3)" : "#000", border: "none", cursor: loading ? "not-allowed" : "pointer", boxShadow: loading ? "none" : `0 4px 20px ${acShadow}` }}>
+          <button onClick={handleConfirm} disabled={loading} className="w-full py-3.5 rounded-xl text-[13px] font-bold transition-all duration-300"             style={{ background: loading ? "rgba(255,255,255,0.05)" : `linear-gradient(135deg, ${ac}, ${mode === "counter" ? "#d97706" : "#14b8a6"})`, color: loading ? "rgba(255,255,255,0.3)" : "#000", border: "none", cursor: loading ? "not-allowed" : "pointer", boxShadow: loading ? "none" : `0 4px 20px ${acShadow}` }}>
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" /><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>
@@ -1068,10 +1068,10 @@ function KOLProfileContent() {
                   className="py-2.5 rounded-xl text-[12px] font-bold transition-all duration-300 cursor-pointer relative overflow-hidden"
                   style={
                     isCounterTrading
-                      ? { background: "rgba(244,63,94,0.15)", color: "#f43f5e", border: "1px solid rgba(244,63,94,0.25)", transform: counterPressed ? "scale(0.97)" : "scale(1)" }
+                      ? { background: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.25)", transform: counterPressed ? "scale(0.97)" : "scale(1)" }
                       : !canCounter
                         ? { background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.06)", cursor: "not-allowed" }
-                        : { background: "rgba(244,63,94,0.08)", color: "#f43f5e", border: "1px solid rgba(244,63,94,0.2)", transform: counterPressed ? "scale(0.97)" : "scale(1)", opacity: copyLoading ? 0.7 : 1 }
+                        : { background: "rgba(245,158,11,0.08)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.2)", transform: counterPressed ? "scale(0.97)" : "scale(1)", opacity: copyLoading ? 0.7 : 1 }
                   }
                 >
                   <span className="relative z-10 flex items-center justify-center gap-1.5">
