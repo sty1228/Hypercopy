@@ -547,8 +547,22 @@ const Home = () => {
           <KOLRewardsScreen onClose={closeRewards} />
         </div>
       )}
-      {showCopying && <CopyingSheet mode="copying" onClose={() => setShowCopying(false)} />}
-      {showCopiers && <CopyingSheet mode="copiers" onClose={() => setShowCopiers(false)} />}
+      {showCopying && (
+        <CopyingSheet
+          mode="copying"
+          onClose={() => setShowCopying(false)}
+          userBalance={walletBal?.hl_equity ?? 0}
+          onDepositClick={() => setShowDeposit(true)}
+        />
+      )}
+      {showCopiers && (
+        <CopyingSheet
+          mode="copiers"
+          onClose={() => setShowCopiers(false)}
+          userBalance={walletBal?.hl_equity ?? 0}
+          onDepositClick={() => setShowDeposit(true)}
+        />
+      )}
       {showActiveTrades && (
         <ActiveTradesSheet positions={positions} onClose={() => setShowActiveTrades(false)}
           onSelectPosition={(pos: PositionItem) => {
