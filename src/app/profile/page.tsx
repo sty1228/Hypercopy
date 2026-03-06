@@ -22,7 +22,7 @@ import {
 import { useRewards } from "@/providers/RewardsContext";
 import { usePrivy } from "@privy-io/react-auth";
 import TopBar from "@/components/TopBar";
-
+import { toast } from "sonner"
 /* ─── First-time trade localStorage helpers ─── */
 const LS_HAS_TRADED = "hc_has_traded_before";
 function hasEverTraded(): boolean {
@@ -706,16 +706,18 @@ function KOLProfileContent() {
   }, [authenticated, login]);
 
   // ★ Shared balance check helper
+  // 改之后
   const checkBalance = useCallback(async (): Promise<boolean> => {
     try {
       const bal = await getWalletBalance();
       if (bal.hl_equity < 5) {
+        toast.error(`Balance too low ($${bal.hl_equity.toFixed(2)}). Please deposit first.`);
         router.push("/dashboard?deposit=1");
         return false;
       }
       return true;
     } catch {
-      // wallet not created yet
+      toast.error("No wallet found. Please deposit funds first.");
       router.push("/dashboard?deposit=1");
       return false;
     }
