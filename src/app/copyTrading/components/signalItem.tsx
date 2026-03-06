@@ -1,7 +1,6 @@
 "use client";
 
 import { UserSignalItem } from "@/service";
-import { numberToPercentageString } from "@/lib/number";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import { useContext, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
@@ -16,6 +15,14 @@ const SIDE_MAP: { [key: string]: "long" | "short" } = {
 };
 
 const TRADE_SIZE_USD = 20;
+
+// ★ pct_change is stored as a real percentage (e.g. -4.5 means -4.5%)
+// Do NOT use numberToPercentageString which multiplies by 100
+function formatPct(v: number): string {
+  if (v === 0) return "0.0%";
+  const sign = v > 0 ? "+" : "";
+  return `${sign}${v.toFixed(1)}%`;
+}
 
 export default function SignalItem({
   data,
@@ -32,7 +39,7 @@ export default function SignalItem({
   const { authenticated } = usePrivy();
   const router = useRouter();
   const [placing, setPlacing] = useState(false);
-  const [tweetImgError, setTweetImgError] = useState(false); // ★ image fallback
+  const [tweetImgError, setTweetImgError] = useState(false);
 
   const symbol = data?.ticker?.replaceAll("USDT", "") || "";
   const assetInfo = assetsInfoMap?.[symbol];
@@ -41,7 +48,6 @@ export default function SignalItem({
   const isPositiveChange = change >= 0;
   const isBullish = data.bull_or_bear === "bullish";
 
-  // ★ Check for tweet image
   const tweetImage = data.tweet_image_url && !tweetImgError ? data.tweet_image_url : null;
 
   const handleTrade = async (side: "copy" | "counter") => {
@@ -146,7 +152,7 @@ export default function SignalItem({
         {/* Content */}
         <p className="text-sm text-gray-200 leading-relaxed mb-2">{data?.content || ""}</p>
 
-        {/* ★ Tweet Image (only renders when URL exists and hasn't errored) */}
+        {/* ★ Tweet Image */}
         {tweetImage && (
           <div className="mb-2 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
             <img
@@ -195,7 +201,7 @@ export default function SignalItem({
                   color: isPositiveChange ? "#4ade80" : "#fb7185",
                 }}
               >
-                {numberToPercentageString(change)}
+                {formatPct(change)}
               </span>
             </span>
           </div>
