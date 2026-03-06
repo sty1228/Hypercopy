@@ -1,28 +1,28 @@
 "use client";
 
-import { UserSignalItem } from "@/service";
-import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { useContext, useState } from "react";
+import { UserSignalItem, getWalletBalance, placeSignalTrade } from "@/service";
+import { useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
-import BigNumber from "bignumber.js";
-import { OrderGrouping, OrderParams, placeOrder } from "@/helpers/hyperliquid";
 import { toast } from "sonner";
 
-const SIDE_MAP: { [key: string]: "long" | "short" } = {
-  bullish: "long",
-  bearish: "short",
-};
-
-const TRADE_SIZE_USD = 20;
-
-// ★ pct_change is stored as a real percentage (e.g. -4.5 means -4.5%)
-// Do NOT use numberToPercentageString which multiplies by 100
+// pct_change is stored as real % (e.g. -4.5 means -4.5%)
 function formatPct(v: number): string {
   if (v === 0) return "0.0%";
-  const sign = v > 0 ? "+" : "";
-  return `${sign}${v.toFixed(1)}%`;
+  return `${v > 0 ? "+" : ""}${v.toFixed(1)}%`;
 }
+
+// Strip t.co links from tweet text, return cleaned text + last url
+function parseTweetContent(text: string): { clean: string; url: string | null } {
+  const re = /https?:\/\/t\.co\/\S+/g;
+  const matches = text.match(re);
+  return {
+    clean: text.replace(re, "").replace(/\s+$/, "").trim(),
+    url: matches ? matches[matches.length - 1] : null,
+  };
+}
+
+const MIN_HL_EQUITY = 5; // minimum HL balance to allow manual trade
 
 export default function SignalItem({
   data,
@@ -35,62 +35,56 @@ export default function SignalItem({
   currentClickItemId: number | null;
   index?: number;
 }) {
-  const { tradingEnabled, builderFeeApproved, placeOrderAssets, exchClient, infoClient, assetsInfoMap } = useContext(HyperLiquidContext);
-  const { authenticated } = usePrivy();
+  const { authenticated, login } = usePrivy();
   const router = useRouter();
   const [placing, setPlacing] = useState(false);
   const [tweetImgError, setTweetImgError] = useState(false);
 
-  const symbol = data?.ticker?.replaceAll("USDT", "") || "";
-  const assetInfo = assetsInfoMap?.[symbol];
   const isExpanded = currentClickItemId === data.signal_id;
   const change = data?.change_since_tweet || 0;
   const isPositiveChange = change >= 0;
   const isBullish = data.bull_or_bear === "bullish";
-
   const tweetImage = data.tweet_image_url && !tweetImgError ? data.tweet_image_url : null;
+  const { clean: cleanContent, url: tweetUrl } = parseTweetContent(data?.content || "");
 
   const handleTrade = async (side: "copy" | "counter") => {
-    if (!(tradingEnabled && authenticated && builderFeeApproved)) {
-      toast.warning("Please complete onboarding to trade");
-      router.push(`/onboarding?from=${encodeURIComponent("orderPlace")}`);
-      return;
-    }
+    if (!authenticated) { login(); return; }
     if (placing) return;
     setPlacing(true);
 
     try {
-      const tradeSide = SIDE_MAP[side === "copy" ? data.bull_or_bear : data.bull_or_bear === "bearish" ? "bullish" : "bearish"];
-      const realtimeOrderbook = await infoClient!.l2Book({ coin: symbol });
-      const { levels } = realtimeOrderbook!;
-      const [bids, asks] = levels || [];
+      // 1. Check dedicated wallet balance first
+      let bal;
+      try {
+        bal = await getWalletBalance();
+      } catch {
+        toast.error("No wallet found. Please deposit funds first.");
+        router.push("/dashboard");
+        return;
+      }
 
-      if (!bids?.length || !asks?.length) { toast.error("Orderbook unavailable"); return; }
+      if (bal.hl_equity < MIN_HL_EQUITY) {
+        toast.error(`Balance too low ($${bal.hl_equity.toFixed(2)}). Please deposit first.`);
+        router.push("/dashboard");
+        return;
+      }
 
-      const orderPrice = tradeSide === "long" ? bids[0].px : asks[0].px;
-      const placeOrderAssetId = placeOrderAssets[symbol.toUpperCase()];
-      const priceDecimals = Number(orderPrice).toString().includes(".")
-        ? orderPrice.toString().split(".")[1].length : 0;
-      const szDecimals = assetInfo?.szDecimals || 2;
-
-      const size = new BigNumber(TRADE_SIZE_USD).dividedBy(orderPrice).decimalPlaces(szDecimals, BigNumber.ROUND_DOWN).toNumber();
-      if (size <= 0) { toast.error("Trade size too small"); return; }
-
-      const tpPrice = new BigNumber(orderPrice).multipliedBy(tradeSide === "long" ? 1.1 : 0.9).toFixed(priceDecimals);
-      const slPrice = new BigNumber(orderPrice).multipliedBy(tradeSide === "long" ? 0.9 : 1.1).toFixed(priceDecimals);
-
-      const orderParams: OrderParams = {
-        side: tradeSide, price: orderPrice, size, coin: placeOrderAssetId, leverage: 1,
-        takeProfit: { price: tpPrice, grouping: OrderGrouping.NormalTpsl },
-        stopLoss: { price: slPrice, grouping: OrderGrouping.NormalTpsl },
-      };
-
-      if (!exchClient) { toast.error("Exchange client not ready"); return; }
-      await placeOrder({ exchClient, orderParams });
-      toast.success(`${tradeSide === "long" ? "Long" : "Short"} ${symbol} placed`);
+      // 2. Execute via backend — uses per-trader settings → default fallback
+      const result = await placeSignalTrade(data.signal_id, side);
+      toast.success(
+        `${result.direction === "long" ? "↑ Long" : "↓ Short"} ${result.ticker} placed · $${result.size_usd.toFixed(0)} @ $${result.entry_price.toFixed(2)}`
+      );
     } catch (err: any) {
-      console.error("Trade error:", err);
-      toast.error(err?.message || "Failed to place order");
+      const detail: string = err?.response?.data?.detail || err?.message || "";
+      if (detail === "insufficient_balance") {
+        toast.error("Insufficient balance. Please deposit funds.");
+        router.push("/dashboard");
+      } else if (detail === "no_wallet") {
+        toast.error("Please set up your wallet first.");
+        router.push("/dashboard");
+      } else {
+        toast.error(detail || "Failed to place order");
+      }
     } finally {
       setPlacing(false);
     }
@@ -150,9 +144,9 @@ export default function SignalItem({
         </div>
 
         {/* Content */}
-        <p className="text-sm text-gray-200 leading-relaxed mb-2">{data?.content || ""}</p>
+        <p className="text-sm text-gray-200 leading-relaxed mb-2">{cleanContent}</p>
 
-        {/* ★ Tweet Image */}
+        {/* Tweet Image */}
         {tweetImage && (
           <div className="mb-2 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
             <img
@@ -188,6 +182,22 @@ export default function SignalItem({
             </span>
           </div>
           <div className="flex items-center gap-1.5">
+            {/* View on X */}
+            {tweetUrl && (
+              <a
+                href={tweetUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium text-gray-400 hover:text-white transition-colors"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+                View
+              </a>
+            )}
             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.25)", color: "#fbbf24" }}>
               ${data?.ticker || "-"}
             </span>

@@ -680,3 +680,17 @@ export interface TransactionItem {
 export const getTransactions = async (limit = 30): Promise<TransactionItem[]> => {
   return await get(`/api/wallet/transactions?limit=${limit}`);
 };
+
+export const placeSignalTrade = async (
+  signalId: number,
+  side: "copy" | "counter"
+): Promise<{
+  status: string;
+  direction: string;
+  ticker: string;
+  entry_price: number;
+  size_usd: number;
+  size_qty: number;
+}> => {
+  return await post(`/api/signal/${signalId}/trade`, { side });
+};

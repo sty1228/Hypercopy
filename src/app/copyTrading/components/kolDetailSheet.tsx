@@ -13,10 +13,12 @@ import {
   toggleCopyTrading,
   updateDefaultSettings,
   DefaultFollowSettings,
+  getWalletBalance,
 } from "@/service";
 import BigNumber from "bignumber.js";
 import SignalItem from "./signalItem";
 import { useRewards } from "@/providers/RewardsContext";
+import { toast } from "sonner";
 
 const LS_HAS_COPIED = "hc_has_copied_before";
 
@@ -55,45 +57,23 @@ function QuickSettingsSheet({
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  useEffect(() => {
-    requestAnimationFrame(() => setVisible(true));
-  }, []);
+  useEffect(() => { requestAnimationFrame(() => setVisible(true)); }, []);
 
-  const handleClose = () => {
-    setVisible(false);
-    setTimeout(onClose, 300);
-  };
-
+  const handleClose = () => { setVisible(false); setTimeout(onClose, 300); };
   const handleConfirm = async () => {
     setLoading(true);
     await onConfirm({ sizeVal, sizeType, leverage, tpVal, tpType, slVal, slType });
     setLoading(false);
   };
 
-  const TypeToggle = ({
-    val,
-    onChange,
-    accent = "rgba(45,212,191,1)",
-  }: {
-    val: string;
-    onChange: (v: "USD" | "PCT") => void;
-    accent?: string;
-  }) => (
+  const TypeToggle = ({ val, onChange, accent = "rgba(45,212,191,1)" }: { val: string; onChange: (v: "USD" | "PCT") => void; accent?: string }) => (
     <div className="flex gap-1">
       {(["$", "%"] as const).map((t) => {
         const mapped = t === "$" ? "USD" : "PCT";
         const active = val === mapped;
         return (
-          <button
-            key={t}
-            onClick={() => onChange(mapped)}
-            className="w-8 h-8 rounded-lg text-xs font-semibold transition-all"
-            style={{
-              background: active ? `${accent}18` : "rgba(255,255,255,0.04)",
-              color: active ? accent : "rgba(255,255,255,0.25)",
-              border: active ? `1px solid ${accent}35` : "1px solid transparent",
-            }}
-          >
+          <button key={t} onClick={() => onChange(mapped)} className="w-8 h-8 rounded-lg text-xs font-semibold transition-all"
+            style={{ background: active ? `${accent}18` : "rgba(255,255,255,0.04)", color: active ? accent : "rgba(255,255,255,0.25)", border: active ? `1px solid ${accent}35` : "1px solid transparent" }}>
             {t}
           </button>
         );
@@ -106,61 +86,27 @@ function QuickSettingsSheet({
 
   const content = (
     <div className="fixed inset-0 flex items-end justify-center" style={{ zIndex: 9998 }}>
-      <div
-        className="absolute inset-0 transition-opacity duration-300"
+      <div className="absolute inset-0 transition-opacity duration-300"
         style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)", opacity: visible ? 1 : 0 }}
-        onClick={handleClose}
-      />
-      <div
-        className="relative w-full transition-transform duration-300 ease-out"
-        style={{
-          maxWidth: 393,
-          background: "linear-gradient(180deg, #111820 0%, #0d1117 100%)",
-          borderRadius: "24px 24px 0 0",
-          border: "1px solid rgba(255,255,255,0.06)",
-          borderBottom: "none",
-          maxHeight: "90vh",
-          overflowY: "auto",
-          transform: visible ? "translateY(0)" : "translateY(100%)",
-          boxShadow: "0 -10px 40px rgba(0,0,0,0.5)",
-        }}
-      >
+        onClick={handleClose} />
+      <div className="relative w-full transition-transform duration-300 ease-out"
+        style={{ maxWidth: 393, background: "linear-gradient(180deg, #111820 0%, #0d1117 100%)", borderRadius: "24px 24px 0 0", border: "1px solid rgba(255,255,255,0.06)", borderBottom: "none", maxHeight: "90vh", overflowY: "auto", transform: visible ? "translateY(0)" : "translateY(100%)", boxShadow: "0 -10px 40px rgba(0,0,0,0.5)" }}>
         <div className="p-5 pb-8">
           <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: "rgba(255,255,255,0.12)" }} />
-
-          <div
-            className="rounded-2xl p-4 mb-5 relative overflow-hidden"
-            style={{
-              background: isCopy
-                ? "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.02) 100%)"
-                : "linear-gradient(135deg, rgba(244,63,94,0.06) 0%, rgba(244,63,94,0.02) 100%)",
-              border: isCopy ? "1px solid rgba(45,212,191,0.12)" : "1px solid rgba(244,63,94,0.12)",
-            }}
-          >
-            <div
-              className="absolute -top-10 -right-10 w-32 h-32 rounded-full pointer-events-none"
-              style={{ background: `radial-gradient(circle, ${accentColor}10, transparent 70%)`, filter: "blur(20px)" }}
-            />
+          <div className="rounded-2xl p-4 mb-5 relative overflow-hidden"
+            style={{ background: isCopy ? "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.02) 100%)" : "linear-gradient(135deg, rgba(244,63,94,0.06) 0%, rgba(244,63,94,0.02) 100%)", border: isCopy ? "1px solid rgba(45,212,191,0.12)" : "1px solid rgba(244,63,94,0.12)" }}>
+            <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full pointer-events-none"
+              style={{ background: `radial-gradient(circle, ${accentColor}10, transparent 70%)`, filter: "blur(20px)" }} />
             <div className="relative">
               <div className="flex items-center gap-2.5 mb-2.5">
-                <div
-                  className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs"
-                  style={{
-                    background: isCopy ? "linear-gradient(135deg, #06b6d4, #2dd4bf)" : "linear-gradient(135deg, #f43f5e, #fb7185)",
-                    color: "#fff",
-                  }}
-                >
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs"
+                  style={{ background: isCopy ? "linear-gradient(135deg, #06b6d4, #2dd4bf)" : "linear-gradient(135deg, #f43f5e, #fb7185)", color: "#fff" }}>
                   {traderName[0]?.toUpperCase()}
                 </div>
-                <div>
-                  <h3 className="text-white text-sm font-bold m-0 leading-tight">
-                    {isCopy ? "Copy" : "Counter"} @{traderName}
-                  </h3>
-                </div>
+                <h3 className="text-white text-sm font-bold m-0 leading-tight">{isCopy ? "Copy" : "Counter"} @{traderName}</h3>
               </div>
               <p className="text-xs leading-relaxed m-0" style={{ color: "rgba(255,255,255,0.4)" }}>
-                When this trader makes a call, we&apos;ll automatically {isCopy ? "mirror" : "take the opposite of"} their
-                trade for you. Set your preferences below — you only need to do this once.
+                When this trader makes a call, we&apos;ll automatically {isCopy ? "mirror" : "take the opposite of"} their trade for you.
               </p>
             </div>
           </div>
@@ -169,7 +115,6 @@ function QuickSettingsSheet({
             <div className="flex items-center gap-2 mb-3 pl-0.5">
               <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.3)" }}>Trade Settings</span>
             </div>
-
             <div className="flex items-center justify-between px-4 py-3.5 rounded-xl mb-2" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
               <span className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>Trade Size</span>
               <div className="flex items-center gap-2">
@@ -177,7 +122,6 @@ function QuickSettingsSheet({
                 <TypeToggle val={sizeType} onChange={setSizeType} accent={accentColor} />
               </div>
             </div>
-
             <div className="px-4 py-3.5 rounded-xl mb-5" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
               <div className="flex justify-between items-center mb-2.5">
                 <span className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>Leverage</span>
@@ -192,7 +136,6 @@ function QuickSettingsSheet({
             <div className="flex items-center gap-2 mb-3 pl-0.5">
               <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.3)" }}>Risk Management</span>
             </div>
-
             <div className="flex items-center justify-between px-4 py-3.5 rounded-xl mb-2" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
               <span className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>Stop Loss</span>
               <div className="flex items-center gap-2">
@@ -200,7 +143,6 @@ function QuickSettingsSheet({
                 <TypeToggle val={slType} onChange={setSlType} accent="#fb7185" />
               </div>
             </div>
-
             <div className="flex items-center justify-between px-4 py-3.5 rounded-xl" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
               <span className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>Take Profit</span>
               <div className="flex items-center gap-2">
@@ -210,7 +152,8 @@ function QuickSettingsSheet({
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-1.5 py-2.5 mt-4 mb-4 rounded-full text-[11px]" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.35)" }}>
+          <div className="flex items-center justify-center gap-1.5 py-2.5 mt-4 mb-4 rounded-full text-[11px]"
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.35)" }}>
             <span>{sizeType === "PCT" ? `${sizeVal}%` : `${sizeVal}`} per trade</span>
             <span style={{ color: "rgba(255,255,255,0.15)" }}>·</span>
             <span>{leverage}x</span>
@@ -220,18 +163,8 @@ function QuickSettingsSheet({
             <span>TP {tpType === "PCT" ? `${tpVal}%` : `${tpVal}`}</span>
           </div>
 
-          <button
-            onClick={handleConfirm}
-            disabled={loading}
-            className="w-full py-4 rounded-2xl text-sm font-bold transition-all duration-300"
-            style={{
-              background: loading ? "rgba(255,255,255,0.05)" : isCopy ? "linear-gradient(135deg, #2dd4bf, #14b8a6)" : "linear-gradient(135deg, #f43f5e, #e11d48)",
-              color: loading ? "rgba(255,255,255,0.3)" : isCopy ? "#000" : "#fff",
-              border: "none",
-              cursor: loading ? "not-allowed" : "pointer",
-              boxShadow: loading ? "none" : `0 0 30px ${accentColor}25`,
-            }}
-          >
+          <button onClick={handleConfirm} disabled={loading} className="w-full py-4 rounded-2xl text-sm font-bold transition-all duration-300"
+            style={{ background: loading ? "rgba(255,255,255,0.05)" : isCopy ? "linear-gradient(135deg, #2dd4bf, #14b8a6)" : "linear-gradient(135deg, #f43f5e, #e11d48)", color: loading ? "rgba(255,255,255,0.3)" : isCopy ? "#000" : "#fff", border: "none", cursor: loading ? "not-allowed" : "pointer", boxShadow: loading ? "none" : `0 0 30px ${accentColor}25` }}>
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -240,11 +173,8 @@ function QuickSettingsSheet({
                 </svg>
                 Setting up...
               </span>
-            ) : (
-              `Start ${isCopy ? "Copying" : "Countering"} @${traderName}`
-            )}
+            ) : `Start ${isCopy ? "Copying" : "Countering"} @${traderName}`}
           </button>
-
           <p className="text-center text-[10px] mt-3 mb-0" style={{ color: "rgba(255,255,255,0.18)", lineHeight: 1.5 }}>
             You can adjust these anytime in Settings · Only risk what you can afford
           </p>
@@ -264,39 +194,21 @@ function QuickSettingsSheet({
 
 function ConfettiCanvas({ accent }: { accent: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
     const dpr = window.devicePixelRatio || 1;
     const W = 393, H = 520;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
+    canvas.width = W * dpr; canvas.height = H * dpr;
     ctx.scale(dpr, dpr);
-
     const colors = [accent, "#fbbf24", "#a78bfa", "#fb7185", "#38bdf8", "#34d399", "#f472b6"];
-
-    interface P {
-      x: number; y: number; vx: number; vy: number;
-      w: number; h: number; rot: number; vr: number;
-      color: string; opacity: number; gravity: number;
-    }
-
+    interface P { x: number; y: number; vx: number; vy: number; w: number; h: number; rot: number; vr: number; color: string; opacity: number; gravity: number; }
     const particles: P[] = [];
     for (let i = 0; i < 90; i++) {
-      particles.push({
-        x: W / 2 + (Math.random() - 0.5) * 40, y: H * 0.22,
-        vx: (Math.random() - 0.5) * 14, vy: -Math.random() * 16 - 5,
-        w: Math.random() * 5 + 2, h: Math.random() * 10 + 5,
-        rot: Math.random() * Math.PI * 2, vr: (Math.random() - 0.5) * 0.3,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        opacity: 1, gravity: 0.22 + Math.random() * 0.12,
-      });
+      particles.push({ x: W / 2 + (Math.random() - 0.5) * 40, y: H * 0.22, vx: (Math.random() - 0.5) * 14, vy: -Math.random() * 16 - 5, w: Math.random() * 5 + 2, h: Math.random() * 10 + 5, rot: Math.random() * Math.PI * 2, vr: (Math.random() - 0.5) * 0.3, color: colors[Math.floor(Math.random() * colors.length)], opacity: 1, gravity: 0.22 + Math.random() * 0.12 });
     }
-
     let raf: number;
     const draw = () => {
       ctx.clearRect(0, 0, W, H);
@@ -315,26 +227,14 @@ function ConfettiCanvas({ accent }: { accent: string }) {
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
   }, [accent]);
-
   return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ width: "100%", height: "100%" }} />;
 }
 
-function SuccessSheet({
-  traderName,
-  action,
-  onViewRewards,
-  onDone,
-}: {
-  traderName: string;
-  action: "copy" | "counter";
-  onViewRewards: () => void;
-  onDone: () => void;
-}) {
+function SuccessSheet({ traderName, action, onViewRewards, onDone }: { traderName: string; action: "copy" | "counter"; onViewRewards: () => void; onDone: () => void }) {
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
   const isCopy = action === "copy";
   const accent = isCopy ? "#2dd4bf" : "#fb7185";
-
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
     const t1 = setTimeout(() => setStep(1), 350);
@@ -342,26 +242,17 @@ function SuccessSheet({
     const t3 = setTimeout(() => setStep(3), 850);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
-
   const handleDone = () => { setVisible(false); setTimeout(onDone, 300); };
   const handleRewards = () => { setVisible(false); setTimeout(onViewRewards, 300); };
 
   const content = (
     <div className="fixed inset-0 flex items-end justify-center" style={{ zIndex: 9999 }}>
       <div className="absolute inset-0 transition-opacity duration-300" style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(12px)", opacity: visible ? 1 : 0 }} />
-      <div
-        className="relative w-full transition-transform duration-300 ease-out"
-        style={{
-          maxWidth: 393, background: "#0d1117", borderRadius: "20px 20px 0 0",
-          border: "1px solid rgba(255,255,255,0.06)", borderBottom: "none",
-          transform: visible ? "translateY(0)" : "translateY(100%)",
-          boxShadow: "0 -10px 40px rgba(0,0,0,0.6)", overflow: "hidden",
-        }}
-      >
+      <div className="relative w-full transition-transform duration-300 ease-out"
+        style={{ maxWidth: 393, background: "#0d1117", borderRadius: "20px 20px 0 0", border: "1px solid rgba(255,255,255,0.06)", borderBottom: "none", transform: visible ? "translateY(0)" : "translateY(100%)", boxShadow: "0 -10px 40px rgba(0,0,0,0.6)", overflow: "hidden" }}>
         <div style={{ height: 3, borderRadius: "20px 20px 0 0", background: isCopy ? "linear-gradient(90deg, transparent, #2dd4bf, transparent)" : "linear-gradient(90deg, transparent, #f43f5e, transparent)", opacity: 0.6 }} />
         <ConfettiCanvas accent={accent} />
         <div className="absolute pointer-events-none" style={{ top: -40, left: "50%", transform: "translateX(-50%)", width: 280, height: 280, borderRadius: "50%", background: `radial-gradient(circle, ${accent}10, transparent 70%)`, filter: "blur(40px)" }} />
-
         <div className="relative text-center px-6 pt-6 pb-8">
           <div className="mx-auto mb-5 relative" style={{ width: 72, height: 72 }}>
             <div className="absolute inset-0 rounded-full" style={{ border: `1.5px solid ${accent}`, opacity: step >= 1 ? 0 : 0.3, transform: step >= 1 ? "scale(2)" : "scale(1)", transition: "all 0.8s ease-out" }} />
@@ -371,17 +262,13 @@ function SuccessSheet({
               </svg>
             </div>
           </div>
-
           <div style={{ opacity: step >= 1 ? 1 : 0, transform: step >= 1 ? "translateY(0)" : "translateY(8px)", transition: "all 0.4s ease-out 0.1s" }}>
             <p className="m-0 mb-1" style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontWeight: 500 }}>You&apos;re now {isCopy ? "copying" : "countering"}</p>
             <h3 className="m-0 mb-3" style={{ fontSize: 22, fontWeight: 800, color: accent, letterSpacing: "-0.02em" }}>@{traderName}</h3>
             <p className="m-0 mb-6 leading-relaxed" style={{ fontSize: 12, color: "rgba(255,255,255,0.28)" }}>Trades execute automatically when they make a call.</p>
           </div>
-
-          <div
-            className="rounded-xl p-4 mb-6 relative overflow-hidden"
-            style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", opacity: step >= 2 ? 1 : 0, transform: step >= 2 ? "translateY(0)" : "translateY(12px)", transition: "all 0.45s ease-out" }}
-          >
+          <div className="rounded-xl p-4 mb-6 relative overflow-hidden"
+            style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", opacity: step >= 2 ? 1 : 0, transform: step >= 2 ? "translateY(0)" : "translateY(12px)", transition: "all 0.45s ease-out" }}>
             <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full pointer-events-none" style={{ background: `radial-gradient(circle, ${accent}10, transparent 70%)`, filter: "blur(10px)" }} />
             <div className="relative">
               <div className="flex items-baseline justify-center gap-2 mb-1">
@@ -391,9 +278,9 @@ function SuccessSheet({
               <p className="m-0" style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>Earn on every trade · Top performers share platform fees</p>
             </div>
           </div>
-
           <div style={{ opacity: step >= 3 ? 1 : 0, transform: step >= 3 ? "translateY(0)" : "translateY(8px)", transition: "all 0.4s ease-out" }}>
-            <button onClick={handleRewards} className="w-full py-3.5 rounded-xl text-[13px] font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]" style={{ background: isCopy ? "linear-gradient(135deg, #2dd4bf, #14b8a6)" : "linear-gradient(135deg, #f43f5e, #e11d48)", color: isCopy ? "#000" : "#fff", border: "none", boxShadow: `0 4px 24px ${accent}30`, letterSpacing: "0.01em" }}>
+            <button onClick={handleRewards} className="w-full py-3.5 rounded-xl text-[13px] font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+              style={{ background: isCopy ? "linear-gradient(135deg, #2dd4bf, #14b8a6)" : "linear-gradient(135deg, #f43f5e, #e11d48)", color: isCopy ? "#000" : "#fff", border: "none", boxShadow: `0 4px 24px ${accent}30`, letterSpacing: "0.01em" }}>
               View Rewards Program
             </button>
             <button onClick={handleDone} className="w-full mt-2 py-2.5 text-[11px] transition-all" style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.2)" }}>Done</button>
@@ -402,7 +289,6 @@ function SuccessSheet({
       </div>
     </div>
   );
-
   if (typeof window === "undefined") return null;
   return createPortal(content, document.body);
 }
@@ -428,7 +314,7 @@ export default function KolDetailSheet({
   const [copyAction, setCopyAction] = useState<"copy" | "counter">("copy");
   const [isFollowed, setIsFollowed] = useState(false);
   const [toggling, setToggling] = useState(false);
-  const [imgError, setImgError] = useState(false); // ★ avatar fallback
+  const [imgError, setImgError] = useState(false);
 
   const { authenticated, login } = usePrivy();
   const { triggerFirstCopyTrade, viewRewardsFromPrompt } = useRewards();
@@ -436,7 +322,7 @@ export default function KolDetailSheet({
 
   useEffect(() => {
     if (isOpen) {
-      setImgError(false); // ★ reset on open
+      setImgError(false);
       fetchUserSignals();
       checkIfFollowed();
     } else {
@@ -463,9 +349,21 @@ export default function KolDetailSheet({
     } catch {}
   };
 
+  // ★ Must be defined BEFORE handleCopyAction (const does not hoist)
+  const startCopyDirect = async () => {
+    try {
+      await followTrader(data.x_handle, true);
+      setIsFollowed(true);
+    } catch (e: any) {
+      console.error("Copy failed:", e);
+      toast.error(e?.message || "Failed to start copy trading. Please try again.");
+    }
+  };
+
   const handleCopyAction = async (action: "copy" | "counter") => {
     if (!authenticated) { login(); return; }
 
+    // Stopping copy — no balance check needed
     if (isFollowed) {
       setToggling(true);
       try {
@@ -479,19 +377,23 @@ export default function KolDetailSheet({
       return;
     }
 
+    // ★ Check dedicated wallet balance before enabling copy trading
+    try {
+      const bal = await getWalletBalance();
+      if (bal.hl_equity < 5) {
+        toast.error(`Balance too low ($${bal.hl_equity.toFixed(2)}). Please deposit first.`);
+        router.push("/dashboard");
+        return;
+      }
+    } catch {
+      toast.error("Please deposit funds before starting copy trading.");
+      router.push("/dashboard");
+      return;
+    }
+
     setCopyAction(action);
     if (!hasEverCopied()) { setShowSettings(true); return; }
     await startCopyDirect();
-  };
-
-  const startCopyDirect = async () => {
-    try {
-      await followTrader(data.x_handle, true);
-      setIsFollowed(true);
-    } catch (e: any) {
-      console.error("Copy failed:", e);
-      alert(e?.message || "Failed to start copy trading. Please try again.");
-    }
   };
 
   const handleSettingsConfirm = async (cfg: any) => {
@@ -509,7 +411,7 @@ export default function KolDetailSheet({
       setTimeout(() => { setShowSuccess(true); triggerFirstCopyTrade(); }, 200);
     } catch (e: any) {
       console.error("Copy setup failed:", e);
-      alert(e?.message || "Failed to start copy trading. Please try again.");
+      toast.error(e?.message || "Failed to start copy trading. Please try again.");
     }
   };
 
@@ -522,7 +424,7 @@ export default function KolDetailSheet({
   const profit = data?.results_pct || 0;
   const isPositive = profit >= 0;
   const displayName = data?.display_name || data?.x_handle || "";
-  const showAvatar = !!data?.avatar_url && !imgError; // ★
+  const showAvatar = !!data?.avatar_url && !imgError;
 
   if (!data) return null;
 
@@ -550,62 +452,40 @@ export default function KolDetailSheet({
         <div className="relative z-10 h-full overflow-y-auto">
           {/* Header */}
           <div className="mt-4 mb-3 flex items-center justify-between px-4">
-            <button
-              onClick={handleClose}
-              className="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-            >
+            <button onClick={handleClose} className="w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all hover:bg-white/10"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
               <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            {/* ★ Header: show display_name */}
             <span className="text-base font-semibold text-white">{displayName}</span>
             <div className="w-10" />
           </div>
 
           {/* Profile Card */}
           <div className="px-4">
-            <div
-              className="rounded-2xl p-4 mb-4 relative overflow-hidden"
-              style={{
-                background: "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.01) 100%)",
-                border: "1px solid rgba(45,212,191,0.2)",
-                boxShadow: "0 0 30px rgba(45,212,191,0.1), inset 0 0 40px rgba(45,212,191,0.03)",
-              }}
-            >
+            <div className="rounded-2xl p-4 mb-4 relative overflow-hidden"
+              style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.06) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(45,212,191,0.2)", boxShadow: "0 0 30px rgba(45,212,191,0.1), inset 0 0 40px rgba(45,212,191,0.03)" }}>
               <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15) 0%, transparent 60%)" }} />
-
               <div className="relative">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    {/* ★ Avatar: show image with state-based fallback */}
                     {showAvatar ? (
-                      <img
-                        src={data.avatar_url!}
-                        alt={displayName}
-                        className="w-14 h-14 rounded-2xl object-cover shrink-0"
-                        onError={() => setImgError(true)}
-                      />
+                      <img src={data.avatar_url!} alt={displayName} className="w-14 h-14 rounded-2xl object-cover shrink-0" onError={() => setImgError(true)} />
                     ) : (
-                      <div
-                        className="w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl text-white shrink-0"
-                        style={{ background: data.avatarColor || "linear-gradient(135deg, #06b6d4, #3b82f6)" }}
-                      >
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-xl text-white shrink-0"
+                        style={{ background: data.avatarColor || "linear-gradient(135deg, #06b6d4, #3b82f6)" }}>
                         {displayName[0]?.toUpperCase() || "?"}
                       </div>
                     )}
                     <div>
-                      {/* ★ Show display_name + @handle */}
                       <div className="text-white font-semibold">{displayName}</div>
                       <div className="text-gray-500 text-xs">@{data.x_handle}</div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div
-                      className={`text-lg font-bold ${isPositive ? "text-teal-400" : "text-rose-400"}`}
-                      style={{ textShadow: isPositive ? "0 0 10px rgba(45,212,191,0.3)" : "0 0 10px rgba(251,113,133,0.3)" }}
-                    >
+                    <div className={`text-lg font-bold ${isPositive ? "text-teal-400" : "text-rose-400"}`}
+                      style={{ textShadow: isPositive ? "0 0 10px rgba(45,212,191,0.3)" : "0 0 10px rgba(251,113,133,0.3)" }}>
                       {isPositive ? "+" : ""}{new BigNumber(profit).decimalPlaces(2).toNumber()}%
                     </div>
                     <div className="text-[9px] text-gray-600 uppercase tracking-wide mt-0.5">SPOT PNL</div>
@@ -634,20 +514,14 @@ export default function KolDetailSheet({
 
                 {/* Action Buttons */}
                 <div className="flex gap-3">
-                  <button
-                    onClick={() => handleCopyAction("counter")}
-                    disabled={toggling}
+                  <button onClick={() => handleCopyAction("counter")} disabled={toggling}
                     className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                    style={{ background: "rgba(244,63,94,0.12)", border: "1px solid rgba(244,63,94,0.25)", opacity: toggling ? 0.5 : 1 }}
-                  >
+                    style={{ background: "rgba(244,63,94,0.12)", border: "1px solid rgba(244,63,94,0.25)", opacity: toggling ? 0.5 : 1 }}>
                     <span className="text-rose-400">Counter All</span>
                   </button>
-                  <button
-                    onClick={() => handleCopyAction("copy")}
-                    disabled={toggling}
+                  <button onClick={() => handleCopyAction("copy")} disabled={toggling}
                     className="flex-1 py-3 rounded-xl text-sm font-semibold flex items-center justify-center transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                    style={{ background: isFollowed ? "rgba(45,212,191,0.25)" : "rgba(45,212,191,0.12)", border: "1px solid rgba(45,212,191,0.25)", opacity: toggling ? 0.5 : 1 }}
-                  >
+                    style={{ background: isFollowed ? "rgba(45,212,191,0.25)" : "rgba(45,212,191,0.12)", border: "1px solid rgba(45,212,191,0.25)", opacity: toggling ? 0.5 : 1 }}>
                     <span className="text-teal-400">
                       {toggling ? "Stopping..." : isFollowed ? "Copying ✓" : "Copy All"}
                     </span>
