@@ -185,15 +185,18 @@ export default function SignalItem({
             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.25)", color: "#fbbf24" }}>
               ${data?.ticker || "-"}
             </span>
-            <span
-              className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
-              style={{
-                background: isPositiveChange ? "rgba(74,222,128,0.12)" : "rgba(251,113,133,0.12)",
-                border: isPositiveChange ? "1px solid rgba(74,222,128,0.25)" : "1px solid rgba(251,113,133,0.25)",
-                color: isPositiveChange ? "#4ade80" : "#fb7185",
-              }}
-            >
-              {numberToPercentageString(change)}
+            <span className="flex items-center gap-1">
+              <span className="text-[9px] text-gray-600 uppercase tracking-wide">Spot</span>
+              <span
+                className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                style={{
+                  background: isPositiveChange ? "rgba(74,222,128,0.12)" : "rgba(251,113,133,0.12)",
+                  border: isPositiveChange ? "1px solid rgba(74,222,128,0.25)" : "1px solid rgba(251,113,133,0.25)",
+                  color: isPositiveChange ? "#4ade80" : "#fb7185",
+                }}
+              >
+                {numberToPercentageString(change)}
+              </span>
             </span>
           </div>
         </div>

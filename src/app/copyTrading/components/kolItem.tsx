@@ -130,7 +130,7 @@ export default function KolItem({
             <div className="text-[11px] text-gray-300 font-medium">{data.how_long_ago || "-"}</div>
           </div>
           <div>
-            <div className="text-[9px] text-gray-500 uppercase tracking-wide">Points</div>
+            <div className="text-[9px] text-gray-500 uppercase tracking-wide">Score</div>
             <div className="text-[11px] text-white font-semibold">{data.points ? new BigNumber(data.points).decimalPlaces(0).toNumber() : "-"}</div>
           </div>
           <div>
