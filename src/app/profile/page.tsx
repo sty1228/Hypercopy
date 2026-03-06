@@ -742,85 +742,91 @@ function KOLProfileContent() {
     } finally { setFollowLoading(false); }
   }, [isFollowing, followLoading, trader, requireAuth]);
 
-  const handleCopyToggle = useCallback(async () => {
-    if (!requireAuth()) return;
-    if (copyLoading || !trader) return;
+const handleCopyToggle = useCallback(async () => {
+  if (!requireAuth()) return;
+  if (copyLoading || !trader) return;
 
-    // Turn OFF
-    if (isCopying) {
-      setCopyLoading(true);
-      try {
-        await toggleCopyTrading(trader.username);
-        setIsCopying(false);
-      } catch (err: any) {
-        if (err?.response?.status === 404) { setIsCopying(false); setIsFollowing(false); }
-        else console.error("Copy toggle off failed:", err);
-      } finally { setCopyLoading(false); }
-      return;
-    }
-
-    // First time — show settings sheet (balance check happens inside confirm)
-    if (!hasEverTraded()) {
-      setTradeMode("copy");
-      setShowTradeSettings(true);
-      return;
-    }
-
-    // ★ Already traded before — check balance before enabling
+  // Turn OFF — no balance check needed
+  if (isCopying) {
     setCopyLoading(true);
-    const ok = await checkBalance();
-    if (!ok) { setCopyLoading(false); return; }
-
     try {
-      await followTrader(trader.username, true, false);
-      setIsCopying(true); setIsFollowing(true); setIsCounterTrading(false);
+      await toggleCopyTrading(trader.username);
+      setIsCopying(false);
     } catch (err: any) {
-      if (err?.response?.status === 400) {
-        try { await toggleCopyTrading(trader.username); } catch { }
-        setIsCopying(true); setIsFollowing(true); setIsCounterTrading(false);
-      } else { console.error("Copy trade failed:", err); }
+      if (err?.response?.status === 404) { setIsCopying(false); setIsFollowing(false); }
+      else console.error("Copy toggle off failed:", err);
     } finally { setCopyLoading(false); }
-  }, [isCopying, copyLoading, trader, requireAuth, checkBalance]);
+    return;
+  }
 
-  const handleCounterToggle = useCallback(async () => {
-    if (!requireAuth()) return;
-    if (counterLoading || !trader) return;
+  // ★ Always check balance before enabling (first time OR repeat)
+  setCopyLoading(true);
+  const ok = await checkBalance();
+  if (!ok) { setCopyLoading(false); return; }
+  setCopyLoading(false);
 
-    // Turn OFF
-    if (isCounterTrading) {
-      setCounterLoading(true);
-      try {
-        await toggleCounterTrading(trader.username);
-        setIsCounterTrading(false);
-      } catch (err: any) {
-        if (err?.response?.status === 404) { setIsCounterTrading(false); setIsFollowing(false); }
-        else console.error("Counter toggle off failed:", err);
-      } finally { setCounterLoading(false); }
-      return;
-    }
+  // First time — show settings sheet (balance already confirmed above)
+  if (!hasEverTraded()) {
+    setTradeMode("copy");
+    setShowTradeSettings(true);
+    return;
+  }
 
-    // First time — show settings sheet
-    if (!hasEverTraded()) {
-      setTradeMode("counter");
-      setShowTradeSettings(true);
-      return;
-    }
+  // Repeat activation
+  setCopyLoading(true);
+  try {
+    await followTrader(trader.username, true, false);
+    setIsCopying(true); setIsFollowing(true); setIsCounterTrading(false);
+  } catch (err: any) {
+    if (err?.response?.status === 400) {
+      try { await toggleCopyTrading(trader.username); } catch { }
+      setIsCopying(true); setIsFollowing(true); setIsCounterTrading(false);
+    } else { console.error("Copy trade failed:", err); }
+  } finally { setCopyLoading(false); }
+}, [isCopying, copyLoading, trader, requireAuth, checkBalance]);
 
-    // ★ Already traded before — check balance before enabling
+const handleCounterToggle = useCallback(async () => {
+  if (!requireAuth()) return;
+  if (counterLoading || !trader) return;
+
+  // Turn OFF — no balance check needed
+  if (isCounterTrading) {
     setCounterLoading(true);
-    const ok = await checkBalance();
-    if (!ok) { setCounterLoading(false); return; }
-
     try {
-      await followTrader(trader.username, false, true);
-      setIsCounterTrading(true); setIsFollowing(true); setIsCopying(false);
+      await toggleCounterTrading(trader.username);
+      setIsCounterTrading(false);
     } catch (err: any) {
-      if (err?.response?.status === 400) {
-        try { await toggleCounterTrading(trader.username); } catch { }
-        setIsCounterTrading(true); setIsFollowing(true); setIsCopying(false);
-      } else { console.error("Counter trade failed:", err); }
+      if (err?.response?.status === 404) { setIsCounterTrading(false); setIsFollowing(false); }
+      else console.error("Counter toggle off failed:", err);
     } finally { setCounterLoading(false); }
-  }, [isCounterTrading, counterLoading, trader, requireAuth, checkBalance]);
+    return;
+  }
+
+  // ★ Always check balance before enabling (first time OR repeat)
+  setCounterLoading(true);
+  const ok = await checkBalance();
+  if (!ok) { setCounterLoading(false); return; }
+  setCounterLoading(false);
+
+  // First time — show settings sheet (balance already confirmed above)
+  if (!hasEverTraded()) {
+    setTradeMode("counter");
+    setShowTradeSettings(true);
+    return;
+  }
+
+  // Repeat activation
+  setCounterLoading(true);
+  try {
+    await followTrader(trader.username, false, true);
+    setIsCounterTrading(true); setIsFollowing(true); setIsCopying(false);
+  } catch (err: any) {
+    if (err?.response?.status === 400) {
+      try { await toggleCounterTrading(trader.username); } catch { }
+      setIsCounterTrading(true); setIsFollowing(true); setIsCopying(false);
+    } else { console.error("Counter trade failed:", err); }
+  } finally { setCounterLoading(false); }
+}, [isCounterTrading, counterLoading, trader, requireAuth, checkBalance]);
 
   // ★ Settings confirm — balance check here for first-time flow
   const handleTradeSettingsConfirm = async (cfg: any) => {
