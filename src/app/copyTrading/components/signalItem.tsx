@@ -186,7 +186,7 @@ export default function SignalItem({
               ${data?.ticker || "-"}
             </span>
             <span className="flex items-center gap-1">
-              <span className="text-[9px] text-gray-600 uppercase tracking-wide">Spot</span>
+              <span className="text-[9px] text-gray-600 uppercase tracking-wide">SPOT CHG</span>
               <span
                 className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
                 style={{

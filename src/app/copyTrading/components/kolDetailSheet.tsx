@@ -608,7 +608,7 @@ export default function KolDetailSheet({
                     >
                       {isPositive ? "+" : ""}{new BigNumber(profit).decimalPlaces(2).toNumber()}%
                     </div>
-                    <div className="text-[9px] text-gray-600 uppercase tracking-wide mt-0.5">Spot Gain</div>
+                    <div className="text-[9px] text-gray-600 uppercase tracking-wide mt-0.5">SPOT PNL</div>
                   </div>
                 </div>
 
