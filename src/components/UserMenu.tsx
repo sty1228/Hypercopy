@@ -6,22 +6,22 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import InviteSheet from "@/app/dashboard/components/InviteSheet";
 
 const UserMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+  const [showInvite, setShowInvite] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { authenticated, logout, login, user, linkTwitter, linkWallet } = usePrivy();
   const currentWallet = useCurrentWallet();
   const router = useRouter();
 
-  // ── Identity extraction ──
   const twitterAccount = user?.twitter;
   const hasTwitter = !!twitterAccount?.username;
   const twitterPfp = (twitterAccount as any)?.profilePictureUrl || null;
 
-  // Determine if user has a real external wallet (not just Privy embedded)
   const walletAddress = currentWallet?.address || "";
   const isEmbeddedWallet = currentWallet?.walletClientType === "privy";
   const hasExternalWallet = !!walletAddress && !isEmbeddedWallet;
@@ -29,7 +29,6 @@ const UserMenu = () => {
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : "";
 
-  // Avatar: X pfp > wallet hex > fallback
   const avatarLabel = walletAddress ? walletAddress.slice(2, 6).toUpperCase() : "?";
 
   const updatePosition = useCallback(() => {
@@ -100,6 +99,12 @@ const UserMenu = () => {
     }
   };
 
+  const handleOpenInvite = () => {
+    setIsOpen(false);
+    // slight delay so menu closes before sheet animates in
+    setTimeout(() => setShowInvite(true), 80);
+  };
+
   const dropdown = isOpen
     ? createPortal(
         <div
@@ -120,7 +125,7 @@ const UserMenu = () => {
           <style>{`
             @keyframes userMenuFadeIn {
               from { opacity: 0; transform: translateY(-8px) scale(0.95); }
-              to { opacity: 1; transform: translateY(0) scale(1); }
+              to   { opacity: 1; transform: translateY(0)   scale(1);    }
             }
           `}</style>
 
@@ -129,23 +134,15 @@ const UserMenu = () => {
               {/* Header */}
               <div className="px-4 pt-4 pb-3">
                 <div className="flex items-center gap-2">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ background: "#22c55e", boxShadow: "0 0 6px rgba(34,197,94,0.6)" }}
-                  />
+                  <div className="w-2 h-2 rounded-full" style={{ background: "#22c55e", boxShadow: "0 0 6px rgba(34,197,94,0.6)" }} />
                   <span className="text-[11px] text-gray-400">Connected</span>
                 </div>
               </div>
 
-              {/* ── X Account Section ── */}
+              {/* X Account */}
               {hasTwitter ? (
-                <div
-                  className="w-full px-4 py-3 flex items-center gap-3"
-                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
-                >
-                  <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(255,255,255,0.06)" }}
-                  >
+                <div className="w-full px-4 py-3 flex items-center gap-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.06)" }}>
                     {twitterPfp ? (
                       <img src={twitterPfp} alt="pfp" className="w-full h-full object-cover" />
                     ) : (
@@ -184,7 +181,7 @@ const UserMenu = () => {
                 </button>
               )}
 
-              {/* ── External Wallet Section ── */}
+              {/* Wallet */}
               {hasExternalWallet ? (
                 <button
                   onClick={handleCopyAddress}
@@ -237,7 +234,29 @@ const UserMenu = () => {
                 </div>
                 <span className="text-xs text-rose-400 font-medium">Disconnect</span>
               </button>
-              <div className="h-2" />
+
+              {/* ★ Invite Friends — subtle, after disconnect */}
+              <button
+                onClick={handleOpenInvite}
+                className="w-full px-4 py-2.5 flex items-center gap-2.5 transition-all duration-200 hover:bg-white/[0.03] cursor-pointer"
+                style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
+              >
+                <svg
+                  width="13" height="13" viewBox="0 0 24 24"
+                  fill="none" stroke="rgba(45,212,191,0.45)" strokeWidth="1.8"
+                >
+                  <polyline points="20 12 20 22 4 22 4 12"/>
+                  <rect x="2" y="7" width="20" height="5"/>
+                  <path d="M12 22V7"/>
+                  <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+                  <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+                </svg>
+                <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.28)" }}>
+                  Invite Friends
+                </span>
+              </button>
+
+              <div className="h-1" />
             </>
           ) : (
             <div className="p-4">
@@ -294,7 +313,11 @@ const UserMenu = () => {
           </svg>
         )}
       </button>
+
       {dropdown}
+
+      {/* ★ Invite Sheet */}
+      {showInvite && <InviteSheet onClose={() => setShowInvite(false)} />}
     </>
   );
 };

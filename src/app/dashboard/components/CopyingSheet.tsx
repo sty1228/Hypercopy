@@ -8,16 +8,16 @@ import axiosInstance from "@/lib/axios";
 // ---------- Types ----------
 interface TraderData {
   name: string;
-  handle: string;          // @username
-  username: string;        // raw username for navigation
-  pnl: number;             // ★ real user trade PnL (from /portfolio/trader-pnl)
-  pnlPct: number;          // % for sort
+  handle: string;
+  username: string;
+  pnl: number;
+  pnlPct: number;
   coins: string[];
   is_copy_trading: boolean;
   is_counter_trading: boolean;
   trade_count: number;
   open_count: number;
-  source: string | null;   // "copy" | "counter" | "mixed"
+  source: string | null;
 }
 
 interface TraderPnlItem {
@@ -31,7 +31,7 @@ interface TraderPnlItem {
 interface CopyingSheetProps {
   mode: "copying" | "copiers";
   onClose: () => void;
-  userBalance?: number;    // ★ pass from parent to gate counter with deposit
+  userBalance?: number;
   onDepositClick?: () => void;
 }
 
@@ -65,7 +65,6 @@ const MedalBadge = ({ rank }: { rank: number }) => {
   );
 };
 
-// ★ Mode badge: COPY (teal) | COUNTER (amber) | MIXED (split)
 const ModeBadge = ({ source, is_counter }: { source: string | null; is_counter: boolean }) => {
   if (source === "mixed") {
     return (
@@ -128,12 +127,10 @@ const TraderRow = ({
         <div>
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-sm text-white font-bold">{trader.name}</span>
-            {/* ★ show COPY / COUNTER / MIXED badge */}
             <ModeBadge source={trader.source} is_counter={trader.is_counter_trading} />
           </div>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[11px]" style={{ color:"rgba(255,255,255,0.35)" }}>{trader.handle}</span>
-            {/* ★ show open positions count */}
             {trader.open_count > 0 && (
               <span className="text-[10px] px-1 rounded"
                 style={{ background:"rgba(255,255,255,0.05)",color:"rgba(255,255,255,0.3)" }}>
@@ -145,7 +142,6 @@ const TraderRow = ({
       </div>
 
       <div className="flex flex-col items-end gap-1">
-        {/* ★ Real PnL from user's actual trades */}
         <span className="text-sm font-bold" style={{ color: up ? "#22c55e" : "#ef4444" }}>
           {up ? "+" : "−"}${Math.abs(trader.pnl).toLocaleString(undefined, { minimumFractionDigits:2,maximumFractionDigits:2 })}
         </span>
@@ -178,7 +174,6 @@ const LoadingState = () => (
   </div>
 );
 
-// ★ Deposit gate banner — shown when user has 0 balance but is copy/counter trading
 const DepositBanner = ({ onDepositClick }: { onDepositClick?: () => void }) => (
   <div className="mx-4 mb-4 rounded-2xl p-4 flex items-center justify-between gap-3"
     style={{ background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.2)" }}>
@@ -198,7 +193,6 @@ const DepositBanner = ({ onDepositClick }: { onDepositClick?: () => void }) => (
   </div>
 );
 
-// ★ Summary bar — total PnL across all followed traders
 const SummaryBar = ({ traders }: { traders: TraderData[] }) => {
   const total = traders.reduce((s, t) => s + t.pnl, 0);
   const up = total >= 0;
@@ -231,13 +225,11 @@ const CopyingSheet = ({ mode, onClose, userBalance = 0, onDepositClick }: Copyin
   const fetchCopying = async () => {
     setLoading(true);
     try {
-      // ★ Fetch both: follow list (for copy/counter flags) + real PnL per trader
       const [followRes, pnlRes] = await Promise.all([
         getFollowedTraders("30d"),
         axiosInstance.get<TraderPnlItem[]>("/portfolio/trader-pnl").then(r => r.data).catch(() => [] as TraderPnlItem[]),
       ]);
 
-      // Index PnL by trader_username
       const pnlMap = new Map<string, TraderPnlItem>();
       for (const p of pnlRes) pnlMap.set(p.trader_username, p);
 
@@ -248,7 +240,6 @@ const CopyingSheet = ({ mode, onClose, userBalance = 0, onDepositClick }: Copyin
           name: item.display_name || username || "Unknown",
           handle: `@${username}`,
           username,
-          // ★ Use real trade PnL; fall back to 0 if no trades yet
           pnl: pnlData ? pnlData.pnl_usd : 0,
           pnlPct: item.avg_return_pct || 0,
           coins: [],
@@ -273,13 +264,14 @@ const CopyingSheet = ({ mode, onClose, userBalance = 0, onDepositClick }: Copyin
 
   const handleTraderClick = (username: string) => {
     handleClose();
-    // ★ Navigate to trader profile page
     setTimeout(() => router.push(`/profile?handle=${username}`), 50);
   };
 
   const sorted = sortTraders(traders, sort);
   const title = mode === "copying" ? "Copying" : "Copiers";
-  const showDepositBanner = mode === "copying" && traders.length > 0 && userBalance <= 0;
+
+  // ★ 余额 <= 0 时不显示 KOL 列表
+  const showList = !loading && userBalance > 0 && traders.length > 0;
 
   const sortOptions = [
     { key: "pnl_desc", label: "Top Gains" },
@@ -313,7 +305,10 @@ const CopyingSheet = ({ mode, onClose, userBalance = 0, onDepositClick }: Copyin
         <div className="px-5 pb-3 flex items-center justify-between">
           <div className="flex items-baseline gap-2">
             <span className="text-white text-base font-extrabold">{title}</span>
-            <span className="text-xs font-semibold" style={{ color:"rgba(255,255,255,0.25)" }}>{traders.length}</span>
+            {/* ★ 余额>0才显示数量，避免误导 */}
+            {userBalance > 0 && (
+              <span className="text-xs font-semibold" style={{ color:"rgba(255,255,255,0.25)" }}>{traders.length}</span>
+            )}
           </div>
           <button onClick={handleClose}
             className="w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:bg-white/10 active:scale-90"
@@ -322,11 +317,10 @@ const CopyingSheet = ({ mode, onClose, userBalance = 0, onDepositClick }: Copyin
           </button>
         </div>
 
-        {/* ★ Deposit banner if balance = 0 */}
-        {showDepositBanner && <DepositBanner onDepositClick={() => { handleClose(); onDepositClick?.(); }} />}
+        {/* deposit banner removed */}
 
-        {/* Sort bar */}
-        {traders.length > 0 && (
+        {/* ★ sort bar 和 summary bar 只在有余额且有数据时显示 */}
+        {showList && (
           <div className="flex gap-1.5 px-5 pb-3 overflow-x-auto">
             {sortOptions.map(o => (
               <button key={o.key} onClick={() => setSort(o.key)}
@@ -342,12 +336,14 @@ const CopyingSheet = ({ mode, onClose, userBalance = 0, onDepositClick }: Copyin
           </div>
         )}
 
-        {/* ★ Total PnL summary */}
-        {traders.length > 0 && <SummaryBar traders={traders} />}
+        {showList && <SummaryBar traders={traders} />}
 
         {/* Content */}
         {loading ? (
           <LoadingState />
+        ) : userBalance <= 0 ? (
+          // ★ 余额=0 → 不显示KOL列表
+          <EmptyState message="Deposit USDC to start copy trading. Your followed traders will appear here." />
         ) : traders.length === 0 ? (
           <EmptyState message={
             mode === "copying"

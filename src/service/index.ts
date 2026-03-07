@@ -1,5 +1,5 @@
 import { get, post, put, del, patch } from "@/lib/axios";
-
+import axiosInstance from "@/lib/axios";
 // ─── Auth ───────────────────────────────────────────────
 
 export const connectWalletApi = async (
@@ -693,4 +693,23 @@ export const placeSignalTrade = async (
   size_qty: number;
 }> => {
   return await post(`/api/signal/${signalId}/trade`, { side });
+};
+
+export interface ReferralInfo {
+  code: string; link: string; invited_count: number; active_count: number;
+  earned_usd: number; affiliate_applied: boolean;
+  invited_by: { username: string; display_name: string; avatar_url: string | null } | null;
+  global_slots: { total_slots: number; slots_used: number; free_tier_total: number; free_tier_full: boolean };
+}
+export const getReferralInfo = async (): Promise<ReferralInfo> => {
+  const res = await axiosInstance.get<ReferralInfo>("/referral/info");
+  return res.data;
+};
+export const applyReferralCode = async (code: string) => {
+  const res = await axiosInstance.post("/referral/apply-code", { code });
+  return res.data;
+};
+export const applyAffiliateProgram = async () => {
+  const res = await axiosInstance.post("/referral/affiliate-apply");
+  return res.data;
 };
