@@ -14,15 +14,17 @@ import {
   UserPlus, UserCheck, Copy, RefreshCw,
 } from "lucide-react";
 import ShareSheet from "./components/shareSheet";
+import SignalDetailSheet, { SignalDetailData } from "@/app/copyTrading/components/signalDetailSheet";
 import {
   getTraderProfile, followTrader, unfollowTrader, toggleCopyTrading, toggleCounterTrading,
-  userSignals, updateDefaultSettings, getWalletBalance,
+  userSignals, updateDefaultSettings, getDefaultSettings, getWalletBalance,
   type TraderProfile, type UserSignalItem, type DefaultFollowSettings,
 } from "@/service";
 import { useRewards } from "@/providers/RewardsContext";
 import { usePrivy } from "@privy-io/react-auth";
 import TopBar from "@/components/TopBar";
-import { toast } from "sonner"
+import { toast } from "sonner";
+
 /* ─── First-time trade localStorage helpers ─── */
 const LS_HAS_TRADED = "hc_has_traded_before";
 function hasEverTraded(): boolean {
@@ -313,7 +315,7 @@ const LockedTabContent = ({ title, description, onConnect }: { title: string; de
 const TAB_DEFS = [
   { key: "overview", label: "Analysis", locked: false },
   { key: "signals",  label: "Signals",  locked: true },
-  { key: "positions",label: "Positions",locked: false }, // ★ NOT locked — user's own positions
+  { key: "positions",label: "Positions",locked: false },
 ] as const;
 
 const ProfileSkeleton = () => (
@@ -360,7 +362,20 @@ function ProfileTradeSettingsSheet({ traderName, mode, onConfirm, onClose }: {
   const subtitle = mode === "counter"
     ? "Takes the opposite side of their future trades only — past signals are not copied."
     : "Copies their future trades only — past signals are not included. You control size & leverage.";
+
   useEffect(() => { requestAnimationFrame(() => setVisible(true)); }, []);
+
+  // ★ Bug 4 fix: Pre-load saved settings
+  useEffect(() => {
+    getDefaultSettings().then(s => {
+      setSizeVal(s.tradeSize ?? 50);
+      setSizeType(s.tradeSizeType ?? "USD");
+      setLeverage(s.leverage ?? 8);
+      if (s.tp) { setTpVal(s.tp.value); setTpType(s.tp.type as any); }
+      if (s.sl) { setSlVal(s.sl.value); setSlType(s.sl.type as any); }
+    }).catch(() => {}); // fail silently, use defaults
+  }, []);
+
   const handleClose = () => { setVisible(false); setTimeout(onClose, 300); };
   const handleConfirm = async () => {
     setLoading(true);
@@ -387,7 +402,7 @@ function ProfileTradeSettingsSheet({ traderName, mode, onConfirm, onClose }: {
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-[10px] font-medium uppercase tracking-widest mb-1" style={{ color: ac, opacity: 0.7 }}>
-                {mode === "counter" ? "Reverse position setup" : "First time setup"}
+                {mode === "counter" ? "Reverse position setup" : "Risk management setup"}
               </p>
               <h3 className="text-white text-[17px] font-bold leading-tight">
                 {mode === "counter" ? "Counter " : "Copy "}<span style={{ color: ac }}>@{traderName}</span>
@@ -660,8 +675,22 @@ function KOLProfileContent() {
   const [showTradeSuccess, setShowTradeSuccess] = useState(false);
   const [tradeMode, setTradeMode] = useState<TradeMode>("copy");
 
+  // ★ Bug 3: Signal detail sheet state
+  const [detailSignal, setDetailSignal] = useState<SignalDetailData | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+
   const { triggerFirstCopyTrade, viewRewardsFromPrompt } = useRewards();
-  const { authenticated, login } = usePrivy();
+  // ★ Bug 1: get linkTwitter + user from Privy
+  const { authenticated, login, user: privyUser, linkTwitter } = usePrivy() as any;
+
+  // ★ Bug 1: Persist X connection from Privy linkedAccounts
+  useEffect(() => {
+    if (!privyUser) return;
+    const linked = privyUser.linkedAccounts?.some(
+      (a: any) => a.type === "twitter_oauth"
+    );
+    setIsXConnected(!!linked);
+  }, [privyUser]);
 
   useEffect(() => {
     if (!handle) { router.replace("/copyTrading"); return; }
@@ -704,8 +733,6 @@ function KOLProfileContent() {
     return true;
   }, [authenticated, login]);
 
-  // ★ Shared balance check helper
-  // 改之后
   const checkBalance = useCallback(async (): Promise<boolean> => {
     try {
       const bal = await getWalletBalance();
@@ -722,6 +749,7 @@ function KOLProfileContent() {
     }
   }, [router]);
 
+  // ★ Bug 5: Follow with follower count update
   const handleFollow = useCallback(async () => {
     if (!requireAuth()) return;
     if (followLoading || !trader) return;
@@ -730,12 +758,16 @@ function KOLProfileContent() {
       if (isFollowing) {
         await unfollowTrader(trader.username);
         setIsFollowing(false); setIsCopying(false); setIsCounterTrading(false);
+        // ★ Bug 5: Decrement follower count
+        setTrader(prev => prev ? { ...prev, followers_count: Math.max(0, prev.followers_count - 1) } : prev);
       } else {
         try { await followTrader(trader.username); } catch (err: any) {
           if (err?.response?.status === 400) { setIsFollowing(true); return; }
           throw err;
         }
         setIsFollowing(true);
+        // ★ Bug 5: Increment follower count
+        setTrader(prev => prev ? { ...prev, followers_count: prev.followers_count + 1 } : prev);
       }
     } catch (err: any) {
       if (err?.response?.status === 404) setIsFollowing(false);
@@ -743,93 +775,65 @@ function KOLProfileContent() {
     } finally { setFollowLoading(false); }
   }, [isFollowing, followLoading, trader, requireAuth]);
 
-const handleCopyToggle = useCallback(async () => {
-  if (!requireAuth()) return;
-  if (copyLoading || !trader) return;
+  // ★ Bug 4: ALWAYS show settings sheet (removed hasEverTraded check)
+  const handleCopyToggle = useCallback(async () => {
+    if (!requireAuth()) return;
+    if (copyLoading || !trader) return;
 
-  // Turn OFF — no balance check needed
-  if (isCopying) {
+    // Turn OFF
+    if (isCopying) {
+      setCopyLoading(true);
+      try {
+        await toggleCopyTrading(trader.username);
+        setIsCopying(false);
+      } catch (err: any) {
+        if (err?.response?.status === 404) { setIsCopying(false); setIsFollowing(false); }
+        else console.error("Copy toggle off failed:", err);
+      } finally { setCopyLoading(false); }
+      return;
+    }
+
+    // Turn ON — always check balance then show settings
     setCopyLoading(true);
-    try {
-      await toggleCopyTrading(trader.username);
-      setIsCopying(false);
-    } catch (err: any) {
-      if (err?.response?.status === 404) { setIsCopying(false); setIsFollowing(false); }
-      else console.error("Copy toggle off failed:", err);
-    } finally { setCopyLoading(false); }
-    return;
-  }
+    const ok = await checkBalance();
+    if (!ok) { setCopyLoading(false); return; }
 
-  // ★ Always check balance before enabling (first time OR repeat)
-  setCopyLoading(true);
-  const ok = await checkBalance();
-  if (!ok) { setCopyLoading(false); return; }
-  setCopyLoading(false);
-
-  // First time — show settings sheet (balance already confirmed above)
-  if (!hasEverTraded()) {
+    // ★ ALWAYS show settings sheet before starting copy trading
     setTradeMode("copy");
     setShowTradeSettings(true);
-    return;
-  }
+    setCopyLoading(false);
+  }, [isCopying, copyLoading, trader, requireAuth, checkBalance]);
 
-  // Repeat activation
-  setCopyLoading(true);
-  try {
-    await followTrader(trader.username, true, false);
-    setIsCopying(true); setIsFollowing(true); setIsCounterTrading(false);
-  } catch (err: any) {
-    if (err?.response?.status === 400) {
-      try { await toggleCopyTrading(trader.username); } catch { }
-      setIsCopying(true); setIsFollowing(true); setIsCounterTrading(false);
-    } else { console.error("Copy trade failed:", err); }
-  } finally { setCopyLoading(false); }
-}, [isCopying, copyLoading, trader, requireAuth, checkBalance]);
+  // ★ Bug 4: ALWAYS show settings sheet (removed hasEverTraded check)
+  const handleCounterToggle = useCallback(async () => {
+    if (!requireAuth()) return;
+    if (counterLoading || !trader) return;
 
-const handleCounterToggle = useCallback(async () => {
-  if (!requireAuth()) return;
-  if (counterLoading || !trader) return;
+    // Turn OFF
+    if (isCounterTrading) {
+      setCounterLoading(true);
+      try {
+        await toggleCounterTrading(trader.username);
+        setIsCounterTrading(false);
+      } catch (err: any) {
+        if (err?.response?.status === 404) { setIsCounterTrading(false); setIsFollowing(false); }
+        else console.error("Counter toggle off failed:", err);
+      } finally { setCounterLoading(false); }
+      return;
+    }
 
-  // Turn OFF — no balance check needed
-  if (isCounterTrading) {
+    // Turn ON — always check balance then show settings
     setCounterLoading(true);
-    try {
-      await toggleCounterTrading(trader.username);
-      setIsCounterTrading(false);
-    } catch (err: any) {
-      if (err?.response?.status === 404) { setIsCounterTrading(false); setIsFollowing(false); }
-      else console.error("Counter toggle off failed:", err);
-    } finally { setCounterLoading(false); }
-    return;
-  }
+    const ok = await checkBalance();
+    if (!ok) { setCounterLoading(false); return; }
 
-  // ★ Always check balance before enabling (first time OR repeat)
-  setCounterLoading(true);
-  const ok = await checkBalance();
-  if (!ok) { setCounterLoading(false); return; }
-  setCounterLoading(false);
-
-  // First time — show settings sheet (balance already confirmed above)
-  if (!hasEverTraded()) {
+    // ★ ALWAYS show settings sheet before starting counter trading
     setTradeMode("counter");
     setShowTradeSettings(true);
-    return;
-  }
+    setCounterLoading(false);
+  }, [isCounterTrading, counterLoading, trader, requireAuth, checkBalance]);
 
-  // Repeat activation
-  setCounterLoading(true);
-  try {
-    await followTrader(trader.username, false, true);
-    setIsCounterTrading(true); setIsFollowing(true); setIsCopying(false);
-  } catch (err: any) {
-    if (err?.response?.status === 400) {
-      try { await toggleCounterTrading(trader.username); } catch { }
-      setIsCounterTrading(true); setIsFollowing(true); setIsCopying(false);
-    } else { console.error("Counter trade failed:", err); }
-  } finally { setCounterLoading(false); }
-}, [isCounterTrading, counterLoading, trader, requireAuth, checkBalance]);
-
-  // ★ Settings confirm — balance check here for first-time flow
+  // ★ Settings confirm — with follower count update
   const handleTradeSettingsConfirm = async (cfg: any) => {
     if (!trader) return;
     try {
@@ -858,17 +862,40 @@ const handleCounterToggle = useCallback(async () => {
         setShowTradeSettings(false);
         setIsCounterTrading(true); setIsFollowing(true); setIsCopying(false);
       }
+
+      // ★ Bug 5: Only increment if wasn't already following
+      if (!isFollowing) {
+        setTrader(prev => prev ? { ...prev, followers_count: prev.followers_count + 1 } : prev);
+      }
+
       setTimeout(() => { setShowTradeSuccess(true); triggerFirstCopyTrade(); }, 200);
     } catch (e: any) {
       console.error("Trade setup failed:", e);
-      alert(e?.message || "Failed to start trading.");
+      toast.error(e?.message || "Failed to start trading.");
     }
   };
 
-  const handleConnectX = () => {
-    setShowConnectModal(true); setConnectStage("connecting");
-    setTimeout(() => setConnectStage("success"), 1800);
-  };
+  // ★ Bug 1: Use Privy linkTwitter instead of fake timeout
+  const handleConnectX = useCallback(async () => {
+    try {
+      setShowConnectModal(true);
+      setConnectStage("connecting");
+      await linkTwitter?.();
+      setConnectStage("success");
+    } catch (err: any) {
+      // Already linked or cancelled
+      const alreadyLinked = privyUser?.linkedAccounts?.some(
+        (a: any) => a.type === "twitter_oauth"
+      );
+      if (alreadyLinked) {
+        setIsXConnected(true);
+        setShowConnectModal(false);
+      } else {
+        setShowConnectModal(false);
+      }
+    }
+  }, [linkTwitter, privyUser]);
+
   const handleConnectDone = () => { setIsXConnected(true); setShowConnectModal(false); };
 
   if (loading) return <ProfileSkeleton />;
@@ -1128,15 +1155,33 @@ const handleCounterToggle = useCallback(async () => {
 
             <div className="grid grid-cols-2 gap-1.5">
               {[
-                bestSignal ? { icon: Trophy, ic: "text-teal-400", ib: "bg-teal-400/10", label: "Best Signal", val: Math.abs(bestSignal.pnl), pre: bestSignal.pnl >= 0 ? "+" : "-", suf: "%", color: "text-teal-400", sub: `${bestSignal.token} · ${bestSignal.date}` } : null,
-                worstSignal ? { icon: AlertCircle, ic: "text-rose-400", ib: "bg-rose-400/10", label: "Worst Signal", val: Math.abs(worstSignal.pnl), pre: worstSignal.pnl >= 0 ? "+" : "-", suf: "%", color: "text-rose-400", sub: `${worstSignal.token} · ${worstSignal.date}` } : null,
-                { icon: Flame, ic: "text-orange-400", ib: "bg-orange-400/10", label: "Win Streak", val: trader.streak, pre: "", suf: trader.streak === 1 ? " win" : " wins", color: "text-white", sub: "" },
-                { icon: BarChart3, ic: "text-purple-400", ib: "bg-purple-400/10", label: "Avg Return", val: Math.abs(cumulative), pre: cumulative >= 0 ? "+" : "-", suf: "%", color: "text-white", sub: `${trader.total_signals} signals` },
+                bestSignal ? { icon: Trophy, ic: "text-teal-400", ib: "bg-teal-400/10", label: "Best Signal", val: Math.abs(bestSignal.pnl), pre: bestSignal.pnl >= 0 ? "+" : "-", suf: "%", color: "text-teal-400", sub: `${bestSignal.token} · ${bestSignal.date}`, signalData: bestSignal } : null,
+                worstSignal ? { icon: AlertCircle, ic: "text-rose-400", ib: "bg-rose-400/10", label: "Worst Signal", val: Math.abs(worstSignal.pnl), pre: worstSignal.pnl >= 0 ? "+" : "-", suf: "%", color: "text-rose-400", sub: `${worstSignal.token} · ${worstSignal.date}`, signalData: worstSignal } : null,
+                { icon: Flame, ic: "text-orange-400", ib: "bg-orange-400/10", label: "Win Streak", val: trader.streak, pre: "", suf: trader.streak === 1 ? " win" : " wins", color: "text-white", sub: "", signalData: null },
+                { icon: BarChart3, ic: "text-purple-400", ib: "bg-purple-400/10", label: "Avg Return", val: Math.abs(cumulative), pre: cumulative >= 0 ? "+" : "-", suf: "%", color: "text-white", sub: `${trader.total_signals} signals`, signalData: null },
               ].filter((item): item is NonNullable<typeof item> => item !== null).map((item, i) => {
                 const Icon = item.icon;
+                const hasSignal = !!item.signalData;
                 return (
                   <ScrollReveal key={i} delay={i * 0.06} direction={i % 2 === 0 ? "left" : "right"} distance={18}>
-                    <div className="rounded-xl px-2 py-1.5 relative overflow-hidden transition-all duration-300 hover:scale-[1.03]" style={{ ...cardStyle, animation: `statCardHover ${3 + i}s ease-in-out infinite` }}>
+                    <div
+                      className="rounded-xl px-2 py-1.5 relative overflow-hidden transition-all duration-300 hover:scale-[1.03]"
+                      style={{ ...cardStyle, animation: `statCardHover ${3 + i}s ease-in-out infinite`, cursor: hasSignal ? "pointer" : "default" }}
+                      // ★ Bug 3: Click best/worst signal to open detail
+                      onClick={() => {
+                        if (!item.signalData) return;
+                        setDetailSignal({
+                          ticker: item.signalData.token,
+                          pct_change: item.signalData.pnl,
+                          direction: (item.signalData as any).direction ?? null,
+                          tweet_text: (item.signalData as any).tweet_text ?? null,
+                          tweet_image_url: (item.signalData as any).tweet_image_url ?? null,
+                          timestamp: item.signalData.date,
+                          signal_id: (item.signalData as any).signal_id ?? null,
+                        } as SignalDetailData);
+                        setDetailOpen(true);
+                      }}
+                    >
                       <div className="flex items-center gap-1 mb-0.5 relative z-10">
                         <div className={`w-3.5 h-3.5 rounded flex items-center justify-center ${item.ib}`}><Icon size={9} className={item.ic} /></div>
                         <span className="text-[8px] text-gray-500">{item.label}</span>
@@ -1343,6 +1388,12 @@ const handleCounterToggle = useCallback(async () => {
           onDone={() => setShowTradeSuccess(false)}
         />
       )}
+      {/* ★ Bug 3: Signal Detail Sheet for best/worst signal clicks */}
+      <SignalDetailSheet
+        signal={detailSignal}
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+      />
     </div>
   );
 }

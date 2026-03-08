@@ -221,6 +221,10 @@ export interface BestWorstSignal {
   token: string;
   pnl: number;
   date: string;
+  signal_id?: string | null;
+  direction?: string | null;
+  tweet_text?: string | null;
+  tweet_image_url?: string | null;
 }
 
 export interface TraderProfile {

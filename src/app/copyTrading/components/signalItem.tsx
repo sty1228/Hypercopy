@@ -29,11 +29,13 @@ export default function SignalItem({
   onClick,
   currentClickItemId,
   index = 0,
+  onDetail,
 }: {
   data: UserSignalItem;
   onClick: (signalId: number) => void;
   currentClickItemId: number | null;
   index?: number;
+  onDetail?: (data: UserSignalItem) => void;
 }) {
   const { authenticated, login } = usePrivy();
   const router = useRouter();
@@ -92,7 +94,13 @@ export default function SignalItem({
 
   return (
     <div
-      onClick={() => onClick(data.signal_id)}
+      onClick={() => {
+        if (onDetail) {
+          onDetail(data);   // 打开详情 sheet
+        } else {
+          onClick(data.signal_id);  // fallback: 原展开逻辑
+        }
+      }}
       className="rounded-2xl cursor-pointer relative overflow-hidden"
       style={{
         background: isExpanded
