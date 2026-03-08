@@ -1,14 +1,12 @@
 "use client";
 
-import { useContext, useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Wallet, TrendingUp, Shield, Zap, Bell, AlertCircle, Loader2, Info } from "lucide-react";
-import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { useCurrentWallet } from "@/hooks/usePrivyData";
-import { getPerpsBalance } from "@/helpers/hyperliquid";
 import { toast } from "sonner";
 import {
   getDefaultSettings,
   updateDefaultSettings,
+  getWalletBalance,
   LeverageType,
   TradeSizeType,
 } from "@/service";
@@ -286,8 +284,6 @@ const InputRow = ({
 );
 
 export default function DefaultFollow() {
-  const { infoClient } = useContext(HyperLiquidContext);
-  const currentWallet = useCurrentWallet();
   const [cachedSettings, setCachedSettings] = useState<IDefaultFollowSettings | null>(null);
   const [settings, setSettings] = useState<IDefaultFollowSettings>(DEFAULT_FOLLOW_SETTINGS);
   const [hasChanges, setHasChanges] = useState(false);
@@ -327,20 +323,22 @@ export default function DefaultFollow() {
 
   useEffect(() => {
     loadSettings();
-    getPerpsBalance({
-      exchClient: infoClient!,
-      walletAddress: currentWallet?.address ?? "",
-    }).then((res) => {
-      if (!res) return;
-      const total = Number(res.marginSummary.accountValue);
-      const available = Number(res.withdrawable || 0);
-      setSettings((prev) => ({
-        ...prev,
-        perpsBalance: total,
-        availableBalance: available,
-        usedBalance: total - available,
-      }));
-    });
+
+    // ★ FIX: Read dedicated wallet balance instead of external wallet
+    getWalletBalance()
+      .then((bal) => {
+        const total = bal.hl_equity;
+        const available = bal.hl_withdrawable;
+        setSettings((prev) => ({
+          ...prev,
+          perpsBalance: total,
+          availableBalance: available,
+          usedBalance: Math.max(0, total - available),
+        }));
+      })
+      .catch(() => {
+        // No dedicated wallet yet — leave at $0
+      });
   }, []);
 
   const handleSave = async () => {

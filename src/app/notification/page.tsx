@@ -137,7 +137,7 @@ export default function NotificationPage() {
         />
       </div>
 
-      <TopBar activeTrades={0} rank={null} />
+      <TopBar />
 
       <div className="relative z-10 px-3 mb-3">
         <div className="flex items-center justify-between mb-3">

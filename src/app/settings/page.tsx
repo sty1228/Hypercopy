@@ -56,7 +56,7 @@ function SettingsContent() {
           style={{ background: "radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)", filter: "blur(40px)", animationDelay: "2s" }} />
       </div>
 
-      <TopBar activeTrades={4} rank={64} />
+      <TopBar />
 
       <div className="relative z-10 px-3 mb-3">
         <Tab activeTab={activeTab} handleSwitchTab={handleSwitchTab} />

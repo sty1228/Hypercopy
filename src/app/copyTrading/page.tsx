@@ -128,7 +128,7 @@ export default function CopyTrading() {
         <div className="absolute bottom-1/3 -right-20 w-[200px] h-[200px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)", filter: "blur(40px)" }} />
       </div>
 
-      <TopBar activeTrades={4} rank={64} />
+      <TopBar />
 
       <div className="relative z-10 px-3 pt-1 pb-2">
         <h1 className="text-base font-bold text-white">Leaderboard</h1>

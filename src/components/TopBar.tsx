@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import UserMenu from "@/components/UserMenu";
+import { getDashboardSummary, getRewards } from "@/service";
 
 /* ── Coin SVG ── */
 const CoinIcon = () => (
@@ -27,10 +28,7 @@ const PersonIcon = () => (
   </svg>
 );
 
-/* ── Tooltip wrapper ──
-   Desktop: show on mouseEnter, hide on mouseLeave
-   Mobile: show on tap for 2s
-*/
+/* ── Tooltip wrapper ── */
 const Tip = ({
   text,
   align = "right",
@@ -47,22 +45,9 @@ const Tip = ({
     if (hideTimer.current) clearTimeout(hideTimer.current);
   };
 
-  // Desktop hover
-  const onEnter = () => {
-    clear();
-    setShow(true);
-  };
-  const onLeave = () => {
-    clear();
-    setShow(false);
-  };
-
-  // Mobile tap
-  const onTap = () => {
-    clear();
-    setShow(true);
-    hideTimer.current = setTimeout(() => setShow(false), 2000);
-  };
+  const onEnter = () => { clear(); setShow(true); };
+  const onLeave = () => { clear(); setShow(false); };
+  const onTap = () => { clear(); setShow(true); hideTimer.current = setTimeout(() => setShow(false), 2000); };
 
   useEffect(() => () => clear(), []);
 
@@ -74,12 +59,7 @@ const Tip = ({
       : "right-0";
 
   return (
-    <div
-      className="relative"
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
-      onTouchStart={onTap}
-    >
+    <div className="relative" onMouseEnter={onEnter} onMouseLeave={onLeave} onTouchStart={onTap}>
       {children}
       <div
         className={`absolute top-full ${alignClass} mt-1.5 px-2.5 py-1.5 rounded-lg whitespace-nowrap text-[10px] font-medium pointer-events-none transition-all duration-200 z-[999]`}
@@ -100,24 +80,22 @@ const Tip = ({
 
 /* ── Types ── */
 export interface TopBarProps {
+  /** Override auto-fetched active trades count */
   activeTrades?: number;
+  /** Override auto-fetched rank */
   rank?: number | string | null;
+  /** Override auto-fetched rewards points */
   rewardsPoints?: number;
   onCoinClick?: () => void;
-  /** Handler when active trades element is clicked */
   onActiveTradesClick?: () => void;
-  /**
-   * Set to "win" or "loss" momentarily when a trade closes.
-   * The dot will flash green or red then revert to yellow.
-   */
   flashState?: "win" | "loss" | null;
   extraRight?: React.ReactNode;
 }
 
 export default function TopBar({
-  activeTrades = 0,
-  rank,
-  rewardsPoints = 0,
+  activeTrades: activeTradesProp,
+  rank: rankProp,
+  rewardsPoints: rewardsPointsProp,
   onCoinClick,
   onActiveTradesClick,
   flashState = null,
@@ -125,7 +103,31 @@ export default function TopBar({
 }: TopBarProps) {
   const router = useRouter();
   const [flash, setFlash] = useState<"win" | "loss" | null>(null);
-  const prevCount = useRef(activeTrades);
+  const prevCount = useRef<number>(0);
+
+  // ★ Internal state — fetched from API, overridden by props
+  const [fetchedTrades, setFetchedTrades] = useState(0);
+  const [fetchedRank, setFetchedRank] = useState<number | null>(null);
+  const [fetchedPoints, setFetchedPoints] = useState(0);
+
+  // Resolve final values: explicit prop wins, else fetched
+  const activeTrades = activeTradesProp ?? fetchedTrades;
+  const rank = rankProp !== undefined ? rankProp : fetchedRank;
+  const rewardsPoints = rewardsPointsProp ?? fetchedPoints;
+
+  // ★ Fetch real data on mount
+  useEffect(() => {
+    getDashboardSummary()
+      .then((s) => setFetchedTrades(s.open_positions))
+      .catch(() => {});
+
+    getRewards()
+      .then((r) => {
+        setFetchedRank(r.rank);
+        setFetchedPoints(r.totalPoints);
+      })
+      .catch(() => {});
+  }, []);
 
   /* Flash on explicit prop */
   useEffect(() => {
@@ -190,7 +192,7 @@ export default function TopBar({
 
         {/* ═══ RIGHT ═══ */}
         <div className="flex items-center gap-1.5">
-          {/* Active Trades — yellow dot + number */}
+          {/* Active Trades */}
           <Tip text="Active Trades">
             <div
               onClick={() => {
@@ -203,21 +205,16 @@ export default function TopBar({
                 border: "1px solid rgba(255,255,255,0.1)",
               }}
             >
-              {/* Dot container */}
               <div className="relative flex items-center justify-center" style={{ width: 10, height: 10 }}>
-                {/* Main pulsing dot */}
                 <div
                   className="w-[7px] h-[7px] rounded-full"
                   style={{
                     background: dotColor,
                     boxShadow: `0 0 4px ${dotColor}, 0 0 8px ${dotColor}50`,
-                    animation: flash
-                      ? "none"
-                      : "topbarPulseDot 2s ease-in-out infinite",
+                    animation: flash ? "none" : "topbarPulseDot 2s ease-in-out infinite",
                     transition: "background 0.3s ease, box-shadow 0.3s ease",
                   }}
                 />
-                {/* Flash ping ring on trade close */}
                 {flash && (
                   <div
                     className="absolute w-[7px] h-[7px] rounded-full"
@@ -234,7 +231,7 @@ export default function TopBar({
             </div>
           </Tip>
 
-          {/* Rank — person icon */}
+          {/* Rank */}
           <Tip text="Your Rank">
             <div
               className="flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-all hover:bg-white/10"
