@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import axiosInstance from "@/lib/axios";
@@ -21,7 +21,7 @@ const avatarColors = ["#e74c3c","#8e44ad","#2980b9","#27ae60","#f39c12","#1abc9c
 const getColor = (s: string) =>
   avatarColors[s.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % avatarColors.length];
 
-export default function JoinPage() {
+function JoinPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { login, authenticated, ready } = usePrivy();
@@ -243,5 +243,18 @@ export default function JoinPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function JoinPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: "#0a0e14", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 28, height: 28, borderRadius: "50%", border: "2px solid rgba(45,212,191,0.3)", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    }>
+      <JoinPageInner />
+    </Suspense>
   );
 }
