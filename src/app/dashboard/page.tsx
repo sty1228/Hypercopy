@@ -15,12 +15,14 @@ import {
   getPnlHistory,
   getFollowedTraders,
   getWalletBalance,
+  getTraderPnl,          // ← 新增
   type DashboardSummary,
   type PositionItem,
   type ProfileDataResponse,
   type FollowedTrader,
   type WalletBalance,
   type PnlHistoryResponse,
+  type TraderPnlItem,    // ← 新增
 } from "@/service";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
@@ -78,6 +80,7 @@ const Home = () => {
   const [profile, setProfile] = useState<ProfileDataResponse | null>(null);
   const [positions, setPositions] = useState<PositionItem[]>([]);
   const [followedTraders, setFollowedTraders] = useState<FollowedTrader[]>([]);
+  const [traderPnlMap, setTraderPnlMap] = useState<Record<string, TraderPnlItem>>({}); // ← 新增
   const [loading, setLoading] = useState(false);
   const [builderDismissed, setBuilderDismissed] = useState(false);
 
@@ -116,6 +119,7 @@ const Home = () => {
       setProfile(null);
       setPositions([]);
       setFollowedTraders([]);
+      setTraderPnlMap({});
       setWalletBal(null);
       setPnlChartData([]);
       setRangePnl(0);
@@ -151,16 +155,26 @@ const Home = () => {
     if (!authReady) return;
     setLoading(true);
     try {
-      const [s, p, prof, fol] = await Promise.allSettled([
+      // ← 新增 getTraderPnl() 并行请求
+      const [s, p, prof, fol, pnlList] = await Promise.allSettled([
         getDashboardSummary(),
         getOpenPositions(),
         getProfileData(),
         getFollowedTraders(),
+        getTraderPnl(),
       ]);
       if (s.status === "fulfilled") setSummary(s.value);
       if (p.status === "fulfilled") setPositions(p.value);
       if (prof.status === "fulfilled") setProfile(prof.value);
       if (fol.status === "fulfilled") setFollowedTraders(fol.value);
+      // ← 新增：把数组转成 username → item 的 map
+      if (pnlList.status === "fulfilled") {
+        const map: Record<string, TraderPnlItem> = {};
+        for (const item of pnlList.value) {
+          map[item.trader_username] = item;
+        }
+        setTraderPnlMap(map);
+      }
     } catch (err) {
       console.error("Dashboard fetch failed:", err);
     } finally {
@@ -428,26 +442,35 @@ const Home = () => {
             ))}
           </div>
           <div className="relative overflow-hidden">
-            {/* Followed */}
+
+            {/* ── Followed Tab ── */}
             <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "followed" ? 1 : 0, transform: activeTab === "followed" ? "translateX(0)" : "translateX(-20px)", position: activeTab === "followed" ? "relative" : "absolute", pointerEvents: activeTab === "followed" ? "auto" : "none", width: "100%" }}>
               {followedTraders.length > 0 ? (
                 <>
-                  <div className="grid grid-cols-[1fr_55px_65px_28px_24px] gap-1.5 px-3 py-2 border-b border-white/10">
+                  {/* 表头：删掉 TA 列，grid 从 5 列改为 4 列 */}
+                  <div className="grid grid-cols-[1fr_55px_65px_24px] gap-1.5 px-3 py-2 border-b border-white/10">
                     <span className="text-[8px] text-gray-500 uppercase tracking-wide">Trader</span>
                     <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">Return</span>
                     <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">Profit</span>
-                    <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">TA</span>
                     <span></span>
                   </div>
                   <div className="divide-y divide-white/5">
                     {followedTraders.map((trader, index) => {
                       const bg = AVATAR_COLORS[index % AVATAR_COLORS.length];
                       const initial = (trader.display_name || trader.trader_username)?.[0]?.toUpperCase() || "?";
+                      // ← 从 traderPnlMap 拿用户真实盈亏数据
+                      const pnlData = traderPnlMap[trader.trader_username];
+                      const userPnlUsd = pnlData?.pnl_usd ?? 0;
+                      const userPnlPct = pnlData?.pnl_pct ?? 0;
+
                       return (
-                        <div key={trader.id}
-                          className="grid grid-cols-[1fr_55px_65px_28px_24px] gap-1.5 px-3 py-2.5 items-center hover:bg-white/5 transition-all duration-200 row-animate cursor-pointer active:bg-white/10"
+                        <div
+                          key={trader.id}
+                          className="grid grid-cols-[1fr_55px_65px_24px] gap-1.5 px-3 py-2.5 items-center hover:bg-white/5 transition-all duration-200 row-animate cursor-pointer active:bg-white/10"
                           style={{ animationDelay: `${index * 0.05}s` }}
-                          onClick={() => router.push(`/profile?handle=${trader.trader_username}`)}>
+                          onClick={() => router.push(`/profile?handle=${trader.trader_username}`)}
+                        >
+                          {/* Trader 列 */}
                           <div className="flex items-center gap-1.5">
                             {trader.avatar_url ? (
                               <img src={trader.avatar_url} className="w-5 h-5 rounded-full object-cover" alt="" />
@@ -459,15 +482,22 @@ const Home = () => {
                               {trader.profit_grade && <span className="text-[8px] text-gray-500">{trader.profit_grade}</span>}
                             </div>
                           </div>
-                          <span className={`text-[10px] text-right font-medium ${trader.avg_return_pct >= 0 ? "text-teal-400" : "text-rose-400"}`}>
-                            {(trader.avg_return_pct ?? 0) >= 0 ? "+" : ""}{(trader.avg_return_pct ?? 0).toFixed(1)}%
+
+                          {/* Return 列：用户真实 pnl_pct */}
+                          <span className={`text-[10px] text-right font-medium ${userPnlPct >= 0 ? "text-teal-400" : "text-rose-400"}`}>
+                            {userPnlPct >= 0 ? "+" : ""}{userPnlPct.toFixed(1)}%
                           </span>
-                          <span className={`text-[10px] text-right font-medium ${trader.total_profit_usd >= 0 ? "text-white" : "text-rose-400"}`}>
-                            {trader.total_profit_usd >= 0 ? "" : "-"}${Math.abs(trader.total_profit_usd).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+
+                          {/* Profit 列：用户真实 pnl_usd */}
+                          <span className={`text-[10px] text-right font-medium ${userPnlUsd >= 0 ? "text-white" : "text-rose-400"}`}>
+                            {userPnlUsd >= 0 ? "" : "-"}${Math.abs(userPnlUsd).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
                           </span>
-                          <span className="text-[10px] text-gray-400 text-right">{trader.total_signals}</span>
-                          <button onClick={(e) => { e.stopPropagation(); router.push(`/settings?tab=trader&handle=${trader.trader_username}`); }}
-                            className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-teal-400 hover:bg-white/10 rounded-md transition-all cursor-pointer">
+
+                          {/* Settings 按钮（原 TA 列位置） */}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); router.push(`/settings?tab=trader&handle=${trader.trader_username}`); }}
+                            className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-teal-400 hover:bg-white/10 rounded-md transition-all cursor-pointer"
+                          >
                             <Settings size={11} />
                           </button>
                         </div>
@@ -488,7 +518,7 @@ const Home = () => {
               )}
             </div>
 
-            {/* Positions */}
+            {/* ── Positions Tab ── */}
             <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "position" ? 1 : 0, transform: activeTab === "position" ? "translateX(0)" : "translateX(20px)", position: activeTab === "position" ? "relative" : "absolute", pointerEvents: activeTab === "position" ? "auto" : "none", width: "100%", top: 0 }}>
               {currentPositions.length > 0 ? (
                 <>
@@ -538,12 +568,7 @@ const Home = () => {
 
       {/* Overlays */}
       {showRewards && (
-        <div
-          className="fixed inset-0 z-[100]"
-          style={{
-            animation: "rewardsFadeIn 0.35s ease-out both",
-          }}
-        >
+        <div className="fixed inset-0 z-[100]" style={{ animation: "rewardsFadeIn 0.35s ease-out both" }}>
           <KOLRewardsScreen onClose={closeRewards} />
         </div>
       )}

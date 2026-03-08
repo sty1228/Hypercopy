@@ -709,3 +709,17 @@ export const applyReferralCode = async (code: string) =>
 
 export const applyAffiliateProgram = async () =>
   axiosInstance.post("/api/referral/affiliate-apply");
+
+// ─── Trader PnL (用户真实盈亏，按跟随的 KOL 分组) ──────────
+
+export interface TraderPnlItem {
+  trader_username: string;
+  pnl_usd: number;
+  pnl_pct: number;
+  trade_count: number;
+  open_count: number;
+}
+
+export const getTraderPnl = async (): Promise<TraderPnlItem[]> => {
+  return await get("/api/portfolio/trader-pnl");
+};
