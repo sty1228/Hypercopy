@@ -358,9 +358,8 @@ function ProfileTradeSettingsSheet({ traderName, mode, onConfirm, onClose }: {
   const ac = mode === "counter" ? "#f59e0b" : "#2dd4bf";
   const acShadow = mode === "counter" ? "rgba(245,158,11,0.3)" : "rgba(45,212,191,0.3)";
   const subtitle = mode === "counter"
-    ? "We'll open the opposite direction of their trades automatically."
-    : "We'll auto-mirror their trades for you. Defaults apply to all future copies.";
-
+    ? "Takes the opposite side of their future trades only — past signals are not copied."
+    : "Copies their future trades only — past signals are not included. You control size & leverage.";
   useEffect(() => { requestAnimationFrame(() => setVisible(true)); }, []);
   const handleClose = () => { setVisible(false); setTimeout(onClose, 300); };
   const handleConfirm = async () => {
@@ -409,7 +408,7 @@ function ProfileTradeSettingsSheet({ traderName, mode, onConfirm, onClose }: {
             <div className="flex items-center justify-between px-4 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
               <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.5)" }}>Size</span>
               <div className="flex items-center gap-2.5">
-                <input type="number" value={sizeVal} onChange={e => setSizeVal(Number(e.target.value) || 0)} className="w-16 text-right bg-transparent border-none outline-none text-[15px] font-bold" style={{ color: "rgba(255,255,255,0.9)" }} />
+                <input type="number" value={sizeVal || ""} onChange={e => setSizeVal(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))} className="w-16 text-right bg-transparent border-none outline-none text-[15px] font-bold" style={{ color: "rgba(255,255,255,0.9)" }} />
                 <TypeToggle val={sizeType} onChange={setSizeType} color={ac} />
               </div>
             </div>
@@ -426,14 +425,14 @@ function ProfileTradeSettingsSheet({ traderName, mode, onConfirm, onClose }: {
             <div className="flex items-center justify-between px-4 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
               <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.5)" }}>Stop Loss</span>
               <div className="flex items-center gap-2.5">
-                <input type="number" value={slVal} onChange={e => setSlVal(Number(e.target.value) || 0)} className="w-16 text-right bg-transparent border-none outline-none text-[15px] font-bold" style={{ color: "#fb7185" }} />
+                <input type="number" value={slVal} onChange={e => setSlVal(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))} className="w-16 text-right bg-transparent border-none outline-none text-[15px] font-bold" style={{ color: "#fb7185" }} />
                 <TypeToggle val={slType} onChange={setSlType} color="#fb7185" />
               </div>
             </div>
             <div className="flex items-center justify-between px-4 py-3.5">
               <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.5)" }}>Take Profit</span>
               <div className="flex items-center gap-2.5">
-                <input type="number" value={tpVal} onChange={e => setTpVal(Number(e.target.value) || 0)} className="w-16 text-right bg-transparent border-none outline-none text-[15px] font-bold" style={{ color: "#34d399" }} />
+                <input type="number" value={tpVal} onChange={e => setTpVal(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))} className="w-16 text-right bg-transparent border-none outline-none text-[15px] font-bold" style={{ color: "#34d399" }} />
                 <TypeToggle val={tpType} onChange={setTpType} color="#34d399" />
               </div>
             </div>
@@ -447,7 +446,7 @@ function ProfileTradeSettingsSheet({ traderName, mode, onConfirm, onClose }: {
                 <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" /><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>
                 Setting up…
               </span>
-            ) : mode === "counter" ? "Start Countering" : "Start Copying"}
+            ) : mode === "counter" ? "Counter Future Trades" : "Copy Future Trades"}
           </button>
           <div className="mt-4 px-3 py-3 rounded-xl" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
             <div className="flex items-start gap-2">

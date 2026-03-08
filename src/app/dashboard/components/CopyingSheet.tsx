@@ -23,6 +23,7 @@ interface TraderData {
 interface TraderPnlItem {
   trader_username: string;
   pnl_usd: number;
+  pnl_pct: number;        // ★ 真实用户回报%
   trade_count: number;
   open_count: number;
   source: string | null;
@@ -141,13 +142,17 @@ const TraderRow = ({
         </div>
       </div>
 
+      {/* 右侧：真实用户盈亏 $ 和 % */}
       <div className="flex flex-col items-end gap-1">
         <span className="text-sm font-bold" style={{ color: up ? "#22c55e" : "#ef4444" }}>
           {up ? "+" : "−"}${Math.abs(trader.pnl).toLocaleString(undefined, { minimumFractionDigits:2,maximumFractionDigits:2 })}
         </span>
-        <span className="text-[10px]" style={{ color:"rgba(255,255,255,0.25)" }}>
-          {trader.trade_count} trade{trader.trade_count !== 1 ? "s" : ""}
-        </span>
+        {/* 只有真实交易过才显示 % */}
+        {trader.trade_count > 0 && trader.pnlPct !== 0 && (
+          <span className="text-[10px] font-medium" style={{ color: trader.pnlPct >= 0 ? "#22c55e" : "#ef4444" }}>
+            {trader.pnlPct >= 0 ? "+" : ""}{trader.pnlPct.toFixed(2)}%
+          </span>
+        )}
       </div>
     </div>
   );
@@ -171,25 +176,6 @@ const LoadingState = () => (
     <div className="w-8 h-8 rounded-full border-2 animate-spin"
       style={{ borderColor:"rgba(45,212,191,0.3)",borderTopColor:"transparent" }} />
     <span className="text-xs" style={{ color:"rgba(255,255,255,0.3)" }}>Loading...</span>
-  </div>
-);
-
-const DepositBanner = ({ onDepositClick }: { onDepositClick?: () => void }) => (
-  <div className="mx-4 mb-4 rounded-2xl p-4 flex items-center justify-between gap-3"
-    style={{ background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.2)" }}>
-    <div>
-      <p className="text-sm font-bold" style={{ color:"#f59e0b" }}>Fund your wallet to start trading</p>
-      <p className="text-xs mt-0.5" style={{ color:"rgba(255,255,255,0.4)" }}>
-        Copy/Counter trades won't execute until you deposit USDC.
-      </p>
-    </div>
-    <button
-      onClick={onDepositClick}
-      className="flex-shrink-0 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
-      style={{ background:"rgba(245,158,11,0.2)",color:"#f59e0b",border:"1px solid rgba(245,158,11,0.3)" }}
-    >
-      Deposit
-    </button>
   </div>
 );
 
@@ -227,7 +213,8 @@ const CopyingSheet = ({ mode, onClose, userBalance = 0, onDepositClick }: Copyin
     try {
       const [followRes, pnlRes] = await Promise.all([
         getFollowedTraders("30d"),
-        axiosInstance.get<TraderPnlItem[]>("/portfolio/trader-pnl").then(r => r.data).catch(() => [] as TraderPnlItem[]),
+        // ★ 修复：正确路径 + 不多取 .data（interceptor 已经 return data 了）
+        (axiosInstance.get("/api/portfolio/trader-pnl") as Promise<TraderPnlItem[]>).catch(() => [] as TraderPnlItem[]),
       ]);
 
       const pnlMap = new Map<string, TraderPnlItem>();
@@ -241,7 +228,7 @@ const CopyingSheet = ({ mode, onClose, userBalance = 0, onDepositClick }: Copyin
           handle: `@${username}`,
           username,
           pnl: pnlData ? pnlData.pnl_usd : 0,
-          pnlPct: item.avg_return_pct || 0,
+          pnlPct: pnlData ? pnlData.pnl_pct : 0,   // ★ 真实用户回报%，不用 KOL 自身数据
           coins: [],
           is_copy_trading: item.is_copy_trading || false,
           is_counter_trading: item.is_counter_trading || false,
@@ -269,8 +256,6 @@ const CopyingSheet = ({ mode, onClose, userBalance = 0, onDepositClick }: Copyin
 
   const sorted = sortTraders(traders, sort);
   const title = mode === "copying" ? "Copying" : "Copiers";
-
-  // ★ 余额 <= 0 时不显示 KOL 列表
   const showList = !loading && userBalance > 0 && traders.length > 0;
 
   const sortOptions = [
@@ -305,7 +290,6 @@ const CopyingSheet = ({ mode, onClose, userBalance = 0, onDepositClick }: Copyin
         <div className="px-5 pb-3 flex items-center justify-between">
           <div className="flex items-baseline gap-2">
             <span className="text-white text-base font-extrabold">{title}</span>
-            {/* ★ 余额>0才显示数量，避免误导 */}
             {userBalance > 0 && (
               <span className="text-xs font-semibold" style={{ color:"rgba(255,255,255,0.25)" }}>{traders.length}</span>
             )}
@@ -317,9 +301,6 @@ const CopyingSheet = ({ mode, onClose, userBalance = 0, onDepositClick }: Copyin
           </button>
         </div>
 
-        {/* deposit banner removed */}
-
-        {/* ★ sort bar 和 summary bar 只在有余额且有数据时显示 */}
         {showList && (
           <div className="flex gap-1.5 px-5 pb-3 overflow-x-auto">
             {sortOptions.map(o => (
@@ -342,7 +323,6 @@ const CopyingSheet = ({ mode, onClose, userBalance = 0, onDepositClick }: Copyin
         {loading ? (
           <LoadingState />
         ) : userBalance <= 0 ? (
-          // ★ 余额=0 → 不显示KOL列表
           <EmptyState message="Deposit USDC to start copy trading. Your followed traders will appear here." />
         ) : traders.length === 0 ? (
           <EmptyState message={
