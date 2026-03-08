@@ -108,7 +108,9 @@ const Home = () => {
   const pendingBalance = walletBal?.arb_usdc ?? 0;
   const openCount = summary?.open_positions ?? 0;
   const totalTrades = summary?.total_trades ?? 0;
-  const copyingCount = profile?.followingCount ?? 0;
+  const copyingCount = followedTraders.filter(
+    t => t.is_copy_trading || t.is_counter_trading
+  ).length;
   const copiersCount = profile?.followerCount ?? 0;
 
   useEffect(() => {

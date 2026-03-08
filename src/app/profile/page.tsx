@@ -408,7 +408,7 @@ function ProfileTradeSettingsSheet({ traderName, mode, onConfirm, onClose }: {
             <div className="flex items-center justify-between px-4 py-3.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
               <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.5)" }}>Size</span>
               <div className="flex items-center gap-2.5">
-                <input type="number" value={sizeVal || ""} onChange={e => setSizeVal(e.target.value === "" ? 0 : Math.max(0, Number(e.target.value)))} className="w-16 text-right bg-transparent border-none outline-none text-[15px] font-bold" style={{ color: "rgba(255,255,255,0.9)" }} />
+                <input type="text" inputMode="decimal" value={sizeVal === 0 ? "" : String(sizeVal)} onChange={e => { const v = e.target.value.replace(/[^0-9.]/g, ""); setSizeVal(v === "" ? 0 : Math.max(0, Number(v))); }} placeholder="0" className="w-16 text-right bg-transparent border-none outline-none text-[15px] font-bold" style={{ color: "rgba(255,255,255,0.9)" }} />
                 <TypeToggle val={sizeType} onChange={setSizeType} color={ac} />
               </div>
             </div>
@@ -1031,7 +1031,7 @@ const handleCounterToggle = useCallback(async () => {
                   <span className="relative z-10 flex items-center justify-center gap-1.5">
                     {copyLoading
                       ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
-                      : isCopying ? <><CheckCircle size={12} /><span>Copying ✓</span></> : <><Copy size={12} /><span>Copy Trade</span></>}
+                      : isCopying ? <><CheckCircle size={12} /><span>Copying ✓</span></> : <><Copy size={12} /><span>Copy Future Trades</span></>}
                   </span>
                 </button>
 
@@ -1053,7 +1053,7 @@ const handleCounterToggle = useCallback(async () => {
                   <span className="relative z-10 flex items-center justify-center gap-1.5">
                     {counterLoading
                       ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
-                      : isCounterTrading ? <><CheckCircle size={12} /><span>Countering ✓</span></> : <><RefreshCw size={12} /><span>Counter Trade</span></>}
+                      : isCounterTrading ? <><CheckCircle size={12} /><span>Countering ✓</span></> : <><RefreshCw size={12} /><span>Counter Future Trades</span></>}
                   </span>
                 </button>
               </div>
