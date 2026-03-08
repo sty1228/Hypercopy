@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { getReferralInfo, applyAffiliateProgram, ReferralInfo } from "@/service";
 
 interface InviteSheetProps {
@@ -73,7 +74,7 @@ const InviteSheet = ({ onClose }: InviteSheetProps) => {
     setAffiliateLoading(false);
   };
 
-  return (
+  const content = (
     <>
       <style>{`
         @keyframes sheetUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
@@ -220,6 +221,8 @@ const InviteSheet = ({ onClose }: InviteSheetProps) => {
       </div>
     </>
   );
+
+  return createPortal(content, document.body);
 };
 
 export default InviteSheet;
