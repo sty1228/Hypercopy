@@ -701,15 +701,13 @@ export interface ReferralInfo {
   invited_by: { username: string; display_name: string; avatar_url: string | null } | null;
   global_slots: { total_slots: number; slots_used: number; free_tier_total: number; free_tier_full: boolean };
 }
-export const getReferralInfo = async (): Promise<ReferralInfo> => {
-  const res = await axiosInstance.get<ReferralInfo>("/referral/info");
-  return res.data;
-};
-export const applyReferralCode = async (code: string) => {
-  const res = await axiosInstance.post("/referral/apply-code", { code });
-  return res.data;
-};
-export const applyAffiliateProgram = async () => {
-  const res = await axiosInstance.post("/referral/affiliate-apply");
-  return res.data;
-};
+
+
+export const getReferralInfo = async (): Promise<ReferralInfo> =>
+  (await axiosInstance.get<ReferralInfo>("/api/referral/info")).data;
+
+export const applyReferralCode = async (code: string) =>
+  (await axiosInstance.post("/api/referral/apply-code", { code })).data;
+
+export const applyAffiliateProgram = async () =>
+  (await axiosInstance.post("/api/referral/affiliate-apply")).data;
