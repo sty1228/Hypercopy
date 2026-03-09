@@ -37,6 +37,9 @@ function directionInfo(d?: string | null) {
   };
 }
 
+/* ★ Fixed height for the sheet: 75vh always, scrollable content area */
+const SHEET_HEIGHT = "75vh";
+
 export default function SignalDetailSheet({ signal, open, onClose, onTrade, trading }: Props) {
   const [visible, setVisible] = useState(false);
   const [imgErr, setImgErr] = useState(false);
@@ -56,7 +59,7 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
   };
 
   if (!open && !visible) return null;
-  if (!signal) return null;  
+  if (!signal) return null;
 
   const pct = signal.pct_change ?? null;
   const pctColor = pct == null ? "rgba(255,255,255,0.4)" : pct >= 0 ? "#2dd4bf" : "#f43f5e";
@@ -75,25 +78,25 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
         onClick={handleClose}
       />
 
-      {/* Sheet */}
+      {/* ★ Sheet — fixed height, flex column so buttons stay pinned at bottom */}
       <div
-        className="relative w-full transition-transform duration-300 ease-out"
+        className="relative w-full transition-transform duration-300 ease-out flex flex-col"
         style={{
           maxWidth: 393,
+          height: SHEET_HEIGHT,
           background: "#0d1117",
           borderRadius: "20px 20px 0 0",
           border: "1px solid rgba(255,255,255,0.07)",
           borderBottom: "none",
-          maxHeight: "88vh",
-          overflowY: "auto",
           transform: visible ? "translateY(0)" : "translateY(100%)",
           boxShadow: "0 -10px 40px rgba(0,0,0,0.7)",
         }}
       >
         {/* Accent bar */}
-        <div style={{ height: 3, background: `linear-gradient(90deg, transparent, ${dir.color}, transparent)`, opacity: 0.5 }} />
+        <div className="flex-shrink-0" style={{ height: 3, background: `linear-gradient(90deg, transparent, ${dir.color}, transparent)`, opacity: 0.5 }} />
 
-        <div className="px-5 pt-4 pb-8">
+        {/* ★ Scrollable content area — grows to fill, scrolls internally */}
+        <div className="flex-1 overflow-y-auto px-5 pt-4">
           {/* Handle */}
           <div className="w-9 h-[3px] rounded-full mx-auto mb-4" style={{ background: "rgba(255,255,255,0.1)" }} />
 
@@ -145,7 +148,7 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
                 src={signal.tweet_image_url!}
                 alt="Signal chart"
                 className="w-full object-cover"
-                style={{ maxHeight: 240 }}
+                style={{ maxHeight: 200 }}
                 loading="lazy"
                 onError={() => setImgErr(true)}
               />
@@ -156,7 +159,12 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
           {signal.tweet_text && signal.tweet_text.trim() && (
             <div
               className="rounded-xl p-4 mb-4 text-[12px] text-gray-200 leading-relaxed whitespace-pre-wrap"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                maxHeight: 120,
+                overflowY: "auto",
+              }}
             >
               {signal.tweet_text.trim()}
             </div>
@@ -190,9 +198,11 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
           {signal.timestamp && (
             <p className="text-[10px] text-gray-600 text-center mb-4">{signal.timestamp}</p>
           )}
+        </div>
 
-          {/* Trade buttons */}
-          {canTrade && (
+        {/* ★ Trade buttons — pinned at bottom, always visible */}
+        {canTrade && (
+          <div className="flex-shrink-0 px-5 pb-8 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="flex gap-3">
               <button
                 onClick={() => onTrade!(signal, "counter")}
@@ -211,8 +221,8 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
                 {trading ? "Placing…" : "Copy Trade"}
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

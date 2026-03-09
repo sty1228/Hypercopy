@@ -239,7 +239,7 @@ const SectionCard = ({
   </div>
 );
 
-// Input Row Component
+// ★ FIX: InputRow with local display state — allows clearing to empty string
 const InputRow = ({
   label,
   value,
@@ -258,30 +258,68 @@ const InputRow = ({
   onTypeChange?: (value: TradeSizeType) => void;
   showTypeButtons?: boolean;
   color?: "teal" | "orange";
-}) => (
-  <div
-    className="rounded-md h-9 flex items-center px-2.5 gap-1.5 mb-1.5 last:mb-0"
-    style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.05)" }}
-  >
-    <span className="text-[10px] text-gray-500 flex-shrink-0 w-[72px]">{label}</span>
-    <input
-      type="text"
-      value={suffix ? `${value}${suffix}` : value}
-      onChange={(e) => onChange(e.target.value.replace(suffix || "", ""))}
-      className="flex-1 bg-transparent text-right text-white text-[12px] font-medium outline-none"
-    />
-    {showTypeButtons && typeValue && onTypeChange && (
-      <div className="flex gap-1 ml-1.5">
-        <TypeButton active={typeValue === "USD"} onClick={() => onTypeChange("USD")} color={color}>
-          $
-        </TypeButton>
-        <TypeButton active={typeValue === "PCT"} onClick={() => onTypeChange("PCT")} color={color}>
-          %
-        </TypeButton>
-      </div>
-    )}
-  </div>
-);
+}) => {
+  // ★ Local string state so user can clear the field to empty
+  const [displayValue, setDisplayValue] = useState(String(value));
+  const isFocused = useRef(false);
+
+  // Sync from parent when value changes externally (e.g. load settings, reset)
+  useEffect(() => {
+    if (!isFocused.current) {
+      setDisplayValue(String(value));
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(suffix || "", "");
+    // Only allow digits and decimal point
+    if (raw !== "" && !/^\d*\.?\d*$/.test(raw)) return;
+    setDisplayValue(raw);
+    onChange(raw);
+  };
+
+  const handleFocus = () => {
+    isFocused.current = true;
+    // Select all text on focus for easy replacement
+  };
+
+  const handleBlur = () => {
+    isFocused.current = false;
+    // On blur, if empty or invalid → fall back to 0
+    if (displayValue === "" || isNaN(Number(displayValue))) {
+      setDisplayValue("0");
+      onChange("0");
+    }
+  };
+
+  return (
+    <div
+      className="rounded-md h-9 flex items-center px-2.5 gap-1.5 mb-1.5 last:mb-0"
+      style={{ background: "rgba(0,0,0,0.2)", border: "1px solid rgba(255,255,255,0.05)" }}
+    >
+      <span className="text-[10px] text-gray-500 flex-shrink-0 w-[72px]">{label}</span>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={suffix ? `${displayValue}${suffix}` : displayValue}
+        onChange={handleChange}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        className="flex-1 bg-transparent text-right text-white text-[12px] font-medium outline-none"
+      />
+      {showTypeButtons && typeValue && onTypeChange && (
+        <div className="flex gap-1 ml-1.5">
+          <TypeButton active={typeValue === "USD"} onClick={() => onTypeChange("USD")} color={color}>
+            $
+          </TypeButton>
+          <TypeButton active={typeValue === "PCT"} onClick={() => onTypeChange("PCT")} color={color}>
+            %
+          </TypeButton>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function DefaultFollow() {
   const [cachedSettings, setCachedSettings] = useState<IDefaultFollowSettings | null>(null);

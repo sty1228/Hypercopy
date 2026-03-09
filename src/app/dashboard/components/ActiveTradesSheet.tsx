@@ -108,38 +108,18 @@ const ActiveTradesSheet = ({ positions, onClose, onSelectPosition }: ActiveTrade
         <div className="absolute bottom-1/3 -right-20 w-[200px] h-[200px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.04) 0%, transparent 60%)", filter: "blur(40px)" }} />
       </div>
 
-      {/* Header — using shared TopBar + back button on left */}
-      <div className="relative z-10 mt-2 mb-1.5 flex items-center justify-between px-3">
-        {/* Left: back + coin */}
-        <div className="flex items-center gap-1.5">
-          <div
-            onClick={handleClose}
-            className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10 active:scale-95"
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
-          >
-            <ChevronLeft size={14} className="text-gray-400" />
-          </div>
-        </div>
-        {/* Right: reuse TopBar's right side pattern — but this is an overlay so keep it minimal */}
-        <div className="flex items-center gap-1.5">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <div className="relative flex items-center justify-center" style={{ width: 10, height: 10 }}>
-              <div className="w-[7px] h-[7px] rounded-full" style={{ background: "#eab308", boxShadow: "0 0 4px #eab308, 0 0 8px #eab30850", animation: "pulseDotAT 2s ease-in-out infinite" }} />
-            </div>
-            <span className="text-[10px] font-semibold text-teal-400 tabular-nums">{positions.length}</span>
-          </div>
-        </div>
-      </div>
+      {/* ★ Real TopBar — self-fetching, override activeTrades with actual count */}
+      <TopBar activeTrades={positions.length} />
 
-      <style jsx>{`
-        @keyframes pulseDotAT {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.4); opacity: 0.5; }
-        }
-      `}</style>
-
-      {/* Title */}
-      <div className="relative z-10 px-4 mb-3 fade-up" style={{ animationDelay: "0.12s" }}>
+      {/* Back button + Title row */}
+      <div className="relative z-10 px-4 mb-3 flex items-center gap-2 fade-up" style={{ animationDelay: "0.12s" }}>
+        <div
+          onClick={handleClose}
+          className="w-7 h-7 rounded-md flex items-center justify-center cursor-pointer transition-all hover:bg-white/10 active:scale-95 flex-shrink-0"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+        >
+          <ChevronLeft size={14} className="text-gray-400" />
+        </div>
         <h1 className="text-lg font-bold text-white">Active Trades</h1>
       </div>
 

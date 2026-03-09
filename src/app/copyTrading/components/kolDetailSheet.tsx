@@ -57,10 +57,9 @@ function QuickSettingsSheet({
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  // Animate in
   useEffect(() => { requestAnimationFrame(() => setVisible(true)); }, []);
 
-  // ★ Pre-load saved global settings so user sees their existing config
+  // ★ Pre-load saved global settings
   useEffect(() => {
     getDefaultSettings()
       .then(s => {
@@ -72,7 +71,7 @@ function QuickSettingsSheet({
         if (s.sl?.value)     setSlVal(s.sl.value);
         if (s.sl?.type)      setSlType(s.sl.type);
       })
-      .catch(() => {}); // silence — use hardcoded defaults on failure
+      .catch(() => {});
   }, []);
 
   const handleClose = () => { setVisible(false); setTimeout(onClose, 300); };
@@ -463,12 +462,10 @@ export default function KolDetailSheet({
   const [showSettings, setShowSettings]   = useState(false);
   const [showSuccess, setShowSuccess]     = useState(false);
   const [copyAction, setCopyAction]       = useState<"copy" | "counter">("copy");
-  // ★ Track exact follow mode instead of just boolean
   const [followMode, setFollowMode]       = useState<"copy" | "counter" | null>(null);
   const [toggling, setToggling]           = useState(false);
   const [imgError, setImgError]           = useState(false);
 
-  // ★ Signal detail sheet state
   const [detailSignal, setDetailSignal]   = useState<SignalDetailData | null>(null);
   const [detailOpen, setDetailOpen]       = useState(false);
   const [tradingSignal, setTradingSignal] = useState(false);
@@ -477,7 +474,6 @@ export default function KolDetailSheet({
   const { triggerFirstCopyTrade, viewRewardsFromPrompt } = useRewards();
   const router = useRouter();
 
-  // Derived from followMode for convenience
   const isFollowed = followMode !== null;
 
   useEffect(() => {
@@ -486,7 +482,6 @@ export default function KolDetailSheet({
       fetchUserSignals();
       checkIfFollowed();
     } else {
-      // Delay clear so exit animation completes cleanly
       const t = setTimeout(() => {
         setUserSignalsData(null);
         setCurrentClickItemId(null);
@@ -521,12 +516,9 @@ export default function KolDetailSheet({
     }
   };
 
-  // ─── Copy / Counter action ───────────────────────────────────
-
   const handleCopyAction = async (action: "copy" | "counter") => {
     if (!authenticated) { login(); return; }
 
-    // ── Turn OFF — only if the SAME mode is already active ──
     if (followMode === action) {
       setToggling(true);
       try {
@@ -545,7 +537,6 @@ export default function KolDetailSheet({
       return;
     }
 
-    // ── Balance check before turning ON ──
     try {
       const bal = await getWalletBalance();
       if (bal.hl_equity < 5) {
@@ -559,12 +550,9 @@ export default function KolDetailSheet({
       return;
     }
 
-    // ★ Always show settings sheet (removed hasEverCopied gate)
     setCopyAction(action);
     setShowSettings(true);
   };
-
-  // ─── Settings confirm ────────────────────────────────────────
 
   const handleSettingsConfirm = async (cfg: any) => {
     try {
@@ -579,7 +567,6 @@ export default function KolDetailSheet({
       };
       await updateDefaultSettings(payload);
 
-      // ★ FIX: pass correct copy/counter flags based on copyAction
       const isCopy    = copyAction === "copy";
       const isCounter = copyAction === "counter";
       await followTrader(data.x_handle, isCopy, isCounter);
@@ -593,8 +580,6 @@ export default function KolDetailSheet({
       toast.error(e?.message || "Failed to start copy trading. Please try again.");
     }
   };
-
-  // ─── Signal detail trade handler ─────────────────────────────
 
   const handleSignalTrade = async (signal: SignalDetailData, side: "copy" | "counter") => {
     if (!signal.signal_id) return;
@@ -624,8 +609,6 @@ export default function KolDetailSheet({
     router.push("/dashboard");
   };
 
-  // ─── Derived values ──────────────────────────────────────────
-
   const profit      = data?.results_pct || 0;
   const isPositive  = profit >= 0;
   const displayName = data?.display_name || data?.x_handle || "";
@@ -647,16 +630,14 @@ export default function KolDetailSheet({
         className={`absolute inset-0 z-50 transition-transform duration-500 ease-out ${isOpen ? "translate-x-0" : "translate-x-full"}`}
         style={{ background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)" }}
       >
-        {/* Ambient glow */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-20 left-1/3 w-[300px] h-[300px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.08) 0%, transparent 60%)", filter: "blur(60px)" }} />
           <div className="absolute bottom-1/3 -right-20 w-[200px] h-[200px] rounded-full" style={{ background: "radial-gradient(circle, rgba(45,212,191,0.05) 0%, transparent 60%)", filter: "blur(40px)" }} />
         </div>
 
-        {/* Scrollable content */}
         <div className="relative z-10 h-full overflow-y-auto">
 
-          {/* ── Header ── */}
+          {/* Header */}
           <div className="mt-4 mb-3 flex items-center justify-between px-4">
             <button
               onClick={handleClose}
@@ -671,7 +652,7 @@ export default function KolDetailSheet({
             <div className="w-10" />
           </div>
 
-          {/* ── Profile Card ── */}
+          {/* Profile Card */}
           <div className="px-4">
             <div
               className="rounded-2xl p-4 mb-4 relative overflow-hidden"
@@ -683,7 +664,6 @@ export default function KolDetailSheet({
             >
               <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.15) 0%, transparent 60%)" }} />
               <div className="relative">
-                {/* Avatar + name + pnl */}
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     {showAvatar ? (
@@ -717,7 +697,6 @@ export default function KolDetailSheet({
                   </div>
                 </div>
 
-                {/* Stats row */}
                 <div className="grid grid-cols-3 gap-2 mb-4">
                   {[
                     { label: "Result", val: `${isPositive ? "+" : ""}${new BigNumber(profit).decimalPlaces(2).toNumber()}%`, color: isPositive ? "text-teal-400" : "text-rose-400" },
@@ -736,7 +715,7 @@ export default function KolDetailSheet({
                   ))}
                 </div>
 
-                {/* ★ Action Buttons — reflect followMode accurately */}
+                {/* ★ FIX: "Copy All" → "Copy Future Trades", "Counter All" → "Counter Future Trades" */}
                 <div className="flex gap-3">
                   <button
                     onClick={() => handleCopyAction("counter")}
@@ -749,7 +728,7 @@ export default function KolDetailSheet({
                     }}
                   >
                     <span className="text-rose-400">
-                      {toggling && followMode === "counter" ? "Stopping…" : followMode === "counter" ? "Countering ✓" : "Counter All"}
+                      {toggling && followMode === "counter" ? "Stopping…" : followMode === "counter" ? "Countering ✓" : "Counter Future Trades"}
                     </span>
                   </button>
                   <button
@@ -763,7 +742,7 @@ export default function KolDetailSheet({
                     }}
                   >
                     <span className="text-teal-400">
-                      {toggling && followMode === "copy" ? "Stopping…" : followMode === "copy" ? "Copying ✓" : "Copy All"}
+                      {toggling && followMode === "copy" ? "Stopping…" : followMode === "copy" ? "Copying ✓" : "Copy Future Trades"}
                     </span>
                   </button>
                 </div>
@@ -771,7 +750,7 @@ export default function KolDetailSheet({
             </div>
           </div>
 
-          {/* ── Signals Header ── */}
+          {/* Signals Header */}
           <div className="px-4 mb-3 flex items-center gap-2">
             <svg className="w-4 h-4 text-teal-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
               <path d="M12 20v-8" />
@@ -784,7 +763,7 @@ export default function KolDetailSheet({
             <span className="text-gray-500 text-xs">({userSignalsData?.tweetsCount || 0})</span>
           </div>
 
-          {/* ── Signals List ── */}
+          {/* Signals List */}
           <div className="px-4 space-y-4 pb-24">
             {userSignalsData?.signals.map((signal, index) => (
               <SignalItem
@@ -792,15 +771,13 @@ export default function KolDetailSheet({
                 data={signal}
                 index={index}
                 currentClickItemId={currentClickItemId}
-                // Fallback expand (only used if onDetail is absent — kept for safety)
                 onClick={() => setCurrentClickItemId(
                   currentClickItemId === signal.signal_id ? null : signal.signal_id
                 )}
-                // ★ Opens detail sheet
                 onDetail={(sig: UserSignalItem) => {
                   setDetailSignal({
                     ticker:          sig.ticker,
-                    direction:       sig.bull_or_bear,       // "bullish" | "bearish"
+                    direction:       sig.bull_or_bear,
                     pct_change:      sig.change_since_tweet,
                     tweet_text:      sig.content,
                     tweet_image_url: sig.tweet_image_url ?? null,
@@ -818,7 +795,6 @@ export default function KolDetailSheet({
           </div>
         </div>
 
-        {/* ── Settings Sheet ── */}
         {showSettings && (
           <QuickSettingsSheet
             traderName={data.x_handle}
@@ -828,7 +804,6 @@ export default function KolDetailSheet({
           />
         )}
 
-        {/* ── Success Sheet ── */}
         {showSuccess && (
           <SuccessSheet
             traderName={data.x_handle}
@@ -838,7 +813,6 @@ export default function KolDetailSheet({
           />
         )}
 
-        {/* ★ Signal Detail Sheet */}
         <SignalDetailSheet
           signal={detailSignal}
           open={detailOpen}
