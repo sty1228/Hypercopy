@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
   getFollowedTraders,
   getTraderSettings,
@@ -139,6 +139,55 @@ function TypeBtn({
     >
       {label}
     </button>
+  );
+}
+
+// ─── ★ NumInputSmall — allows clearing to empty, no stuck zeros ───
+function NumInputSmall({
+  value,
+  onChange,
+  color = "white",
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  color?: string;
+}) {
+  const [display, setDisplay] = useState(String(value));
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (!focused.current) setDisplay(String(value));
+  }, [value]);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={display}
+      onFocus={() => {
+        focused.current = true;
+      }}
+      onBlur={() => {
+        focused.current = false;
+        const n = parseFloat(display);
+        if (isNaN(n) || display === "") {
+          setDisplay("0");
+          onChange(0);
+        }
+      }}
+      onChange={(e) => {
+        e.stopPropagation();
+        const raw = e.target.value;
+        if (raw === "" || /^\d*\.?\d*$/.test(raw)) {
+          setDisplay(raw);
+          const n = parseFloat(raw);
+          if (!isNaN(n)) onChange(n);
+        }
+      }}
+      onClick={(e) => e.stopPropagation()}
+      className="w-16 text-right bg-transparent border-none outline-none text-[13px] font-bold"
+      style={{ color }}
+    />
   );
 }
 
@@ -656,14 +705,11 @@ function TraderSettingsRow({ trader }: TraderSettingsRowProps) {
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-gray-400">Trade Size</span>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="number"
+                  {/* ★ FIXED: NumInputSmall allows clearing */}
+                  <NumInputSmall
                     value={settings.tradeSize}
-                    onChange={(e) =>
-                      set("tradeSize", Number(e.target.value) || 0)
-                    }
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-16 text-right bg-transparent border-none outline-none text-[13px] font-bold text-white"
+                    onChange={(n) => set("tradeSize", n)}
+                    color="white"
                   />
                   <div
                     className="flex"
@@ -712,18 +758,11 @@ function TraderSettingsRow({ trader }: TraderSettingsRowProps) {
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-gray-400">Stop Loss</span>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="number"
+                  {/* ★ FIXED: NumInputSmall allows clearing */}
+                  <NumInputSmall
                     value={settings.sl?.value ?? 0}
-                    onChange={(e) =>
-                      set("sl", {
-                        ...settings.sl,
-                        value: Number(e.target.value) || 0,
-                      })
-                    }
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-16 text-right bg-transparent border-none outline-none text-[13px] font-bold"
-                    style={{ color: "#fb7185" }}
+                    onChange={(n) => set("sl", { ...settings.sl, value: n })}
+                    color="#fb7185"
                   />
                   <div
                     className="flex"
@@ -763,18 +802,11 @@ function TraderSettingsRow({ trader }: TraderSettingsRowProps) {
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-gray-400">Take Profit</span>
                 <div className="flex items-center gap-2">
-                  <input
-                    type="number"
+                  {/* ★ FIXED: NumInputSmall allows clearing */}
+                  <NumInputSmall
                     value={settings.tp?.value ?? 0}
-                    onChange={(e) =>
-                      set("tp", {
-                        ...settings.tp,
-                        value: Number(e.target.value) || 0,
-                      })
-                    }
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-16 text-right bg-transparent border-none outline-none text-[13px] font-bold"
-                    style={{ color: "#34d399" }}
+                    onChange={(n) => set("tp", { ...settings.tp, value: n })}
+                    color="#34d399"
                   />
                   <div
                     className="flex"

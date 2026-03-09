@@ -36,6 +36,8 @@ function markHasCopied(): void {
 //  QUICK SETTINGS SHEET
 // ═══════════════════════════════════════════════════════════════
 
+
+
 function QuickSettingsSheet({
   traderName,
   action,
@@ -49,13 +51,16 @@ function QuickSettingsSheet({
 }) {
   const [sizeVal, setSizeVal] = useState(10);
   const [sizeType, setSizeType] = useState<"USD" | "PCT">("PCT");
-  const [leverage, setLeverage] = useState(8);
+  const [leverage, setLeverage] = useState(5);
   const [tpVal, setTpVal] = useState(15);
   const [tpType, setTpType] = useState<"USD" | "PCT">("PCT");
-  const [slVal, setSlVal] = useState(35);
+  const [slVal, setSlVal] = useState(10);
   const [slType, setSlType] = useState<"USD" | "PCT">("PCT");
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(false);
+
+  // ★ NEW: wallet balance
+  const [balance, setBalance] = useState<number | null>(null);
 
   useEffect(() => { requestAnimationFrame(() => setVisible(true)); }, []);
 
@@ -72,6 +77,11 @@ function QuickSettingsSheet({
         if (s.sl?.type)      setSlType(s.sl.type);
       })
       .catch(() => {});
+
+    // ★ Fetch dedicated wallet balance
+    getWalletBalance()
+      .then(b => setBalance(b.hl_equity))
+      .catch(() => setBalance(null));
   }, []);
 
   const handleClose = () => { setVisible(false); setTimeout(onClose, 300); };
@@ -82,6 +92,45 @@ function QuickSettingsSheet({
     } finally {
       setLoading(false);
     }
+  };
+
+  // ★ NEW: Reusable number input that allows clearing
+  const NumInput = ({
+    val, onVal, color,
+  }: { val: number; onVal: (n: number) => void; color: string }) => {
+    const [display, setDisplay] = useState(String(val));
+    const focused = useRef(false);
+
+    useEffect(() => {
+      if (!focused.current) setDisplay(String(val));
+    }, [val]);
+
+    return (
+      <input
+        type="text"
+        inputMode="decimal"
+        value={display}
+        onFocus={() => { focused.current = true; }}
+        onBlur={() => {
+          focused.current = false;
+          const n = parseFloat(display);
+          if (isNaN(n) || display === "") {
+            setDisplay("0");
+            onVal(0);
+          }
+        }}
+        onChange={e => {
+          const raw = e.target.value;
+          if (raw === "" || /^\d*\.?\d*$/.test(raw)) {
+            setDisplay(raw);
+            const n = parseFloat(raw);
+            if (!isNaN(n)) onVal(n);
+          }
+        }}
+        className="w-16 text-right bg-transparent border-none outline-none text-base font-bold"
+        style={{ color }}
+      />
+    );
   };
 
   const TypeToggle = ({
@@ -111,6 +160,13 @@ function QuickSettingsSheet({
 
   const isCopy = action === "copy";
   const accentColor = isCopy ? "rgba(45,212,191,1)" : "rgba(244,63,94,1)";
+
+  // ★ Compute estimated position size for display
+  const estimatedSize = balance !== null
+    ? sizeType === "PCT"
+      ? (balance * sizeVal / 100)
+      : sizeVal
+    : null;
 
   const content = (
     <div className="fixed inset-0 flex items-end justify-center" style={{ zIndex: 9998 }}>
@@ -174,6 +230,38 @@ function QuickSettingsSheet({
             </div>
           </div>
 
+          {/* ★ NEW: Balance info bar */}
+          {balance !== null && (
+            <div
+              className="rounded-xl px-4 py-2.5 mb-4 flex items-center justify-between"
+              style={{
+                background: balance < 5
+                  ? "rgba(251,146,60,0.08)"
+                  : "rgba(45,212,191,0.06)",
+                border: balance < 5
+                  ? "1px solid rgba(251,146,60,0.2)"
+                  : "1px solid rgba(45,212,191,0.12)",
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke={balance < 5 ? "#fb923c" : "#2dd4bf"} strokeWidth={2}>
+                  <path d="M21 12V7H5a2 2 0 010-4h14v4" />
+                  <path d="M3 5v14a2 2 0 002 2h16v-5" />
+                  <path d="M18 12a2 2 0 100 4h4v-4h-4z" />
+                </svg>
+                <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>
+                  Available Balance
+                </span>
+              </div>
+              <span
+                className="text-sm font-bold"
+                style={{ color: balance < 5 ? "#fb923c" : "#2dd4bf" }}
+              >
+                ${balance.toFixed(2)}
+              </span>
+            </div>
+          )}
+
           {/* Trade Settings */}
           <div className="mb-1.5">
             <div className="flex items-center gap-2 mb-3 pl-0.5">
@@ -187,13 +275,8 @@ function QuickSettingsSheet({
             >
               <span className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>Trade Size</span>
               <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={sizeVal}
-                  onChange={e => setSizeVal(Number(e.target.value) || 0)}
-                  className="w-16 text-right bg-transparent border-none outline-none text-base font-bold"
-                  style={{ color: accentColor }}
-                />
+                {/* ★ FIXED: NumInput allows clearing */}
+                <NumInput val={sizeVal} onVal={setSizeVal} color={accentColor} />
                 <TypeToggle val={sizeType} onChange={setSizeType} accent={accentColor} />
               </div>
             </div>
@@ -228,12 +311,8 @@ function QuickSettingsSheet({
             >
               <span className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>Stop Loss</span>
               <div className="flex items-center gap-2">
-                <input
-                  type="number" value={slVal}
-                  onChange={e => setSlVal(Number(e.target.value) || 0)}
-                  className="w-16 text-right bg-transparent border-none outline-none text-base font-bold"
-                  style={{ color: "#fb7185" }}
-                />
+                {/* ★ FIXED */}
+                <NumInput val={slVal} onVal={setSlVal} color="#fb7185" />
                 <TypeToggle val={slType} onChange={setSlType} accent="#fb7185" />
               </div>
             </div>
@@ -243,23 +322,24 @@ function QuickSettingsSheet({
             >
               <span className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>Take Profit</span>
               <div className="flex items-center gap-2">
-                <input
-                  type="number" value={tpVal}
-                  onChange={e => setTpVal(Number(e.target.value) || 0)}
-                  className="w-16 text-right bg-transparent border-none outline-none text-base font-bold"
-                  style={{ color: "#34d399" }}
-                />
+                {/* ★ FIXED */}
+                <NumInput val={tpVal} onVal={setTpVal} color="#34d399" />
                 <TypeToggle val={tpType} onChange={setTpType} accent="#34d399" />
               </div>
             </div>
           </div>
 
-          {/* Summary pill */}
+          {/* Summary pill — ★ now shows estimated $ size */}
           <div
             className="flex items-center justify-center gap-1.5 py-2.5 mt-4 mb-4 rounded-full text-[11px]"
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.35)" }}
           >
-            <span>{sizeType === "PCT" ? `${sizeVal}%` : `$${sizeVal}`} per trade</span>
+            <span>
+              {sizeType === "PCT" ? `${sizeVal}%` : `$${sizeVal}`} per trade
+              {estimatedSize !== null && sizeType === "PCT" && (
+                <span style={{ color: "rgba(255,255,255,0.2)" }}> (~${estimatedSize.toFixed(0)})</span>
+              )}
+            </span>
             <span style={{ color: "rgba(255,255,255,0.15)" }}>·</span>
             <span>{leverage}x</span>
             <span style={{ color: "rgba(255,255,255,0.15)" }}>·</span>
