@@ -638,6 +638,102 @@ function PositionsTabContent({ handle }: { handle: string }) {
   );
 }
 
+/* ─── Signal Card with expandable text ─── */
+function SignalCard({ sig, index, pct, hasPct, isWin, pnlColor, dirColor, dirLabel, hasEntry, currentPrice, fmtPrice }: {
+  sig: UserSignalItem; index: number; pct: number; hasPct: boolean; isWin: boolean;
+  pnlColor: string; dirColor: string; dirLabel: string; hasEntry: boolean;
+  currentPrice: number | null; fmtPrice: (p: number) => string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const [isClamped, setIsClamped] = useState(false);
+
+  useEffect(() => {
+    const el = textRef.current;
+    if (el) setIsClamped(el.scrollHeight > el.clientHeight + 2);
+  }, [sig.content]);
+
+  return (
+    <ScrollReveal delay={Math.min(index * 0.03, 0.3)} direction="up" distance={14}>
+      <div className="rounded-xl p-3 relative overflow-hidden transition-all duration-300" style={cardStyle}>
+        {/* Row 1: Ticker + Direction + Time + PnL% */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] font-bold text-white">${sig.ticker}</span>
+            <span className="px-1.5 py-0.5 rounded text-[8px] font-bold" style={{ background: `${dirColor}20`, color: dirColor, border: `1px solid ${dirColor}30` }}>{dirLabel}</span>
+            <div className="flex items-center gap-0.5 text-gray-500"><Clock size={8} /><span className="text-[9px]">{sig.updateTime}</span></div>
+          </div>
+          <div className="flex items-center gap-1">
+            {hasPct ? (
+              <>
+                {isWin ? <ArrowUpRight size={12} style={{ color: pnlColor }} /> : <ArrowDownRight size={12} style={{ color: pnlColor }} />}
+                <span className="text-[13px] font-bold" style={{ color: pnlColor }}>{pct >= 0 ? "+" : ""}{pct.toFixed(1)}%</span>
+              </>
+            ) : (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded" style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.25)", border: "1px solid rgba(255,255,255,0.06)" }}>N/A</span>
+            )}
+          </div>
+        </div>
+
+        {/* Row 2: Entry + Current price side-by-side */}
+        {hasEntry ? (
+          <div className="flex items-stretch gap-2 mb-2">
+            <div className="flex-1 rounded-lg px-2.5 py-1.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+              <span className="text-[8px] text-gray-500 block mb-0.5">Entry Price</span>
+              <span className="text-[12px] font-semibold text-white">{fmtPrice(sig.entry_price)}</span>
+            </div>
+            <div className="flex items-center text-gray-500">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+            <div className="flex-1 rounded-lg px-2.5 py-1.5" style={{ background: `${pnlColor}08`, border: `1px solid ${pnlColor}15` }}>
+              <span className="text-[8px] block mb-0.5" style={{ color: hasPct ? pnlColor : "rgba(255,255,255,0.35)", opacity: 0.7 }}>Current Price</span>
+              <span className="text-[12px] font-semibold" style={{ color: currentPrice ? pnlColor : "rgba(255,255,255,0.3)" }}>
+                {currentPrice ? fmtPrice(currentPrice) : "—"}
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 mb-2 px-2.5 py-1.5 rounded-lg" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
+            <AlertCircle size={9} className="text-gray-600 shrink-0" />
+            <span className="text-[8px] text-gray-600">Price data unavailable for this signal</span>
+          </div>
+        )}
+
+        {/* Tweet text — expandable */}
+        {sig.content && (
+          <div>
+            <p
+              ref={textRef}
+              className="text-[9px] text-gray-400 leading-relaxed"
+              style={expanded ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}
+            >
+              {sig.content}
+            </p>
+            {(isClamped || expanded) && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+                className="text-[8px] font-medium mt-0.5 cursor-pointer transition-colors"
+                style={{ color: "rgba(45,212,191,0.6)", background: "none", border: "none", padding: 0 }}
+              >
+                {expanded ? "Show less" : "View more"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Engagement — lucide icons */}
+        {(sig.likesCount > 0 || sig.retweetsCount > 0 || sig.commentsCount > 0) && (
+          <div className="flex items-center gap-3 mt-2 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+            {sig.likesCount > 0 && <span className="flex items-center gap-1 text-[8px] text-gray-500"><Heart size={9} className="text-rose-400/60" />{sig.likesCount.toLocaleString()}</span>}
+            {sig.retweetsCount > 0 && <span className="flex items-center gap-1 text-[8px] text-gray-500"><Repeat2 size={9} className="text-teal-400/60" />{sig.retweetsCount.toLocaleString()}</span>}
+            {sig.commentsCount > 0 && <span className="flex items-center gap-1 text-[8px] text-gray-500"><MessageCircle size={9} className="text-blue-400/60" />{sig.commentsCount.toLocaleString()}</span>}
+          </div>
+        )}
+      </div>
+    </ScrollReveal>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════ */
 export default function KOLProfilePage() {
   return <Suspense fallback={<ProfileSkeleton />}><KOLProfileContent /></Suspense>;
@@ -1297,63 +1393,31 @@ function KOLProfileContent() {
                       <div className="space-y-1.5">
                         {filtered.map((sig, i) => {
                           const pct = sig.change_since_tweet;
+                          const hasPct = pct != null && pct !== 0;
                           const isWin = pct > 0;
                           const isLoss = pct < 0;
-                          const pnlColor = isWin ? "#2dd4bf" : isLoss ? "#f43f5e" : "rgba(255,255,255,0.5)";
+                          const pnlColor = hasPct ? (isWin ? "#2dd4bf" : isLoss ? "#f43f5e" : "rgba(255,255,255,0.5)") : "rgba(255,255,255,0.25)";
                           const dirColor = sig.bull_or_bear === "bullish" ? "#2dd4bf" : "#f43f5e";
                           const dirLabel = sig.bull_or_bear === "bullish" ? "LONG" : "SHORT";
                           const hasEntry = sig.entry_price > 0;
-                          const currentPrice = hasEntry && pct != null
+                          const currentPrice = hasEntry && hasPct
                             ? sig.entry_price * (1 + pct / 100)
                             : null;
                           return (
-                            <ScrollReveal key={sig.signal_id} delay={Math.min(i * 0.03, 0.3)} direction="up" distance={14}>
-                              <div className="rounded-xl p-3 relative overflow-hidden transition-all duration-300" style={cardStyle}>
-                                {/* Row 1: Ticker + Direction + Time + PnL% */}
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[14px] font-bold text-white">${sig.ticker}</span>
-                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-bold" style={{ background: `${dirColor}20`, color: dirColor, border: `1px solid ${dirColor}30` }}>{dirLabel}</span>
-                                    <div className="flex items-center gap-0.5 text-gray-500"><Clock size={8} /><span className="text-[9px]">{sig.updateTime}</span></div>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    {isWin ? <ArrowUpRight size={12} style={{ color: pnlColor }} /> : <ArrowDownRight size={12} style={{ color: pnlColor }} />}
-                                    <span className="text-[13px] font-bold" style={{ color: pnlColor }}>{pct >= 0 ? "+" : ""}{pct.toFixed(1)}%</span>
-                                  </div>
-                                </div>
-
-                                {/* Row 2: Entry + Current price side-by-side */}
-                                {hasEntry && (
-                                  <div className="flex items-stretch gap-2 mb-2">
-                                    <div className="flex-1 rounded-lg px-2.5 py-1.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                                      <span className="text-[8px] text-gray-500 block mb-0.5">Entry Price</span>
-                                      <span className="text-[12px] font-semibold text-white">{fmtPrice(sig.entry_price)}</span>
-                                    </div>
-                                    <div className="flex items-center text-gray-500">
-                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                    </div>
-                                    <div className="flex-1 rounded-lg px-2.5 py-1.5" style={{ background: `${pnlColor}08`, border: `1px solid ${pnlColor}15` }}>
-                                      <span className="text-[8px] block mb-0.5" style={{ color: pnlColor, opacity: 0.7 }}>Current Price</span>
-                                      <span className="text-[12px] font-semibold" style={{ color: currentPrice ? pnlColor : "rgba(255,255,255,0.3)" }}>
-                                        {currentPrice ? fmtPrice(currentPrice) : "—"}
-                                      </span>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Tweet text */}
-                                {sig.content && <p className="text-[9px] text-gray-400 leading-relaxed line-clamp-2">{sig.content}</p>}
-
-                                {/* Engagement — lucide icons */}
-                                {(sig.likesCount > 0 || sig.retweetsCount > 0 || sig.commentsCount > 0) && (
-                                  <div className="flex items-center gap-3 mt-2 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                                    {sig.likesCount > 0 && <span className="flex items-center gap-1 text-[8px] text-gray-500"><Heart size={9} className="text-rose-400/60" />{sig.likesCount.toLocaleString()}</span>}
-                                    {sig.retweetsCount > 0 && <span className="flex items-center gap-1 text-[8px] text-gray-500"><Repeat2 size={9} className="text-teal-400/60" />{sig.retweetsCount.toLocaleString()}</span>}
-                                    {sig.commentsCount > 0 && <span className="flex items-center gap-1 text-[8px] text-gray-500"><MessageCircle size={9} className="text-blue-400/60" />{sig.commentsCount.toLocaleString()}</span>}
-                                  </div>
-                                )}
-                              </div>
-                            </ScrollReveal>
+                            <SignalCard
+                              key={sig.signal_id}
+                              sig={sig}
+                              index={i}
+                              pct={pct}
+                              hasPct={hasPct}
+                              isWin={isWin}
+                              pnlColor={pnlColor}
+                              dirColor={dirColor}
+                              dirLabel={dirLabel}
+                              hasEntry={hasEntry}
+                              currentPrice={currentPrice}
+                              fmtPrice={fmtPrice}
+                            />
                           );
                         })}
                       </div>
