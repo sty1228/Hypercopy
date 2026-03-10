@@ -849,19 +849,21 @@ export default function ExplorePage() {
                     <div
                       key={t.username}
                       onClick={() => goTrader(t.username)}
-                      className="shrink-0 rounded-xl p-3 cursor-pointer transition-all duration-200 active:scale-[0.98] relative"
+                      className="shrink-0 rounded-xl p-3 cursor-pointer transition-all duration-200 active:scale-[0.98]"
                       style={{ width: 150, background: CB, border: CBR }}
                     >
-                      {t.points_change > 0 && (
-                        <div className="absolute top-2 right-2 flex items-center gap-0.5 text-[8px] font-bold text-green-400">
-                          <ArrowUpRight size={9} />{t.points_change.toFixed(1)}%
-                        </div>
-                      )}
                       <div className="flex items-center gap-2 mb-2">
                         <AvatarEl name={t.username} url={t.avatar_url} sz={32} />
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <span className="text-[11px] font-bold truncate block">{t.display_name || t.username}</span>
-                          <GradeBadge grade={t.profit_grade} />
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <GradeBadge grade={t.profit_grade} />
+                            {t.points_change > 0 && (
+                              <span className="flex items-center gap-0.5 text-[7px] font-bold text-green-400">
+                                <ArrowUpRight size={7} />+{t.points_change.toFixed(1)}%
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex justify-between items-baseline mb-1">
