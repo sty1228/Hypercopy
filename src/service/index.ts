@@ -534,6 +534,10 @@ export interface TokenSignalRow {
   current_price: number | null;
   pct_change: number | null;
   tweet_text: string | null;
+  tweet_image_url: string | null;
+  likes: number | null;
+  retweets: number | null;
+  replies: number | null;
   created_at: string;
 }
 
