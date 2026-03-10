@@ -161,7 +161,7 @@ function BottomSheet({ onClose, title, subtitle, headerIcon, children }: {
       <div className="absolute inset-0" onClick={onClose} />
       {/* sheet */}
       <div
-        className="relative w-full flex flex-col rounded-t-2xl overflow-hidden animate-slide-up"
+        className="relative w-full max-w-[430px] flex flex-col rounded-t-2xl overflow-hidden animate-slide-up"
         style={{ background: "#0d1117", borderTop: "1px solid rgba(255,255,255,0.1)", maxHeight: "88vh" }}
       >
         {/* drag handle */}
