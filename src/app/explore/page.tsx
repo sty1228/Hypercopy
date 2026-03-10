@@ -161,7 +161,7 @@ function BottomSheet({ onClose, title, subtitle, headerIcon, children }: {
       <div className="absolute inset-0" onClick={onClose} />
       {/* sheet */}
       <div
-        className="relative w-full max-w-[430px] flex flex-col rounded-t-2xl overflow-hidden animate-slide-up"
+        className="relative w-full flex flex-col rounded-t-2xl overflow-hidden animate-slide-up"
         style={{ background: "#0d1117", borderTop: "1px solid rgba(255,255,255,0.1)", maxHeight: "88vh" }}
       >
         {/* drag handle */}
@@ -627,10 +627,7 @@ export default function ExplorePage() {
         />
       </div>
 
-      {/* ── mobile container ── */}
-      <div className="relative z-10 max-w-[430px] mx-auto min-h-screen">
-        {/* header */}
-        <TopBar />
+      <TopBar />
 
         {/* search */}
         <div className="relative z-20 px-3 mb-2" ref={searchRef}>
@@ -705,7 +702,7 @@ export default function ExplorePage() {
         </div>
 
         {/* tabs */}
-        <div className="px-3 mb-3">
+        <div className="relative z-10 px-3 mb-3">
           <div className="flex p-0.5 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
             {([
               { key: "discover" as const, label: "Discover", icon: <Flame size={13} /> },
@@ -734,7 +731,7 @@ export default function ExplorePage() {
 
         {/* ══════════ DISCOVER ══════════ */}
         {tab === "discover" && (
-          <div className="pb-24">
+          <div className="relative z-10 pb-24">
             {/* token sentiment */}
             <div className="px-3 mb-4 fade-in fade-in-1">
               <Hdr icon={<BarChart3 size={14} className="text-teal-400" />} title="Token Sentiment" action="By KOL signals" />
@@ -914,7 +911,7 @@ export default function ExplorePage() {
 
         {/* ══════════ MY TRADERS ══════════ */}
         {tab === "mytraders" && (
-          <div className="px-3 pb-24">
+          <div className="relative z-10 px-3 pb-24">
             {/* sub tabs */}
             <div className="flex gap-2 mb-3">
               {([
@@ -1024,9 +1021,7 @@ export default function ExplorePage() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* ── overlays (outside container, centered independently) ── */}
+      {/* ── overlays ── */}
       {activeStyle && <StyleSheet style={activeStyle} onClose={() => setActiveStyle(null)} goTrader={goTrader} />}
       {activeTicker && <TokenSheet ticker={activeTicker} onClose={() => setActiveTicker(null)} goTrader={goTrader} />}
     </div>
