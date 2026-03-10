@@ -15,14 +15,16 @@ import {
   getPnlHistory,
   getFollowedTraders,
   getWalletBalance,
-  getTraderPnl,          // ← 新增
+  getTraderPnl,
+  getDefaultSettings,
   type DashboardSummary,
   type PositionItem,
   type ProfileDataResponse,
   type FollowedTrader,
   type WalletBalance,
   type PnlHistoryResponse,
-  type TraderPnlItem,    // ← 新增
+  type TraderPnlItem,
+  type DefaultFollowSettings,
 } from "@/service";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
@@ -80,7 +82,8 @@ const Home = () => {
   const [profile, setProfile] = useState<ProfileDataResponse | null>(null);
   const [positions, setPositions] = useState<PositionItem[]>([]);
   const [followedTraders, setFollowedTraders] = useState<FollowedTrader[]>([]);
-  const [traderPnlMap, setTraderPnlMap] = useState<Record<string, TraderPnlItem>>({}); // ← 新增
+  const [traderPnlMap, setTraderPnlMap] = useState<Record<string, TraderPnlItem>>({});
+  const [defaultSettings, setDefaultSettings] = useState<DefaultFollowSettings | null>(null);
   const [loading, setLoading] = useState(false);
   const [builderDismissed, setBuilderDismissed] = useState(false);
 
@@ -113,6 +116,11 @@ const Home = () => {
   ).length;
   const copiersCount = profile?.followerCount ?? 0;
 
+  /* Split followed traders into copy / counter / watch-only */
+  const copyTraders = useMemo(() => followedTraders.filter(t => t.is_copy_trading && !t.is_counter_trading), [followedTraders]);
+  const counterTraders = useMemo(() => followedTraders.filter(t => t.is_counter_trading), [followedTraders]);
+  const watchTraders = useMemo(() => followedTraders.filter(t => !t.is_copy_trading && !t.is_counter_trading), [followedTraders]);
+
   useEffect(() => {
     if (!authenticated) {
       removeToken();
@@ -122,6 +130,7 @@ const Home = () => {
       setPositions([]);
       setFollowedTraders([]);
       setTraderPnlMap({});
+      setDefaultSettings(null);
       setWalletBal(null);
       setPnlChartData([]);
       setRangePnl(0);
@@ -157,26 +166,24 @@ const Home = () => {
     if (!authReady) return;
     setLoading(true);
     try {
-      // ← 新增 getTraderPnl() 并行请求
-      const [s, p, prof, fol, pnlList] = await Promise.allSettled([
+      const [s, p, prof, fol, pnlList, defs] = await Promise.allSettled([
         getDashboardSummary(),
         getOpenPositions(),
         getProfileData(),
         getFollowedTraders(),
         getTraderPnl(),
+        getDefaultSettings(),
       ]);
       if (s.status === "fulfilled") setSummary(s.value);
       if (p.status === "fulfilled") setPositions(p.value);
       if (prof.status === "fulfilled") setProfile(prof.value);
       if (fol.status === "fulfilled") setFollowedTraders(fol.value);
-      // ← 新增：把数组转成 username → item 的 map
       if (pnlList.status === "fulfilled") {
         const map: Record<string, TraderPnlItem> = {};
-        for (const item of pnlList.value) {
-          map[item.trader_username] = item;
-        }
+        for (const item of pnlList.value) map[item.trader_username] = item;
         setTraderPnlMap(map);
       }
+      if (defs.status === "fulfilled") setDefaultSettings(defs.value);
     } catch (err) {
       console.error("Dashboard fetch failed:", err);
     } finally {
@@ -188,64 +195,41 @@ const Home = () => {
 
   const fetchPnlChart = useCallback(async (tr: TimeRange = "M") => {
     if (!authReady) {
-      setPnlChartData([]);
-      setRangePnl(0);
-      setRangePnlPct(0);
-      setTotalPnl(0);
+      setPnlChartData([]); setRangePnl(0); setRangePnlPct(0); setTotalPnl(0);
       return;
     }
     try {
       const res: PnlHistoryResponse = await getPnlHistory(tr as "D" | "W" | "M" | "YTD" | "ALL");
-      setPnlChartData(
-        res.data.map((item) => ({
-          label: formatLabel(item.timestamp, tr),
-          value: item.pnl,
-        }))
-      );
+      setPnlChartData(res.data.map((item) => ({ label: formatLabel(item.timestamp, tr), value: item.pnl })));
       setRangePnl(res.range_pnl);
       setRangePnlPct(res.range_pnl_pct);
       setTotalPnl(res.total_pnl);
     } catch {
-      setPnlChartData([]);
-      setRangePnl(0);
-      setRangePnlPct(0);
-      setTotalPnl(0);
+      setPnlChartData([]); setRangePnl(0); setRangePnlPct(0); setTotalPnl(0);
     }
   }, [authReady]);
 
   useEffect(() => { fetchPnlChart(timeRange); }, [timeRange, fetchPnlChart]);
 
   const handleSheetClose = useCallback((setter: (v: boolean) => void) => {
-    setter(false);
-    refreshWalletBalance();
-    fetchDashboard();
-    fetchPnlChart(timeRange);
+    setter(false); refreshWalletBalance(); fetchDashboard(); fetchPnlChart(timeRange);
   }, [refreshWalletBalance, fetchDashboard, fetchPnlChart, timeRange]);
 
   const handleDepositSuccess = useCallback(() => {
     refreshWalletBalance();
     const fast = setInterval(refreshWalletBalance, 5_000);
     setTimeout(() => clearInterval(fast), 60_000);
-    fetchDashboard();
-    fetchPnlChart(timeRange);
+    fetchDashboard(); fetchPnlChart(timeRange);
   }, [refreshWalletBalance, fetchDashboard, fetchPnlChart, timeRange]);
 
   const handleWithdrawSuccess = useCallback(() => {
-    refreshWalletBalance();
-    fetchPnlChart(timeRange);
-    setTimeout(fetchDashboard, 60_000);
+    refreshWalletBalance(); fetchPnlChart(timeRange); setTimeout(fetchDashboard, 60_000);
   }, [refreshWalletBalance, fetchPnlChart, timeRange, fetchDashboard]);
 
   const currentPositions = positions.map((p, idx) => ({
-    id: idx + 1,
-    token: p.ticker,
-    pair: `${p.ticker}/USDT`,
+    id: idx + 1, token: p.ticker, pair: `${p.ticker}/USDT`,
     iconUrl: `https://assets.coingecko.com/coins/images/1/small/${p.ticker.toLowerCase()}.png`,
-    size: p.size_qty,
-    sizeUsd: p.size_usd,
-    pnl: p.pnl_usd ?? 0,
-    pnlPercent: p.pnl_pct ?? 0,
-    entry: p.entry_price,
+    size: p.size_qty, sizeUsd: p.size_usd, pnl: p.pnl_usd ?? 0, pnlPercent: p.pnl_pct ?? 0, entry: p.entry_price,
   }));
 
   const handleLogout = async () => { removeToken(); await logout(); router.push("/"); };
@@ -256,6 +240,125 @@ const Home = () => {
   };
 
   const pnlPositive = rangePnl >= 0;
+
+  /* ─── Settings display helpers ─── */
+  const fmtSetting = (val: number | undefined, type: string | undefined, fallback: string) => {
+    if (val == null || val === 0) return fallback;
+    return type === "PCT" ? `${val}%` : `$${val}`;
+  };
+
+  /* ─── Trader Row Component ─── */
+  const TraderRow = ({ trader, index, mode }: { trader: FollowedTrader; index: number; mode: "copy" | "counter" | "watch" }) => {
+    const bg = AVATAR_COLORS[index % AVATAR_COLORS.length];
+    const initial = (trader.display_name || trader.trader_username)?.[0]?.toUpperCase() || "?";
+    const pnlData = traderPnlMap[trader.trader_username];
+    const userPnlUsd = pnlData?.pnl_usd ?? 0;
+    const userPnlPct = pnlData?.pnl_pct ?? 0;
+
+    const sizeDisplay = fmtSetting(defaultSettings?.tradeSize, defaultSettings?.tradeSizeType, "—");
+    const levDisplay = defaultSettings?.leverage ? `${defaultSettings.leverage}x` : "—";
+    const tpDisplay = defaultSettings?.tp ? fmtSetting(defaultSettings.tp.value, defaultSettings.tp.type, "—") : "—";
+    const slDisplay = defaultSettings?.sl ? fmtSetting(defaultSettings.sl.value, defaultSettings.sl.type, "—") : "—";
+
+    const modeColor = mode === "counter" ? "#f59e0b" : mode === "copy" ? "#2dd4bf" : "rgba(255,255,255,0.25)";
+    const modeBg = mode === "counter" ? "rgba(245,158,11,0.08)" : mode === "copy" ? "rgba(45,212,191,0.06)" : "rgba(255,255,255,0.03)";
+    const modeLabel = mode === "counter" ? "COUNTER" : mode === "copy" ? "COPY" : "WATCH";
+
+    return (
+      <div
+        className="px-3 py-2.5 transition-all duration-200 row-animate cursor-pointer active:bg-white/10 hover:bg-white/[0.03]"
+        style={{ animationDelay: `${index * 0.04}s` }}
+        onClick={() => router.push(`/profile?handle=${trader.trader_username}`)}
+      >
+        {/* Top: Avatar + Name + Mode badge + PnL */}
+        <div className="flex items-center gap-2 mb-1.5">
+          {/* Avatar */}
+          {trader.avatar_url ? (
+            <img src={trader.avatar_url} className="w-7 h-7 rounded-full object-cover shrink-0" alt="" />
+          ) : (
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: bg }}>{initial}</div>
+          )}
+
+          {/* Name + grade */}
+          <div className="flex flex-col min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-gray-200 font-medium truncate">@{trader.trader_username}</span>
+              {trader.profit_grade && (
+                <span className="text-[8px] font-semibold px-1 py-[1px] rounded" style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.35)" }}>{trader.profit_grade}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Mode badge */}
+          {mode !== "watch" && (
+            <div className="flex items-center gap-1 px-1.5 py-[3px] rounded shrink-0" style={{ background: modeBg, border: `1px solid ${modeColor}25` }}>
+              {mode === "counter" ? (
+                <RefreshCw size={8} style={{ color: modeColor }} />
+              ) : (
+                <Copy size={8} style={{ color: modeColor }} />
+              )}
+              <span className="text-[7px] font-bold tracking-wider" style={{ color: modeColor }}>{modeLabel}</span>
+            </div>
+          )}
+
+          {/* PnL column */}
+          <div className="flex flex-col items-end shrink-0 ml-1">
+            <span className={`text-[11px] font-bold tabular-nums ${userPnlUsd >= 0 ? "text-teal-400" : "text-rose-400"}`}>
+              {userPnlUsd >= 0 ? "+" : "-"}${Math.abs(userPnlUsd).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+            </span>
+            <span className={`text-[9px] tabular-nums ${userPnlPct >= 0 ? "text-teal-400/70" : "text-rose-400/70"}`}>
+              {userPnlPct >= 0 ? "+" : ""}{userPnlPct.toFixed(1)}%
+            </span>
+          </div>
+
+          {/* Settings gear */}
+          <button
+            onClick={(e) => { e.stopPropagation(); router.push(`/settings?tab=trader&handle=${trader.trader_username}`); }}
+            className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-teal-400 hover:bg-white/10 rounded-md transition-all cursor-pointer shrink-0"
+          >
+            <Settings size={11} />
+          </button>
+        </div>
+
+        {/* Bottom: Settings chips */}
+        {mode !== "watch" && (
+          <div className="flex items-center gap-1.5 ml-9 flex-wrap">
+            {/* Size */}
+            <div className="flex items-center gap-[3px] px-1.5 py-[2px] rounded" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <span className="text-[7px] text-gray-500">Size</span>
+              <span className="text-[8px] font-semibold text-gray-300">{sizeDisplay}</span>
+            </div>
+            {/* Leverage */}
+            <div className="flex items-center gap-[3px] px-1.5 py-[2px] rounded" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <span className="text-[7px] text-gray-500">Lev</span>
+              <span className="text-[8px] font-semibold text-gray-300">{levDisplay}</span>
+            </div>
+            {/* TP */}
+            <div className="flex items-center gap-[3px] px-1.5 py-[2px] rounded" style={{ background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.1)" }}>
+              <span className="text-[7px] text-emerald-500/70">TP</span>
+              <span className="text-[8px] font-semibold text-emerald-400">{tpDisplay}</span>
+            </div>
+            {/* SL */}
+            <div className="flex items-center gap-[3px] px-1.5 py-[2px] rounded" style={{ background: "rgba(244,63,94,0.04)", border: "1px solid rgba(244,63,94,0.1)" }}>
+              <span className="text-[7px] text-rose-500/70">SL</span>
+              <span className="text-[8px] font-semibold text-rose-400">{slDisplay}</span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /* ─── Section header for grouped traders ─── */
+  const SectionHeader = ({ label, count, color, icon: Icon }: { label: string; count: number; color: string; icon: typeof Copy }) => (
+    <div className="flex items-center gap-2 px-3 py-1.5" style={{ background: `${color}06`, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+      <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: `${color}15` }}>
+        <Icon size={9} style={{ color }} />
+      </div>
+      <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color, opacity: 0.85 }}>{label}</span>
+      <span className="text-[9px] font-medium" style={{ color: "rgba(255,255,255,0.2)" }}>{count}</span>
+    </div>
+  );
 
   return (
     <div className="min-h-screen text-white relative overflow-hidden" style={{ background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)" }}>
@@ -448,65 +551,37 @@ const Home = () => {
             {/* ── Followed Tab ── */}
             <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "followed" ? 1 : 0, transform: activeTab === "followed" ? "translateX(0)" : "translateX(-20px)", position: activeTab === "followed" ? "relative" : "absolute", pointerEvents: activeTab === "followed" ? "auto" : "none", width: "100%" }}>
               {followedTraders.length > 0 ? (
-                <>
-                  {/* 表头：删掉 TA 列，grid 从 5 列改为 4 列 */}
-                  <div className="grid grid-cols-[1fr_55px_65px_24px] gap-1.5 px-3 py-2 border-b border-white/10">
-                    <span className="text-[8px] text-gray-500 uppercase tracking-wide">Trader</span>
-                    <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">Return</span>
-                    <span className="text-[8px] text-gray-500 text-right uppercase tracking-wide">Profit</span>
-                    <span></span>
-                  </div>
-                  <div className="divide-y divide-white/5">
-                    {followedTraders.map((trader, index) => {
-                      const bg = AVATAR_COLORS[index % AVATAR_COLORS.length];
-                      const initial = (trader.display_name || trader.trader_username)?.[0]?.toUpperCase() || "?";
-                      // ← 从 traderPnlMap 拿用户真实盈亏数据
-                      const pnlData = traderPnlMap[trader.trader_username];
-                      const userPnlUsd = pnlData?.pnl_usd ?? 0;
-                      const userPnlPct = pnlData?.pnl_pct ?? 0;
+                <div>
+                  {/* Copy traders section */}
+                  {copyTraders.length > 0 && (
+                    <>
+                      <SectionHeader label="Copying" count={copyTraders.length} color="#2dd4bf" icon={Copy} />
+                      <div className="divide-y divide-white/5">
+                        {copyTraders.map((t, i) => <TraderRow key={t.id} trader={t} index={i} mode="copy" />)}
+                      </div>
+                    </>
+                  )}
 
-                      return (
-                        <div
-                          key={trader.id}
-                          className="grid grid-cols-[1fr_55px_65px_24px] gap-1.5 px-3 py-2.5 items-center hover:bg-white/5 transition-all duration-200 row-animate cursor-pointer active:bg-white/10"
-                          style={{ animationDelay: `${index * 0.05}s` }}
-                          onClick={() => router.push(`/profile?handle=${trader.trader_username}`)}
-                        >
-                          {/* Trader 列 */}
-                          <div className="flex items-center gap-1.5">
-                            {trader.avatar_url ? (
-                              <img src={trader.avatar_url} className="w-5 h-5 rounded-full object-cover" alt="" />
-                            ) : (
-                              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ backgroundColor: bg }}>{initial}</div>
-                            )}
-                            <div className="flex flex-col min-w-0">
-                              <span className="text-[10px] text-gray-300 hover:text-teal-400 transition-colors truncate">@{trader.trader_username}</span>
-                              {trader.profit_grade && <span className="text-[8px] text-gray-500">{trader.profit_grade}</span>}
-                            </div>
-                          </div>
+                  {/* Counter traders section */}
+                  {counterTraders.length > 0 && (
+                    <>
+                      <SectionHeader label="Countering" count={counterTraders.length} color="#f59e0b" icon={RefreshCw} />
+                      <div className="divide-y divide-white/5">
+                        {counterTraders.map((t, i) => <TraderRow key={t.id} trader={t} index={i} mode="counter" />)}
+                      </div>
+                    </>
+                  )}
 
-                          {/* Return 列：用户真实 pnl_pct */}
-                          <span className={`text-[10px] text-right font-medium ${userPnlPct >= 0 ? "text-teal-400" : "text-rose-400"}`}>
-                            {userPnlPct >= 0 ? "+" : ""}{userPnlPct.toFixed(1)}%
-                          </span>
-
-                          {/* Profit 列：用户真实 pnl_usd */}
-                          <span className={`text-[10px] text-right font-medium ${userPnlUsd >= 0 ? "text-white" : "text-rose-400"}`}>
-                            {userPnlUsd >= 0 ? "" : "-"}${Math.abs(userPnlUsd).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-                          </span>
-
-                          {/* Settings 按钮（原 TA 列位置） */}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); router.push(`/settings?tab=trader&handle=${trader.trader_username}`); }}
-                            className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-teal-400 hover:bg-white/10 rounded-md transition-all cursor-pointer"
-                          >
-                            <Settings size={11} />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
+                  {/* Watch-only section */}
+                  {watchTraders.length > 0 && (
+                    <>
+                      <SectionHeader label="Watching" count={watchTraders.length} color="rgba(255,255,255,0.35)" icon={Eye} />
+                      <div className="divide-y divide-white/5">
+                        {watchTraders.map((t, i) => <TraderRow key={t.id} trader={t} index={i} mode="watch" />)}
+                      </div>
+                    </>
+                  )}
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-10 px-4">
                   <Copy size={24} className="text-gray-600 mb-2" />

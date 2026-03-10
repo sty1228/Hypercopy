@@ -12,6 +12,7 @@ import {
   CheckCircle, Search, Lock, TrendingUp, TrendingDown, Clock,
   Zap, Eye, Loader2,
   UserPlus, UserCheck, Copy, RefreshCw,
+  Heart, Repeat2, MessageCircle,
 } from "lucide-react";
 import ShareSheet from "./components/shareSheet";
 import SignalDetailSheet, { SignalDetailData } from "@/app/copyTrading/components/signalDetailSheet";
@@ -365,7 +366,6 @@ function ProfileTradeSettingsSheet({ traderName, mode, onConfirm, onClose }: {
 
   useEffect(() => { requestAnimationFrame(() => setVisible(true)); }, []);
 
-  // ★ Bug 4 fix: Pre-load saved settings
   useEffect(() => {
     getDefaultSettings().then(s => {
       setSizeVal(s.tradeSize ?? 50);
@@ -373,7 +373,7 @@ function ProfileTradeSettingsSheet({ traderName, mode, onConfirm, onClose }: {
       setLeverage(s.leverage ?? 8);
       if (s.tp) { setTpVal(s.tp.value); setTpType(s.tp.type as any); }
       if (s.sl) { setSlVal(s.sl.value); setSlType(s.sl.type as any); }
-    }).catch(() => {}); // fail silently, use defaults
+    }).catch(() => {});
   }, []);
 
   const handleClose = () => { setVisible(false); setTimeout(onClose, 300); };
@@ -573,7 +573,7 @@ function ProfileTradeSuccessSheet({ traderName, mode, onViewRewards, onDone }: {
   return createPortal(el, document.body);
 }
 
-/* ─── ★ Positions Tab — real data, no X gate ─── */
+/* ─── Positions Tab — real data, no X gate ─── */
 function PositionsTabContent({ handle }: { handle: string }) {
   const [positions, setPositions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -675,15 +675,12 @@ function KOLProfileContent() {
   const [showTradeSuccess, setShowTradeSuccess] = useState(false);
   const [tradeMode, setTradeMode] = useState<TradeMode>("copy");
 
-  // ★ Bug 3: Signal detail sheet state
   const [detailSignal, setDetailSignal] = useState<SignalDetailData | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
   const { triggerFirstCopyTrade, viewRewardsFromPrompt } = useRewards();
-  // ★ Bug 1: get linkTwitter + user from Privy
   const { authenticated, login, user: privyUser, linkTwitter } = usePrivy() as any;
 
-  // ★ Bug 1: Persist X connection from Privy linkedAccounts
   useEffect(() => {
     if (!privyUser) return;
     const linked = privyUser.linkedAccounts?.some(
@@ -749,7 +746,6 @@ function KOLProfileContent() {
     }
   }, [router]);
 
-  // ★ Bug 5: Follow with follower count update
   const handleFollow = useCallback(async () => {
     if (!requireAuth()) return;
     if (followLoading || !trader) return;
@@ -758,7 +754,6 @@ function KOLProfileContent() {
       if (isFollowing) {
         await unfollowTrader(trader.username);
         setIsFollowing(false); setIsCopying(false); setIsCounterTrading(false);
-        // ★ Bug 5: Decrement follower count
         setTrader(prev => prev ? { ...prev, followers_count: Math.max(0, prev.followers_count - 1) } : prev);
       } else {
         try { await followTrader(trader.username); } catch (err: any) {
@@ -766,7 +761,6 @@ function KOLProfileContent() {
           throw err;
         }
         setIsFollowing(true);
-        // ★ Bug 5: Increment follower count
         setTrader(prev => prev ? { ...prev, followers_count: prev.followers_count + 1 } : prev);
       }
     } catch (err: any) {
@@ -775,12 +769,10 @@ function KOLProfileContent() {
     } finally { setFollowLoading(false); }
   }, [isFollowing, followLoading, trader, requireAuth]);
 
-  // ★ Bug 4: ALWAYS show settings sheet (removed hasEverTraded check)
   const handleCopyToggle = useCallback(async () => {
     if (!requireAuth()) return;
     if (copyLoading || !trader) return;
 
-    // Turn OFF
     if (isCopying) {
       setCopyLoading(true);
       try {
@@ -793,23 +785,19 @@ function KOLProfileContent() {
       return;
     }
 
-    // Turn ON — always check balance then show settings
     setCopyLoading(true);
     const ok = await checkBalance();
     if (!ok) { setCopyLoading(false); return; }
 
-    // ★ ALWAYS show settings sheet before starting copy trading
     setTradeMode("copy");
     setShowTradeSettings(true);
     setCopyLoading(false);
   }, [isCopying, copyLoading, trader, requireAuth, checkBalance]);
 
-  // ★ Bug 4: ALWAYS show settings sheet (removed hasEverTraded check)
   const handleCounterToggle = useCallback(async () => {
     if (!requireAuth()) return;
     if (counterLoading || !trader) return;
 
-    // Turn OFF
     if (isCounterTrading) {
       setCounterLoading(true);
       try {
@@ -822,18 +810,15 @@ function KOLProfileContent() {
       return;
     }
 
-    // Turn ON — always check balance then show settings
     setCounterLoading(true);
     const ok = await checkBalance();
     if (!ok) { setCounterLoading(false); return; }
 
-    // ★ ALWAYS show settings sheet before starting counter trading
     setTradeMode("counter");
     setShowTradeSettings(true);
     setCounterLoading(false);
   }, [isCounterTrading, counterLoading, trader, requireAuth, checkBalance]);
 
-  // ★ Settings confirm — with follower count update
   const handleTradeSettingsConfirm = async (cfg: any) => {
     if (!trader) return;
     try {
@@ -863,7 +848,6 @@ function KOLProfileContent() {
         setIsCounterTrading(true); setIsFollowing(true); setIsCopying(false);
       }
 
-      // ★ Bug 5: Only increment if wasn't already following
       if (!isFollowing) {
         setTrader(prev => prev ? { ...prev, followers_count: prev.followers_count + 1 } : prev);
       }
@@ -875,7 +859,6 @@ function KOLProfileContent() {
     }
   };
 
-  // ★ Bug 1: Use Privy linkTwitter instead of fake timeout
   const handleConnectX = useCallback(async () => {
     try {
       setShowConnectModal(true);
@@ -883,7 +866,6 @@ function KOLProfileContent() {
       await linkTwitter?.();
       setConnectStage("success");
     } catch (err: any) {
-      // Already linked or cancelled
       const alreadyLinked = privyUser?.linkedAccounts?.some(
         (a: any) => a.type === "twitter_oauth"
       );
@@ -914,6 +896,13 @@ function KOLProfileContent() {
   const worstSignal = trader.worst_signal;
   const canCopy = !isCounterTrading;
   const canCounter = !isCopying;
+
+  /* ─── Price formatter ─── */
+  const fmtPrice = (p: number) => {
+    if (p >= 1000) return `$${p.toLocaleString(undefined, { maximumFractionDigits: 1 })}`;
+    if (p >= 1) return `$${p.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `$${p.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 })}`;
+  };
 
   return (
     <div className="min-h-screen text-white relative overflow-hidden" style={{ background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)" }}>
@@ -1167,7 +1156,6 @@ function KOLProfileContent() {
                     <div
                       className="rounded-xl px-2 py-1.5 relative overflow-hidden transition-all duration-300 hover:scale-[1.03]"
                       style={{ ...cardStyle, animation: `statCardHover ${3 + i}s ease-in-out infinite`, cursor: hasSignal ? "pointer" : "default" }}
-                      // ★ Bug 3: Click best/worst signal to open detail
                       onClick={() => {
                         if (!item.signalData) return;
                         setDetailSignal({
@@ -1308,13 +1296,20 @@ function KOLProfileContent() {
 
                       <div className="space-y-1.5">
                         {filtered.map((sig, i) => {
-                          const isWin = sig.change_since_tweet > 0;
-                          const pnlColor = isWin ? "#2dd4bf" : sig.change_since_tweet < 0 ? "#f43f5e" : "rgba(255,255,255,0.5)";
+                          const pct = sig.change_since_tweet;
+                          const isWin = pct > 0;
+                          const isLoss = pct < 0;
+                          const pnlColor = isWin ? "#2dd4bf" : isLoss ? "#f43f5e" : "rgba(255,255,255,0.5)";
                           const dirColor = sig.bull_or_bear === "bullish" ? "#2dd4bf" : "#f43f5e";
                           const dirLabel = sig.bull_or_bear === "bullish" ? "LONG" : "SHORT";
+                          const hasEntry = sig.entry_price > 0;
+                          const currentPrice = hasEntry && pct != null
+                            ? sig.entry_price * (1 + pct / 100)
+                            : null;
                           return (
                             <ScrollReveal key={sig.signal_id} delay={Math.min(i * 0.03, 0.3)} direction="up" distance={14}>
                               <div className="rounded-xl p-3 relative overflow-hidden transition-all duration-300" style={cardStyle}>
+                                {/* Row 1: Ticker + Direction + Time + PnL% */}
                                 <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center gap-2">
                                     <span className="text-[14px] font-bold text-white">${sig.ticker}</span>
@@ -1323,24 +1318,38 @@ function KOLProfileContent() {
                                   </div>
                                   <div className="flex items-center gap-1">
                                     {isWin ? <ArrowUpRight size={12} style={{ color: pnlColor }} /> : <ArrowDownRight size={12} style={{ color: pnlColor }} />}
-                                    <span className="text-[13px] font-bold" style={{ color: pnlColor }}>{sig.change_since_tweet >= 0 ? "+" : ""}{sig.change_since_tweet.toFixed(1)}%</span>
+                                    <span className="text-[13px] font-bold" style={{ color: pnlColor }}>{pct >= 0 ? "+" : ""}{pct.toFixed(1)}%</span>
                                   </div>
                                 </div>
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="flex-1 min-w-0">
-                                    {sig.entry_price > 0 && (
-                                      <div className="flex items-center gap-3 mb-1.5">
-                                        <div><span className="text-[8px] text-gray-500 block">Entry</span><span className="text-[11px] font-semibold text-white">${sig.entry_price.toLocaleString()}</span></div>
-                                      </div>
-                                    )}
-                                    {sig.content && <p className="text-[9px] text-gray-400 leading-relaxed line-clamp-2">{sig.content}</p>}
+
+                                {/* Row 2: Entry + Current price side-by-side */}
+                                {hasEntry && (
+                                  <div className="flex items-stretch gap-2 mb-2">
+                                    <div className="flex-1 rounded-lg px-2.5 py-1.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                                      <span className="text-[8px] text-gray-500 block mb-0.5">Entry Price</span>
+                                      <span className="text-[12px] font-semibold text-white">{fmtPrice(sig.entry_price)}</span>
+                                    </div>
+                                    <div className="flex items-center text-gray-500">
+                                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                    </div>
+                                    <div className="flex-1 rounded-lg px-2.5 py-1.5" style={{ background: `${pnlColor}08`, border: `1px solid ${pnlColor}15` }}>
+                                      <span className="text-[8px] block mb-0.5" style={{ color: pnlColor, opacity: 0.7 }}>Current Price</span>
+                                      <span className="text-[12px] font-semibold" style={{ color: currentPrice ? pnlColor : "rgba(255,255,255,0.3)" }}>
+                                        {currentPrice ? fmtPrice(currentPrice) : "—"}
+                                      </span>
+                                    </div>
                                   </div>
-                                </div>
+                                )}
+
+                                {/* Tweet text */}
+                                {sig.content && <p className="text-[9px] text-gray-400 leading-relaxed line-clamp-2">{sig.content}</p>}
+
+                                {/* Engagement — lucide icons */}
                                 {(sig.likesCount > 0 || sig.retweetsCount > 0 || sig.commentsCount > 0) && (
                                   <div className="flex items-center gap-3 mt-2 pt-2" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-                                    {sig.likesCount > 0 && <span className="text-[8px] text-gray-500">❤️ {sig.likesCount.toLocaleString()}</span>}
-                                    {sig.retweetsCount > 0 && <span className="text-[8px] text-gray-500">🔁 {sig.retweetsCount.toLocaleString()}</span>}
-                                    {sig.commentsCount > 0 && <span className="text-[8px] text-gray-500">💬 {sig.commentsCount.toLocaleString()}</span>}
+                                    {sig.likesCount > 0 && <span className="flex items-center gap-1 text-[8px] text-gray-500"><Heart size={9} className="text-rose-400/60" />{sig.likesCount.toLocaleString()}</span>}
+                                    {sig.retweetsCount > 0 && <span className="flex items-center gap-1 text-[8px] text-gray-500"><Repeat2 size={9} className="text-teal-400/60" />{sig.retweetsCount.toLocaleString()}</span>}
+                                    {sig.commentsCount > 0 && <span className="flex items-center gap-1 text-[8px] text-gray-500"><MessageCircle size={9} className="text-blue-400/60" />{sig.commentsCount.toLocaleString()}</span>}
                                   </div>
                                 )}
                               </div>
@@ -1354,7 +1363,7 @@ function KOLProfileContent() {
           ) : <LockedTabContent title="Unlock Signals" description="See real-time trading signals, calls, and market insights from this trader." onConnect={handleConnectX} />
         )}
 
-        {/* ★ Positions — NO X gate, real data */}
+        {/* Positions — NO X gate, real data */}
         {activeTab === "positions" && <PositionsTabContent handle={handle} />}
       </div>
 
@@ -1388,7 +1397,6 @@ function KOLProfileContent() {
           onDone={() => setShowTradeSuccess(false)}
         />
       )}
-      {/* ★ Bug 3: Signal Detail Sheet for best/worst signal clicks */}
       <SignalDetailSheet
         signal={detailSignal}
         open={detailOpen}
