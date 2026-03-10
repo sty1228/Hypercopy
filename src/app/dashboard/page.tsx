@@ -399,7 +399,6 @@ const Home = () => {
 
       <TopBar
         activeTrades={openCount}
-        rank={64}
         onCoinClick={() => viewRewardsFromPrompt()}
         onActiveTradesClick={() => setShowActiveTrades(true)}
       />

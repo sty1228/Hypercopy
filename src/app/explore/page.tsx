@@ -734,7 +734,7 @@ export default function ExplorePage() {
           <div className="relative z-10 pb-24">
             {/* token sentiment */}
             <div className="px-3 mb-4 fade-in fade-in-1">
-              <Hdr icon={<BarChart3 size={14} className="text-teal-400" />} title="Token Sentiment" action="By KOL signals" />
+              <Hdr icon={<BarChart3 size={14} className="text-teal-400" />} title="Token Sentiment" />
               {sentimentLoading ? (
                 <Spin />
               ) : sentiment.length === 0 ? (
