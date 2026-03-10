@@ -17,6 +17,7 @@ import {
   getWalletBalance,
   getTraderPnl,
   getDefaultSettings,
+  closePosition as closePositionApi, // ★ NEW
   type DashboardSummary,
   type PositionItem,
   type ProfileDataResponse,
@@ -41,10 +42,7 @@ import RewardsBanner from "@/components/RewardsBanner";
 import { getToken, setToken, removeToken } from "@/lib/token";
 import TopBar from "@/components/TopBar";
 
-export interface BalanceChartData {
-  label: string;
-  value: number;
-}
+export interface BalanceChartData { label: string; value: number; }
 
 const formatLabel = (ts: number, tr: TimeRange): string => {
   const d = new Date(ts > 1e12 ? ts : ts * 1000);
@@ -58,22 +56,21 @@ const formatLabel = (ts: number, tr: TimeRange): string => {
 };
 
 const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const TIME_RANGE_LABELS: Record<string, string> = {
-  D: "past day",
-  W: "past week",
-  M: "past month",
-  ALL: "all-time",
-};
-
+const TIME_RANGE_LABELS: Record<string, string> = { D: "past day", W: "past week", M: "past month", ALL: "all-time" };
 const AVATAR_COLORS = ["#2dd4bf", "#a78bfa", "#f97316", "#3b82f6", "#ec4899", "#eab308"];
+
+// ★ Default fallback for tokens not in positionExtendedData
+const FALLBACK_COLORS: Record<string, string> = {
+  BTC: "#f7931a", ETH: "#627eea", SOL: "#9945ff", HYPE: "#00d4aa",
+  DOGE: "#c3a634", AVAX: "#e84142", MATIC: "#8247e5", ARB: "#28a0f0",
+};
+const getFallbackColor = (ticker: string) => FALLBACK_COLORS[ticker] || "#2dd4bf";
 
 const Home = () => {
   const router = useRouter();
   const { authenticated, login, logout, user } = usePrivy();
   const { wallets } = useWallets();
   const wallet = wallets?.[0];
-
   const { builderFeeApproved } = useContext(HyperLiquidContext);
   const { showRewards, closeRewards, viewRewardsFromPrompt } = useRewards();
 
@@ -111,31 +108,18 @@ const Home = () => {
   const pendingBalance = walletBal?.arb_usdc ?? 0;
   const openCount = summary?.open_positions ?? 0;
   const totalTrades = summary?.total_trades ?? 0;
-  const copyingCount = followedTraders.filter(
-    t => t.is_copy_trading || t.is_counter_trading
-  ).length;
+  const copyingCount = followedTraders.filter(t => t.is_copy_trading || t.is_counter_trading).length;
   const copiersCount = profile?.followerCount ?? 0;
 
-  /* Split followed traders into copy / counter / watch-only */
   const copyTraders = useMemo(() => followedTraders.filter(t => t.is_copy_trading && !t.is_counter_trading), [followedTraders]);
   const counterTraders = useMemo(() => followedTraders.filter(t => t.is_counter_trading), [followedTraders]);
   const watchTraders = useMemo(() => followedTraders.filter(t => !t.is_copy_trading && !t.is_counter_trading), [followedTraders]);
 
   useEffect(() => {
     if (!authenticated) {
-      removeToken();
-      setAuthReady(false);
-      setSummary(null);
-      setProfile(null);
-      setPositions([]);
-      setFollowedTraders([]);
-      setTraderPnlMap({});
-      setDefaultSettings(null);
-      setWalletBal(null);
-      setPnlChartData([]);
-      setRangePnl(0);
-      setRangePnlPct(0);
-      setTotalPnl(0);
+      removeToken(); setAuthReady(false); setSummary(null); setProfile(null);
+      setPositions([]); setFollowedTraders([]); setTraderPnlMap({}); setDefaultSettings(null);
+      setWalletBal(null); setPnlChartData([]); setRangePnl(0); setRangePnlPct(0); setTotalPnl(0);
       return;
     }
     if (!wallet?.address) return;
@@ -150,9 +134,7 @@ const Home = () => {
   const refreshWalletBalance = useCallback(async () => {
     if (!authReady) return;
     setBalRefreshing(true);
-    try { setWalletBal(await getWalletBalance()); }
-    catch (e) { console.error("Wallet balance fetch failed:", e); }
-    finally { setBalRefreshing(false); }
+    try { setWalletBal(await getWalletBalance()); } catch (e) { console.error("Wallet balance fetch failed:", e); } finally { setBalRefreshing(false); }
   }, [authReady]);
 
   useEffect(() => {
@@ -167,12 +149,8 @@ const Home = () => {
     setLoading(true);
     try {
       const [s, p, prof, fol, pnlList, defs] = await Promise.allSettled([
-        getDashboardSummary(),
-        getOpenPositions(),
-        getProfileData(),
-        getFollowedTraders(),
-        getTraderPnl(),
-        getDefaultSettings(),
+        getDashboardSummary(), getOpenPositions(), getProfileData(),
+        getFollowedTraders(), getTraderPnl(), getDefaultSettings(),
       ]);
       if (s.status === "fulfilled") setSummary(s.value);
       if (p.status === "fulfilled") setPositions(p.value);
@@ -184,29 +162,18 @@ const Home = () => {
         setTraderPnlMap(map);
       }
       if (defs.status === "fulfilled") setDefaultSettings(defs.value);
-    } catch (err) {
-      console.error("Dashboard fetch failed:", err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error("Dashboard fetch failed:", err); } finally { setLoading(false); }
   }, [authReady]);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
   const fetchPnlChart = useCallback(async (tr: TimeRange = "M") => {
-    if (!authReady) {
-      setPnlChartData([]); setRangePnl(0); setRangePnlPct(0); setTotalPnl(0);
-      return;
-    }
+    if (!authReady) { setPnlChartData([]); setRangePnl(0); setRangePnlPct(0); setTotalPnl(0); return; }
     try {
       const res: PnlHistoryResponse = await getPnlHistory(tr as "D" | "W" | "M" | "YTD" | "ALL");
       setPnlChartData(res.data.map((item) => ({ label: formatLabel(item.timestamp, tr), value: item.pnl })));
-      setRangePnl(res.range_pnl);
-      setRangePnlPct(res.range_pnl_pct);
-      setTotalPnl(res.total_pnl);
-    } catch {
-      setPnlChartData([]); setRangePnl(0); setRangePnlPct(0); setTotalPnl(0);
-    }
+      setRangePnl(res.range_pnl); setRangePnlPct(res.range_pnl_pct); setTotalPnl(res.total_pnl);
+    } catch { setPnlChartData([]); setRangePnl(0); setRangePnlPct(0); setTotalPnl(0); }
   }, [authReady]);
 
   useEffect(() => { fetchPnlChart(timeRange); }, [timeRange, fetchPnlChart]);
@@ -226,82 +193,89 @@ const Home = () => {
     refreshWalletBalance(); fetchPnlChart(timeRange); setTimeout(fetchDashboard, 60_000);
   }, [refreshWalletBalance, fetchPnlChart, timeRange, fetchDashboard]);
 
+  // ★ NEW — close position handler
+  const handleClosePosition = useCallback(async (tradeId: string) => {
+    await closePositionApi(tradeId);
+    // Refresh everything after close
+    await Promise.allSettled([
+      refreshWalletBalance(),
+      fetchDashboard(),
+      fetchPnlChart(timeRange),
+    ]);
+    // Close the detail sheet
+    setSelectedPos(null);
+  }, [refreshWalletBalance, fetchDashboard, fetchPnlChart, timeRange]);
+
+  // ★ UPDATED — include tradeId (real API trade ID)
   const currentPositions = positions.map((p, idx) => ({
-    id: idx + 1, token: p.ticker, pair: `${p.ticker}/USDT`,
+    id: idx + 1,
+    tradeId: p.id, // ★ real trade ID for close API
+    token: p.ticker,
+    pair: `${p.ticker}/USDT`,
     iconUrl: `https://assets.coingecko.com/coins/images/1/small/${p.ticker.toLowerCase()}.png`,
-    size: p.size_qty, sizeUsd: p.size_usd, pnl: p.pnl_usd ?? 0, pnlPercent: p.pnl_pct ?? 0, entry: p.entry_price,
+    size: p.size_qty,
+    sizeUsd: p.size_usd,
+    pnl: p.pnl_usd ?? 0,
+    pnlPercent: p.pnl_pct ?? 0,
+    entry: p.entry_price,
   }));
 
   const handleLogout = async () => { removeToken(); await logout(); router.push("/"); };
 
+  // ★ UPDATED — works for ANY token, not just ones in positionExtendedData
   const handleSelectPosition = (pos: (typeof currentPositions)[0]) => {
     const ext = positionExtendedData[pos.token];
-    if (ext) setSelectedPos({ ...pos, color: ext.color, currentPrice: ext.currentPrice, txs: ext.txs });
+    setSelectedPos({
+      ...pos,
+      color: ext?.color ?? getFallbackColor(pos.token),
+      currentPrice: ext?.currentPrice ?? pos.entry * (1 + (pos.pnlPercent / 100)),
+      txs: ext?.txs ?? [],
+    });
   };
 
   const pnlPositive = rangePnl >= 0;
 
-  /* ─── Settings display helpers ─── */
   const fmtSetting = (val: number | undefined, type: string | undefined, fallback: string) => {
     if (val == null || val === 0) return fallback;
     return type === "PCT" ? `${val}%` : `$${val}`;
   };
 
-  /* ─── Trader Row Component ─── */
   const TraderRow = ({ trader, index, mode }: { trader: FollowedTrader; index: number; mode: "copy" | "counter" | "watch" }) => {
     const bg = AVATAR_COLORS[index % AVATAR_COLORS.length];
     const initial = (trader.display_name || trader.trader_username)?.[0]?.toUpperCase() || "?";
     const pnlData = traderPnlMap[trader.trader_username];
     const userPnlUsd = pnlData?.pnl_usd ?? 0;
     const userPnlPct = pnlData?.pnl_pct ?? 0;
-
     const sizeDisplay = fmtSetting(defaultSettings?.tradeSize, defaultSettings?.tradeSizeType, "—");
     const levDisplay = defaultSettings?.leverage ? `${defaultSettings.leverage}x` : "—";
     const tpDisplay = defaultSettings?.tp ? fmtSetting(defaultSettings.tp.value, defaultSettings.tp.type, "—") : "—";
     const slDisplay = defaultSettings?.sl ? fmtSetting(defaultSettings.sl.value, defaultSettings.sl.type, "—") : "—";
-
     const modeColor = mode === "counter" ? "#f59e0b" : mode === "copy" ? "#2dd4bf" : "rgba(255,255,255,0.25)";
     const modeBg = mode === "counter" ? "rgba(245,158,11,0.08)" : mode === "copy" ? "rgba(45,212,191,0.06)" : "rgba(255,255,255,0.03)";
     const modeLabel = mode === "counter" ? "COUNTER" : mode === "copy" ? "COPY" : "WATCH";
 
     return (
-      <div
-        className="px-3 py-2.5 transition-all duration-200 row-animate cursor-pointer active:bg-white/10 hover:bg-white/[0.03]"
+      <div className="px-3 py-2.5 transition-all duration-200 row-animate cursor-pointer active:bg-white/10 hover:bg-white/[0.03]"
         style={{ animationDelay: `${index * 0.04}s` }}
-        onClick={() => router.push(`/profile?handle=${trader.trader_username}`)}
-      >
-        {/* Top: Avatar + Name + Mode badge + PnL */}
+        onClick={() => router.push(`/profile?handle=${trader.trader_username}`)}>
         <div className="flex items-center gap-2 mb-1.5">
-          {/* Avatar */}
           {trader.avatar_url ? (
             <img src={trader.avatar_url} className="w-7 h-7 rounded-full object-cover shrink-0" alt="" />
           ) : (
             <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: bg }}>{initial}</div>
           )}
-
-          {/* Name + grade */}
           <div className="flex flex-col min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-gray-200 font-medium truncate">@{trader.trader_username}</span>
-              {trader.profit_grade && (
-                <span className="text-[8px] font-semibold px-1 py-[1px] rounded" style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.35)" }}>{trader.profit_grade}</span>
-              )}
+              {trader.profit_grade && <span className="text-[8px] font-semibold px-1 py-[1px] rounded" style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.35)" }}>{trader.profit_grade}</span>}
             </div>
           </div>
-
-          {/* Mode badge */}
           {mode !== "watch" && (
             <div className="flex items-center gap-1 px-1.5 py-[3px] rounded shrink-0" style={{ background: modeBg, border: `1px solid ${modeColor}25` }}>
-              {mode === "counter" ? (
-                <RefreshCw size={8} style={{ color: modeColor }} />
-              ) : (
-                <Copy size={8} style={{ color: modeColor }} />
-              )}
+              {mode === "counter" ? <RefreshCw size={8} style={{ color: modeColor }} /> : <Copy size={8} style={{ color: modeColor }} />}
               <span className="text-[7px] font-bold tracking-wider" style={{ color: modeColor }}>{modeLabel}</span>
             </div>
           )}
-
-          {/* PnL column */}
           <div className="flex flex-col items-end shrink-0 ml-1">
             <span className={`text-[11px] font-bold tabular-nums ${userPnlUsd >= 0 ? "text-teal-400" : "text-rose-400"}`}>
               {userPnlUsd >= 0 ? "+" : "-"}${Math.abs(userPnlUsd).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
@@ -310,38 +284,24 @@ const Home = () => {
               {userPnlPct >= 0 ? "+" : ""}{userPnlPct.toFixed(1)}%
             </span>
           </div>
-
-          {/* Settings gear */}
-          <button
-            onClick={(e) => { e.stopPropagation(); router.push(`/settings?tab=trader&handle=${trader.trader_username}`); }}
-            className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-teal-400 hover:bg-white/10 rounded-md transition-all cursor-pointer shrink-0"
-          >
+          <button onClick={(e) => { e.stopPropagation(); router.push(`/settings?tab=trader&handle=${trader.trader_username}`); }}
+            className="w-6 h-6 flex items-center justify-center text-gray-600 hover:text-teal-400 hover:bg-white/10 rounded-md transition-all cursor-pointer shrink-0">
             <Settings size={11} />
           </button>
         </div>
-
-        {/* Bottom: Settings chips */}
         {mode !== "watch" && (
           <div className="flex items-center gap-1.5 ml-9 flex-wrap">
-            {/* Size */}
             <div className="flex items-center gap-[3px] px-1.5 py-[2px] rounded" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <span className="text-[7px] text-gray-500">Size</span>
-              <span className="text-[8px] font-semibold text-gray-300">{sizeDisplay}</span>
+              <span className="text-[7px] text-gray-500">Size</span><span className="text-[8px] font-semibold text-gray-300">{sizeDisplay}</span>
             </div>
-            {/* Leverage */}
             <div className="flex items-center gap-[3px] px-1.5 py-[2px] rounded" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
-              <span className="text-[7px] text-gray-500">Lev</span>
-              <span className="text-[8px] font-semibold text-gray-300">{levDisplay}</span>
+              <span className="text-[7px] text-gray-500">Lev</span><span className="text-[8px] font-semibold text-gray-300">{levDisplay}</span>
             </div>
-            {/* TP */}
             <div className="flex items-center gap-[3px] px-1.5 py-[2px] rounded" style={{ background: "rgba(34,197,94,0.04)", border: "1px solid rgba(34,197,94,0.1)" }}>
-              <span className="text-[7px] text-emerald-500/70">TP</span>
-              <span className="text-[8px] font-semibold text-emerald-400">{tpDisplay}</span>
+              <span className="text-[7px] text-emerald-500/70">TP</span><span className="text-[8px] font-semibold text-emerald-400">{tpDisplay}</span>
             </div>
-            {/* SL */}
             <div className="flex items-center gap-[3px] px-1.5 py-[2px] rounded" style={{ background: "rgba(244,63,94,0.04)", border: "1px solid rgba(244,63,94,0.1)" }}>
-              <span className="text-[7px] text-rose-500/70">SL</span>
-              <span className="text-[8px] font-semibold text-rose-400">{slDisplay}</span>
+              <span className="text-[7px] text-rose-500/70">SL</span><span className="text-[8px] font-semibold text-rose-400">{slDisplay}</span>
             </div>
           </div>
         )}
@@ -349,12 +309,9 @@ const Home = () => {
     );
   };
 
-  /* ─── Section header for grouped traders ─── */
   const SectionHeader = ({ label, count, color, icon: Icon }: { label: string; count: number; color: string; icon: typeof Copy }) => (
     <div className="flex items-center gap-2 px-3 py-1.5" style={{ background: `${color}06`, borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-      <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: `${color}15` }}>
-        <Icon size={9} style={{ color }} />
-      </div>
+      <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: `${color}15` }}><Icon size={9} style={{ color }} /></div>
       <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color, opacity: 0.85 }}>{label}</span>
       <span className="text-[9px] font-medium" style={{ color: "rgba(255,255,255,0.2)" }}>{count}</span>
     </div>
@@ -382,10 +339,7 @@ const Home = () => {
             <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: "rgba(45,212,191,0.15)" }}>
               <svg className="w-3.5 h-3.5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
-            <div>
-              <p className="text-[10px] font-semibold text-white">Connect to start trading</p>
-              <p className="text-[9px] text-gray-500">Link your wallet to copy top traders</p>
-            </div>
+            <div><p className="text-[10px] font-semibold text-white">Connect to start trading</p><p className="text-[9px] text-gray-500">Link your wallet to copy top traders</p></div>
           </div>
           <span className="text-[10px] font-semibold text-teal-400">Connect →</span>
         </div>
@@ -396,32 +350,20 @@ const Home = () => {
       )}
 
       <RewardsBanner />
-
-      <TopBar
-        activeTrades={openCount}
-        onCoinClick={() => viewRewardsFromPrompt()}
-        onActiveTradesClick={() => setShowActiveTrades(true)}
-      />
+      <TopBar activeTrades={openCount} onCoinClick={() => viewRewardsFromPrompt()} onActiveTradesClick={() => setShowActiveTrades(true)} />
 
       {/* PORTFOLIO CARD */}
       <div className="relative z-10 px-3">
         <div className="rounded-xl overflow-hidden mb-3" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.05) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(45,212,191,0.15)", boxShadow: "0 0 30px rgba(45,212,191,0.08)" }}>
           <div className="absolute inset-0 rounded-xl pointer-events-none" style={{ background: "radial-gradient(ellipse at top left, rgba(45,212,191,0.12) 0%, transparent 60%)" }} />
-
           <div className="relative z-10 p-4">
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
                 <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider">Portfolio</p>
-                <button onClick={() => setHideBalance(!hideBalance)} className="text-gray-600 hover:text-gray-400 transition-colors">
-                  {hideBalance ? <EyeOff size={12} /> : <Eye size={12} />}
-                </button>
+                <button onClick={() => setHideBalance(!hideBalance)} className="text-gray-600 hover:text-gray-400 transition-colors">{hideBalance ? <EyeOff size={12} /> : <Eye size={12} />}</button>
               </div>
-              <button onClick={refreshWalletBalance} disabled={balRefreshing}
-                className="text-gray-600 hover:text-teal-400 transition-colors disabled:opacity-50">
-                <RefreshCw size={12} className={balRefreshing ? "animate-spin" : ""} />
-              </button>
+              <button onClick={refreshWalletBalance} disabled={balRefreshing} className="text-gray-600 hover:text-teal-400 transition-colors disabled:opacity-50"><RefreshCw size={12} className={balRefreshing ? "animate-spin" : ""} /></button>
             </div>
-
             <div className="flex justify-between items-start mb-3">
               <div>
                 <p className="text-3xl font-bold text-white tracking-tight tabular-nums" style={{ textShadow: "0 0 20px rgba(45,212,191,0.2)" }}>
@@ -429,73 +371,44 @@ const Home = () => {
                 </p>
                 {authenticated && pnlChartData.length > 0 && (
                   <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-[12px] font-bold tabular-nums ${pnlPositive ? "text-teal-400" : "text-rose-400"}`}>
-                      {rangePnl >= 0 ? "+" : "-"}${fmt(Math.abs(rangePnl))}
-                    </span>
-                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${pnlPositive ? "text-teal-400 bg-teal-400/10" : "text-rose-400 bg-rose-400/10"}`}>
-                      {rangePnlPct >= 0 ? "+" : ""}{rangePnlPct.toFixed(2)}%
-                    </span>
+                    <span className={`text-[12px] font-bold tabular-nums ${pnlPositive ? "text-teal-400" : "text-rose-400"}`}>{rangePnl >= 0 ? "+" : "-"}${fmt(Math.abs(rangePnl))}</span>
+                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${pnlPositive ? "text-teal-400 bg-teal-400/10" : "text-rose-400 bg-rose-400/10"}`}>{rangePnlPct >= 0 ? "+" : ""}{rangePnlPct.toFixed(2)}%</span>
                     <span className="text-[9px] text-gray-600">{TIME_RANGE_LABELS[timeRange] || ""}</span>
                   </div>
                 )}
               </div>
               <div className="text-right">
                 <p className="text-[10px] text-gray-500 mb-0.5">Available to trade</p>
-                <p className="text-lg font-bold text-white tabular-nums">
-                  {authenticated ? (hideBalance ? "••••" : `$${fmt(availableToTrade)}`) : "—"}
-                </p>
-                {pendingBalance > 0.01 && (
-                  <p className="text-[9px] text-yellow-400/70 mt-0.5">+${fmt(pendingBalance)} bridging</p>
-                )}
+                <p className="text-lg font-bold text-white tabular-nums">{authenticated ? (hideBalance ? "••••" : `$${fmt(availableToTrade)}`) : "—"}</p>
+                {pendingBalance > 0.01 && <p className="text-[9px] text-yellow-400/70 mt-0.5">+${fmt(pendingBalance)} bridging</p>}
               </div>
             </div>
-
             <div className="flex gap-2 mb-4">
               <Button onClick={() => authenticated ? setShowDeposit(true) : login()}
                 className="flex-1 bg-teal-400 hover:bg-teal-300 text-[#0a0f14] text-[12px] font-bold rounded-xl py-3 h-auto transition-all cursor-pointer gap-1.5"
-                style={{ boxShadow: "0 0 20px rgba(45,212,191,0.3)" }}>
-                <Download size={14} /> {authenticated ? "Deposit" : "Connect"}
-              </Button>
+                style={{ boxShadow: "0 0 20px rgba(45,212,191,0.3)" }}><Download size={14} /> {authenticated ? "Deposit" : "Connect"}</Button>
               {authenticated && (
-                <Button onClick={() => setShowWithdraw(true)}
-                  className="flex-1 bg-transparent hover:bg-white/5 text-gray-300 text-[12px] font-bold rounded-xl py-3 h-auto transition-all cursor-pointer gap-1.5"
-                  style={{ border: "1px solid rgba(255,255,255,0.12)" }}>
-                  <Upload size={14} /> Withdraw
-                </Button>
+                <Button onClick={() => setShowWithdraw(true)} className="flex-1 bg-transparent hover:bg-white/5 text-gray-300 text-[12px] font-bold rounded-xl py-3 h-auto transition-all cursor-pointer gap-1.5" style={{ border: "1px solid rgba(255,255,255,0.12)" }}><Upload size={14} /> Withdraw</Button>
               )}
               {authenticated && (
-                <button onClick={() => setShowHistory(true)}
-                  className="w-[46px] shrink-0 rounded-xl flex items-center justify-center transition-all hover:bg-white/10 cursor-pointer"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)" }}>
-                  <Clock size={16} className="text-gray-400" />
-                </button>
+                <button onClick={() => setShowHistory(true)} className="w-[46px] shrink-0 rounded-xl flex items-center justify-center transition-all hover:bg-white/10 cursor-pointer" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)" }}><Clock size={16} className="text-gray-400" /></button>
               )}
             </div>
-
             <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center gap-1.5">
-                <TrendingUp size={12} className="text-teal-400" />
-                <span className="text-[11px] text-gray-400 font-medium">Profit/Loss</span>
-              </div>
+              <div className="flex items-center gap-1.5"><TrendingUp size={12} className="text-teal-400" /><span className="text-[11px] text-gray-400 font-medium">Profit/Loss</span></div>
               <div className="flex gap-0.5">
                 {(["D", "W", "M", "ALL"] as TimeRange[]).map((t) => (
                   <TimeRangeTab key={t} label={t === "D" ? "1D" : t === "W" ? "1W" : t === "M" ? "1M" : "ALL"} isActive={timeRange === t} onClick={() => setTimeRange(t)} />
                 ))}
               </div>
             </div>
-
             {authenticated && pnlChartData.length > 0 && (
               <div className="mb-2">
-                <p className={`text-2xl font-bold tabular-nums ${pnlPositive ? "text-teal-400" : "text-rose-400"}`}>
-                  {hideBalance ? "••••••" : `${rangePnl >= 0 ? "+" : "-"}$${fmt(Math.abs(rangePnl))}`}
-                </p>
+                <p className={`text-2xl font-bold tabular-nums ${pnlPositive ? "text-teal-400" : "text-rose-400"}`}>{hideBalance ? "••••••" : `${rangePnl >= 0 ? "+" : "-"}$${fmt(Math.abs(rangePnl))}`}</p>
                 <p className="text-[10px] text-gray-500 capitalize">{TIME_RANGE_LABELS[timeRange] || ""}</p>
               </div>
             )}
-
-            <div className="relative h-28 mb-1">
-              <BalanceChart timeRange={timeRange} chartData={pnlChartData} mode="pnl" />
-            </div>
+            <div className="relative h-28 mb-1"><BalanceChart timeRange={timeRange} chartData={pnlChartData} mode="pnl" /></div>
           </div>
         </div>
       </div>
@@ -509,9 +422,7 @@ const Home = () => {
           ].map((stat, i) => (
             <div key={i} onClick={() => stat.action()} className="flex-1 rounded-xl p-3 cursor-pointer transition-all duration-300 hover:scale-[1.02]" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div className="flex flex-col items-center">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center mb-2 ${stat.color === "teal" ? "bg-teal-400/10" : "bg-purple-400/10"}`}>
-                  <stat.icon size={16} className={stat.color === "teal" ? "text-teal-400" : "text-purple-400"} />
-                </div>
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center mb-2 ${stat.color === "teal" ? "bg-teal-400/10" : "bg-purple-400/10"}`}><stat.icon size={16} className={stat.color === "teal" ? "text-teal-400" : "text-purple-400"} /></div>
                 <span className="text-[9px] text-gray-400 mb-1">{stat.label}</span>
                 <span className="text-sm font-bold text-white">{stat.value}</span>
               </div>
@@ -520,17 +431,11 @@ const Home = () => {
         </div>
         <div className="flex flex-1 flex-col gap-2">
           <div onClick={() => setShowActiveTrades(true)} className="flex-1 rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-300 hover:scale-[1.02] flex items-center justify-between" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center bg-orange-400/10"><ArrowUpDown size={14} className="text-orange-400" /></div>
-              <span className="text-[9px] text-gray-400">Active Trades</span>
-            </div>
+            <div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full flex items-center justify-center bg-orange-400/10"><ArrowUpDown size={14} className="text-orange-400" /></div><span className="text-[9px] text-gray-400">Active Trades</span></div>
             <span className="text-sm font-bold text-white">{openCount}</span>
           </div>
           <div onClick={() => router.push("/tradeHistory")} className="flex-1 rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-300 hover:scale-[1.02] flex items-center justify-between" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full flex items-center justify-center bg-teal-400/10"><CheckCircle2 size={14} className="text-teal-400" /></div>
-              <span className="text-[9px] text-gray-400">Trades Ended</span>
-            </div>
+            <div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full flex items-center justify-center bg-teal-400/10"><CheckCircle2 size={14} className="text-teal-400" /></div><span className="text-[9px] text-gray-400">Trades Ended</span></div>
             <span className="text-sm font-bold text-white">{totalTrades}</span>
           </div>
         </div>
@@ -546,55 +451,24 @@ const Home = () => {
             ))}
           </div>
           <div className="relative overflow-hidden">
-
-            {/* ── Followed Tab ── */}
+            {/* Followed Tab */}
             <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "followed" ? 1 : 0, transform: activeTab === "followed" ? "translateX(0)" : "translateX(-20px)", position: activeTab === "followed" ? "relative" : "absolute", pointerEvents: activeTab === "followed" ? "auto" : "none", width: "100%" }}>
               {followedTraders.length > 0 ? (
                 <div>
-                  {/* Copy traders section */}
-                  {copyTraders.length > 0 && (
-                    <>
-                      <SectionHeader label="Copying" count={copyTraders.length} color="#2dd4bf" icon={Copy} />
-                      <div className="divide-y divide-white/5">
-                        {copyTraders.map((t, i) => <TraderRow key={t.id} trader={t} index={i} mode="copy" />)}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Counter traders section */}
-                  {counterTraders.length > 0 && (
-                    <>
-                      <SectionHeader label="Countering" count={counterTraders.length} color="#f59e0b" icon={RefreshCw} />
-                      <div className="divide-y divide-white/5">
-                        {counterTraders.map((t, i) => <TraderRow key={t.id} trader={t} index={i} mode="counter" />)}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Watch-only section */}
-                  {watchTraders.length > 0 && (
-                    <>
-                      <SectionHeader label="Watching" count={watchTraders.length} color="rgba(255,255,255,0.35)" icon={Eye} />
-                      <div className="divide-y divide-white/5">
-                        {watchTraders.map((t, i) => <TraderRow key={t.id} trader={t} index={i} mode="watch" />)}
-                      </div>
-                    </>
-                  )}
+                  {copyTraders.length > 0 && (<><SectionHeader label="Copying" count={copyTraders.length} color="#2dd4bf" icon={Copy} /><div className="divide-y divide-white/5">{copyTraders.map((t, i) => <TraderRow key={t.id} trader={t} index={i} mode="copy" />)}</div></>)}
+                  {counterTraders.length > 0 && (<><SectionHeader label="Countering" count={counterTraders.length} color="#f59e0b" icon={RefreshCw} /><div className="divide-y divide-white/5">{counterTraders.map((t, i) => <TraderRow key={t.id} trader={t} index={i} mode="counter" />)}</div></>)}
+                  {watchTraders.length > 0 && (<><SectionHeader label="Watching" count={watchTraders.length} color="rgba(255,255,255,0.35)" icon={Eye} /><div className="divide-y divide-white/5">{watchTraders.map((t, i) => <TraderRow key={t.id} trader={t} index={i} mode="watch" />)}</div></>)}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-10 px-4">
                   <Copy size={24} className="text-gray-600 mb-2" />
                   <p className="text-[11px] text-gray-500 text-center">{authenticated ? "You're not following any traders yet" : "Connect wallet to see followed traders"}</p>
-                  {authenticated && (
-                    <button onClick={() => router.push("/copyTrading")} className="mt-3 text-[10px] font-semibold text-teal-400 px-4 py-1.5 rounded-lg cursor-pointer" style={{ background: "rgba(45,212,191,0.08)", border: "1px solid rgba(45,212,191,0.2)" }}>
-                      Browse Traders
-                    </button>
-                  )}
+                  {authenticated && <button onClick={() => router.push("/copyTrading")} className="mt-3 text-[10px] font-semibold text-teal-400 px-4 py-1.5 rounded-lg cursor-pointer" style={{ background: "rgba(45,212,191,0.08)", border: "1px solid rgba(45,212,191,0.2)" }}>Browse Traders</button>}
                 </div>
               )}
             </div>
 
-            {/* ── Positions Tab ── */}
+            {/* Positions Tab */}
             <div className="transition-all duration-300 ease-out" style={{ opacity: activeTab === "position" ? 1 : 0, transform: activeTab === "position" ? "translateX(0)" : "translateX(20px)", position: activeTab === "position" ? "relative" : "absolute", pointerEvents: activeTab === "position" ? "auto" : "none", width: "100%", top: 0 }}>
               {currentPositions.length > 0 ? (
                 <>
@@ -612,15 +486,9 @@ const Home = () => {
                           <div className="w-5 h-5 rounded-full overflow-hidden bg-white/10 flex items-center justify-center">
                             <img src={pos.iconUrl} alt={pos.token} className="w-5 h-5 object-cover" onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.parentElement!.innerHTML = `<span class="text-[9px] font-bold text-white">${pos.token[0]}</span>`; }} />
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-[10px] text-white font-medium">{pos.token}</span>
-                            <span className="text-[8px] text-gray-500">{pos.pair}</span>
-                          </div>
+                          <div className="flex flex-col"><span className="text-[10px] text-white font-medium">{pos.token}</span><span className="text-[8px] text-gray-500">{pos.pair}</span></div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-[10px] text-white font-medium">${pos.sizeUsd.toLocaleString()}</div>
-                          <div className="text-[8px] text-gray-500">{pos.size} {pos.token}</div>
-                        </div>
+                        <div className="text-right"><div className="text-[10px] text-white font-medium">${pos.sizeUsd.toLocaleString()}</div><div className="text-[8px] text-gray-500">{pos.size} {pos.token}</div></div>
                         <div className="text-right">
                           <div className={`text-[10px] font-medium ${pos.pnl >= 0 ? "text-teal-400" : "text-rose-400"}`}>{pos.pnl >= 0 ? "+" : ""}${Math.abs(pos.pnl).toLocaleString()}</div>
                           <div className={`text-[8px] ${pos.pnl >= 0 ? "text-teal-400/70" : "text-rose-400/70"}`}>{pos.pnlPercent >= 0 ? "+" : ""}{pos.pnlPercent}%</div>
@@ -643,43 +511,48 @@ const Home = () => {
       </div>
 
       {/* Overlays */}
-      {showRewards && (
-        <div className="fixed inset-0 z-[100]" style={{ animation: "rewardsFadeIn 0.35s ease-out both" }}>
-          <KOLRewardsScreen onClose={closeRewards} />
-        </div>
-      )}
-      {showCopying && (
-        <CopyingSheet
-          mode="copying"
-          onClose={() => setShowCopying(false)}
-          userBalance={walletBal?.hl_equity ?? 0}
-          onDepositClick={() => setShowDeposit(true)}
-        />
-      )}
-      {showCopiers && (
-        <CopyingSheet
-          mode="copiers"
-          onClose={() => setShowCopiers(false)}
-          userBalance={walletBal?.hl_equity ?? 0}
-          onDepositClick={() => setShowDeposit(true)}
-        />
-      )}
+      {showRewards && <div className="fixed inset-0 z-[100]" style={{ animation: "rewardsFadeIn 0.35s ease-out both" }}><KOLRewardsScreen onClose={closeRewards} /></div>}
+      {showCopying && <CopyingSheet mode="copying" onClose={() => setShowCopying(false)} userBalance={walletBal?.hl_equity ?? 0} onDepositClick={() => setShowDeposit(true)} />}
+      {showCopiers && <CopyingSheet mode="copiers" onClose={() => setShowCopiers(false)} userBalance={walletBal?.hl_equity ?? 0} onDepositClick={() => setShowDeposit(true)} />}
+
+      {/* ★ UPDATED — pass onPositionClosed callback */}
       {showActiveTrades && (
-        <ActiveTradesSheet positions={positions} onClose={() => setShowActiveTrades(false)}
+        <ActiveTradesSheet
+          positions={positions}
+          onClose={() => setShowActiveTrades(false)}
+          onPositionClosed={() => { refreshWalletBalance(); fetchDashboard(); fetchPnlChart(timeRange); }}
           onSelectPosition={(pos: PositionItem) => {
             const ext = positionExtendedData[pos.ticker];
-            if (ext) setSelectedPos({
-              id: Number(pos.id) || 0, token: pos.ticker, pair: `${pos.ticker}/USDT`, iconUrl: "",
-              size: pos.size_qty, sizeUsd: pos.size_usd, pnl: pos.pnl_usd ?? 0, pnlPercent: pos.pnl_pct ?? 0,
-              entry: pos.entry_price, color: ext.color, currentPrice: ext.currentPrice, txs: ext.txs,
+            setSelectedPos({
+              id: Number(pos.id) || 0,
+              tradeId: pos.id, // ★ real trade ID
+              token: pos.ticker,
+              pair: `${pos.ticker}/USDT`,
+              iconUrl: "",
+              size: pos.size_qty,
+              sizeUsd: pos.size_usd,
+              pnl: pos.pnl_usd ?? 0,
+              pnlPercent: pos.pnl_pct ?? 0,
+              entry: pos.entry_price,
+              color: ext?.color ?? getFallbackColor(pos.ticker),
+              currentPrice: ext?.currentPrice ?? pos.entry_price * (1 + ((pos.pnl_pct ?? 0) / 100)),
+              txs: ext?.txs ?? [],
             });
-          }} />
+          }}
+        />
       )}
-      {selectedPos && <PositionDetail pos={selectedPos} onClose={() => setSelectedPos(null)} />}
+
+      {/* ★ UPDATED — pass onClosePosition callback */}
+      {selectedPos && (
+        <PositionDetail
+          pos={selectedPos}
+          onClose={() => setSelectedPos(null)}
+          onClosePosition={handleClosePosition}
+        />
+      )}
+
       <DepositSheet isOpen={showDeposit} onClose={() => handleSheetClose(setShowDeposit)} onSuccess={handleDepositSuccess} />
-      <WithdrawSheet isOpen={showWithdraw}
-        onClose={() => { setShowWithdraw(false); refreshWalletBalance(); fetchPnlChart(timeRange); setTimeout(fetchDashboard, 60_000); }}
-        availableBalance={availableToTrade} onSuccess={handleWithdrawSuccess} />
+      <WithdrawSheet isOpen={showWithdraw} onClose={() => { setShowWithdraw(false); refreshWalletBalance(); fetchPnlChart(timeRange); setTimeout(fetchDashboard, 60_000); }} availableBalance={availableToTrade} onSuccess={handleWithdrawSuccess} />
       <TransactionHistorySheet isOpen={showHistory} onClose={() => setShowHistory(false)} />
     </div>
   );

@@ -731,3 +731,26 @@ export interface TraderPnlItem {
 export const getTraderPnl = async (): Promise<TraderPnlItem[]> => {
   return await get("/api/portfolio/trader-pnl");
 };
+// ─── Close Position (手动平仓) ─────────────────────────
+
+export interface CloseTradeResponse {
+  id: string;
+  ticker: string;
+  direction: string;
+  entry_price: number;
+  exit_price: number;
+  size_usd: number;
+  size_qty: number;
+  leverage: number;
+  pnl_usd: number;
+  pnl_pct: number;
+  status: string;
+  source: string;
+  closed_at: string;
+}
+
+export const closePosition = async (
+  tradeId: string
+): Promise<CloseTradeResponse> => {
+  return await post(`/api/trades/${tradeId}/close`, {});
+};
