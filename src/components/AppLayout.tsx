@@ -3,81 +3,122 @@
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import Navbar from "@/components/navbar";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { useContext, useEffect, useRef } from "react";
+import { useContext, useEffect, useRef, useCallback } from "react";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { usePathname } from "next/navigation";
-import { getToken, setToken, removeToken } from "@/lib/token";
+import {
+  getToken,
+  setToken,
+  removeToken,
+  isTokenExpired,
+  setRefreshHandler,
+} from "@/lib/token";
 import { connectWalletApi } from "@/service";
 
-// ── JWT helpers ──────────────────────────────────────────
-
-function isTokenExpired(token: string | null): boolean {
-  if (!token) return true;
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    // Refresh if less than 10 min remaining (buffer for slow connections)
-    return payload.exp * 1000 < Date.now() + 10 * 60 * 1000;
-  } catch {
-    return true;
-  }
-}
-
-// ── Component ────────────────────────────────────────────
+// How often to proactively check token freshness (ms)
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { authenticated, ready, user } = usePrivy();
+  const { authenticated, ready, user, logout: privyLogout } = usePrivy();
   const { ready: walletsReady } = useWallets();
   const { tradingEnabled, builderFeeApproved } = useContext(HyperLiquidContext);
   const currentWallet = useCurrentWallet();
   const pathname = usePathname();
   const isOnboardingPage = pathname === "/onboarding";
 
-  // Prevent concurrent refresh calls
-  const refreshing = useRef(false);
+  // Track consecutive failures to avoid infinite retry loops
+  const failCount = useRef(0);
+  const MAX_FAILURES = 3;
+
+  // ── Core refresh logic ─────────────────────────────────
+
+  const doRefresh = useCallback(async (): Promise<string | null> => {
+    // Resolve wallet address: external → embedded → any linked wallet
+    const walletAddress =
+      currentWallet?.address ??
+      user?.wallet?.address ??
+      (user?.linkedAccounts?.find(
+        (a: any) => a.type === "wallet"
+      ) as any)?.address;
+
+    if (!walletAddress) {
+      console.warn("[auth] No wallet address available for refresh");
+      return null;
+    }
+
+    const twitterUsername = (user?.twitter as any)?.username ?? null;
+
+    try {
+      const { access_token } = await connectWalletApi(
+        walletAddress,
+        twitterUsername
+      );
+      setToken(access_token);
+      failCount.current = 0;
+      console.info("[auth] Token refreshed ✓");
+      return access_token;
+    } catch (err) {
+      failCount.current += 1;
+      console.warn(
+        `[auth] Refresh failed (${failCount.current}/${MAX_FAILURES}):`,
+        err
+      );
+
+      // After MAX_FAILURES consecutive failures, give up and clean up
+      if (failCount.current >= MAX_FAILURES) {
+        console.error("[auth] Max refresh failures reached — clearing token");
+        removeToken();
+        // Don't call privyLogout here — let user stay on public pages
+      }
+      return null;
+    }
+  }, [currentWallet?.address, user]);
+
+  // ── Register refresh handler for axios interceptor ─────
+
+  useEffect(() => {
+    if (!ready || !authenticated) return;
+    setRefreshHandler(doRefresh);
+    return () => setRefreshHandler(async () => null);
+  }, [ready, authenticated, doRefresh]);
+
+  // ── Proactive refresh: on mount + periodic interval ────
 
   useEffect(() => {
     if (!ready || !authenticated) return;
 
-    const token = getToken();
-    if (!isTokenExpired(token)) return; // still valid, nothing to do
-
-    if (refreshing.current) return;
-    refreshing.current = true;
-
-    const silentRefresh = async () => {
-      try {
-        // Prefer external wallet address; fall back to embedded wallet
-        const walletAddress =
-          currentWallet?.address ??
-          user?.wallet?.address ??
-          (user?.linkedAccounts?.find(
-            (a: any) => a.type === "wallet"
-          ) as any)?.address;
-
-        if (!walletAddress) return; // no wallet yet, Privy still initializing
-
-        // Twitter username if linked
-        const twitterUsername =
-          (user?.twitter as any)?.username ?? null;
-
-        const { access_token } = await connectWalletApi(
-          walletAddress,
-          twitterUsername
-        );
-
-        setToken(access_token);
-        console.info("[auth] Token silently refreshed ✓");
-      } catch (err) {
-        console.warn("[auth] Silent refresh failed:", err);
-        // Don't removeToken here — let the user continue browsing
-        // public pages. Only remove if we get a hard 401 on a protected call.
-      } finally {
-        refreshing.current = false;
+    // Check immediately on mount / when deps change
+    const checkAndRefresh = () => {
+      const token = getToken();
+      if (isTokenExpired(token)) {
+        doRefresh();
       }
     };
 
-    silentRefresh();
-  }, [ready, authenticated, currentWallet?.address]);
+    checkAndRefresh();
+
+    // Re-check every REFRESH_INTERVAL_MS
+    const timer = setInterval(checkAndRefresh, REFRESH_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [ready, authenticated, currentWallet?.address, doRefresh]);
+
+  // ── Refresh when app regains focus (tab switch / phone unlock) ──
+
+  useEffect(() => {
+    if (!ready || !authenticated) return;
+
+    const onFocus = () => {
+      const token = getToken();
+      if (isTokenExpired(token)) {
+        doRefresh();
+      }
+    };
+
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [ready, authenticated, doRefresh]);
+
+  // ── Render ─────────────────────────────────────────────
 
   return (
     <>
