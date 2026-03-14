@@ -12,6 +12,7 @@ import {
   removeToken,
   isTokenExpired,
   setRefreshHandler,
+  emitTokenRefreshed,
 } from "@/lib/token";
 import { connectWalletApi } from "@/service";
 
@@ -88,10 +89,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!ready || !authenticated) return;
 
     // Check immediately on mount / when deps change
-    const checkAndRefresh = () => {
+    const checkAndRefresh = async () => {
       const token = getToken();
       if (isTokenExpired(token)) {
-        doRefresh();
+        const newToken = await doRefresh();
+        // If proactive refresh succeeded, notify listeners (e.g. dashboard)
+        if (newToken) {
+          emitTokenRefreshed();
+        }
       }
     };
 
@@ -107,10 +112,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!ready || !authenticated) return;
 
-    const onFocus = () => {
+    const onFocus = async () => {
       const token = getToken();
       if (isTokenExpired(token)) {
-        doRefresh();
+        const newToken = await doRefresh();
+        if (newToken) {
+          emitTokenRefreshed();
+        }
       }
     };
 

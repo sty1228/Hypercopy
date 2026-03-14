@@ -17,7 +17,7 @@ import {
   getWalletBalance,
   getTraderPnl,
   getDefaultSettings,
-  closePosition as closePositionApi, // ★ NEW
+  closePosition as closePositionApi,
   type DashboardSummary,
   type PositionItem,
   type ProfileDataResponse,
@@ -39,7 +39,7 @@ import TransactionHistorySheet from "./components/TransactionHistorySheet";
 import { KOLRewardsScreen } from "./components/KOLRewardsScreen";
 import { useRewards } from "@/providers/RewardsContext";
 import RewardsBanner from "@/components/RewardsBanner";
-import { getToken, setToken, removeToken } from "@/lib/token";
+import { getToken, setToken, removeToken, onTokenRefreshed } from "@/lib/token";
 import TopBar from "@/components/TopBar";
 
 export interface BalanceChartData { label: string; value: number; }
@@ -59,7 +59,6 @@ const fmt = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 2,
 const TIME_RANGE_LABELS: Record<string, string> = { D: "past day", W: "past week", M: "past month", ALL: "all-time" };
 const AVATAR_COLORS = ["#2dd4bf", "#a78bfa", "#f97316", "#3b82f6", "#ec4899", "#eab308"];
 
-// ★ Default fallback for tokens not in positionExtendedData
 const FALLBACK_COLORS: Record<string, string> = {
   BTC: "#f7931a", ETH: "#627eea", SOL: "#9945ff", HYPE: "#00d4aa",
   DOGE: "#c3a634", AVAX: "#e84142", MATIC: "#8247e5", ARB: "#28a0f0",
@@ -178,6 +177,26 @@ const Home = () => {
 
   useEffect(() => { fetchPnlChart(timeRange); }, [timeRange, fetchPnlChart]);
 
+  // ★ FIX: Listen for token-refreshed event and re-fetch all data
+  // This handles the case where initial API calls 401'd but token was
+  // subsequently refreshed by AppLayout or axios interceptor.
+  useEffect(() => {
+    if (!authenticated) return;
+
+    const handleRefreshed = () => {
+      console.info("[dashboard] Token refreshed — re-fetching all data");
+      // Mark authReady in case initial auth flow hadn't completed
+      setAuthReady(true);
+    };
+
+    const unsub = onTokenRefreshed(handleRefreshed);
+    return unsub;
+  }, [authenticated]);
+
+  // When authReady flips to true (including from token-refreshed event),
+  // fetchDashboard + fetchPnlChart + refreshWalletBalance all auto-fire
+  // because they depend on authReady via their useEffect hooks.
+
   const handleSheetClose = useCallback((setter: (v: boolean) => void) => {
     setter(false); refreshWalletBalance(); fetchDashboard(); fetchPnlChart(timeRange);
   }, [refreshWalletBalance, fetchDashboard, fetchPnlChart, timeRange]);
@@ -193,23 +212,19 @@ const Home = () => {
     refreshWalletBalance(); fetchPnlChart(timeRange); setTimeout(fetchDashboard, 60_000);
   }, [refreshWalletBalance, fetchPnlChart, timeRange, fetchDashboard]);
 
-  // ★ NEW — close position handler
   const handleClosePosition = useCallback(async (tradeId: string) => {
     await closePositionApi(tradeId);
-    // Refresh everything after close
     await Promise.allSettled([
       refreshWalletBalance(),
       fetchDashboard(),
       fetchPnlChart(timeRange),
     ]);
-    // Close the detail sheet
     setSelectedPos(null);
   }, [refreshWalletBalance, fetchDashboard, fetchPnlChart, timeRange]);
 
-  // ★ UPDATED — include tradeId (real API trade ID)
   const currentPositions = positions.map((p, idx) => ({
     id: idx + 1,
-    tradeId: p.id, // ★ real trade ID for close API
+    tradeId: p.id,
     token: p.ticker,
     pair: `${p.ticker}/USDT`,
     iconUrl: `https://assets.coingecko.com/coins/images/1/small/${p.ticker.toLowerCase()}.png`,
@@ -222,7 +237,6 @@ const Home = () => {
 
   const handleLogout = async () => { removeToken(); await logout(); router.push("/"); };
 
-  // ★ UPDATED — works for ANY token, not just ones in positionExtendedData
   const handleSelectPosition = (pos: (typeof currentPositions)[0]) => {
     const ext = positionExtendedData[pos.token];
     setSelectedPos({
@@ -515,7 +529,6 @@ const Home = () => {
       {showCopying && <CopyingSheet mode="copying" onClose={() => setShowCopying(false)} userBalance={walletBal?.hl_equity ?? 0} onDepositClick={() => setShowDeposit(true)} />}
       {showCopiers && <CopyingSheet mode="copiers" onClose={() => setShowCopiers(false)} userBalance={walletBal?.hl_equity ?? 0} onDepositClick={() => setShowDeposit(true)} />}
 
-      {/* ★ UPDATED — pass onPositionClosed callback */}
       {showActiveTrades && (
         <ActiveTradesSheet
           positions={positions}
@@ -525,7 +538,7 @@ const Home = () => {
             const ext = positionExtendedData[pos.ticker];
             setSelectedPos({
               id: Number(pos.id) || 0,
-              tradeId: pos.id, // ★ real trade ID
+              tradeId: pos.id,
               token: pos.ticker,
               pair: `${pos.ticker}/USDT`,
               iconUrl: "",
@@ -542,7 +555,6 @@ const Home = () => {
         />
       )}
 
-      {/* ★ UPDATED — pass onClosePosition callback */}
       {selectedPos && (
         <PositionDetail
           pos={selectedPos}

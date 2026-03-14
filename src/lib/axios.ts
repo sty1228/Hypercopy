@@ -46,6 +46,7 @@ instance.interceptors.response.use(
       originalRequest._retried = true;
 
       try {
+        // FIX: refreshTokenSilently now waits up to 5s for handler registration
         const newToken = await refreshTokenSilently();
 
         if (newToken) {

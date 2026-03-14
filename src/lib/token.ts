@@ -2,8 +2,10 @@
  * Token storage with localStorage + cookie fallback.
  * iOS Safari in-app browsers and private mode may block localStorage.
  *
- * NEW: refresh handler registration — allows axios interceptor to trigger
- *      a silent token refresh without importing React/Privy directly.
+ * Refresh handler registration — allows axios interceptor to trigger
+ * a silent token refresh without importing React/Privy directly.
+ *
+ * FIX 2026-03-14: handler wait mechanism + token-refreshed event
  */
 
 const TOKEN_KEY = "token";
@@ -98,6 +100,28 @@ export function isTokenExpired(
   return payload.exp * 1000 < Date.now() + bufferMs;
 }
 
+// ── Global event: notify listeners when token is refreshed ──
+
+const TOKEN_REFRESHED_EVENT = "token-refreshed";
+
+/**
+ * Dispatch a global event so any component (e.g. dashboard) can
+ * re-fetch data after a silent token refresh.
+ */
+export function emitTokenRefreshed(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(TOKEN_REFRESHED_EVENT));
+}
+
+/**
+ * Subscribe to token-refreshed events. Returns an unsubscribe function.
+ */
+export function onTokenRefreshed(callback: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(TOKEN_REFRESHED_EVENT, callback);
+  return () => window.removeEventListener(TOKEN_REFRESHED_EVENT, callback);
+}
+
 // ── Refresh handler (set by AppLayout, called by axios) ──
 
 type RefreshFn = () => Promise<string | null>;
@@ -115,17 +139,52 @@ export function setRefreshHandler(fn: RefreshFn): void {
 }
 
 /**
+ * Wait for the refresh handler to be registered (max waitMs).
+ * Handles the race condition where axios 401 fires before AppLayout mounts.
+ */
+function waitForHandler(waitMs = 5000, pollMs = 100): Promise<boolean> {
+  if (_refreshFn) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const iv = setInterval(() => {
+      if (_refreshFn) {
+        clearInterval(iv);
+        resolve(true);
+      } else if (Date.now() - start >= waitMs) {
+        clearInterval(iv);
+        resolve(false);
+      }
+    }, pollMs);
+  });
+}
+
+/**
  * Called by axios 401 interceptor. Deduplicates concurrent calls —
  * multiple 401s will share a single in-flight refresh.
  * Returns the new token string, or null if refresh failed.
+ *
+ * FIX: If handler isn't registered yet (race condition), waits up to 5s.
  */
 export async function refreshTokenSilently(): Promise<string | null> {
-  if (!_refreshFn) return null;
-
   // If a refresh is already in-flight, piggyback on it
   if (_refreshPromise) return _refreshPromise;
 
+  // Wait for handler if it hasn't been registered yet
+  if (!_refreshFn) {
+    const ready = await waitForHandler();
+    if (!ready || !_refreshFn) {
+      console.warn("[token] Refresh handler not available after waiting");
+      return null;
+    }
+  }
+
   _refreshPromise = _refreshFn()
+    .then((token) => {
+      if (token) {
+        emitTokenRefreshed();
+      }
+      return token;
+    })
     .catch(() => null)
     .finally(() => {
       _refreshPromise = null;
