@@ -450,7 +450,7 @@ const Home = () => {
           </div>
           <div onClick={() => router.push("/tradeHistory")} className="flex-1 rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-300 hover:scale-[1.02] flex items-center justify-between" style={{ background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)", border: "1px solid rgba(255,255,255,0.08)" }}>
             <div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full flex items-center justify-center bg-teal-400/10"><CheckCircle2 size={14} className="text-teal-400" /></div><span className="text-[9px] text-gray-400">Trades Ended</span></div>
-            <span className="text-sm font-bold text-white">{totalTrades}</span>
+            <span className="text-sm font-bold text-white">{Math.max(0, totalTrades - openCount)}</span>
           </div>
         </div>
       </div>
