@@ -1,8 +1,17 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export default function Home() {
+  const [leaders, setLeaders] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('https://api.hypercopy.io/api/leaderboard?window=7d&sort_by=total_profit_usd')
+      .then(r => r.json())
+      .then(data => setLeaders(Array.isArray(data) ? data.slice(0, 5) : []))
+      .catch(() => {});
+  }, []);
+
   const vcRef   = useRef<HTMLCanvasElement | null>(null);
   const vpRef   = useRef<HTMLDivElement | null>(null);
   const cs1Ref  = useRef<HTMLCanvasElement | null>(null);
@@ -68,7 +77,6 @@ export default function Home() {
     }
 
     function bez(t:number,x0:number,y0:number,x1:number,y1:number,x2:number,y2:number){const m=1-t;return{x:m*m*x0+2*m*t*x1+t*t*x2,y:m*m*y0+2*m*t*y1+t*t*y2};}
-
     function addRipple(){ripples.push({r:4,a:.55,spd:2.6});ripples.push({r:11,a:.28,spd:4});}
 
     function tryFire(ts:number){
@@ -153,24 +161,47 @@ export default function Home() {
 
   /* ─────────────────────────── LEADERBOARD LIVE ───────────── */
   useEffect(() => {
-    const rows = [
-      {base:247,bar:78,wr:78,pos:true, drift:0},
-      {base:184,bar:71,wr:71,pos:true, drift:0},
-      {base:119,bar:65,wr:65,pos:true, drift:0},
-      {base:88, bar:63,wr:63,pos:true, drift:0},
-      {base:-12,bar:41,wr:41,pos:false,drift:0},
-    ] as any[];
-    rows.forEach((r:any,i:number)=>{r.pEl=document.getElementById(`pnl${i}`);r.bEl=document.getElementById(`bar${i}`);r.wEl=document.getElementById(`wr${i}`);});
-    let last=0,btick=0,raf:number;
-    function tick(ts:number){raf=requestAnimationFrame(tick);if(ts-last<800)return;last=ts;btick++;
-      rows.forEach((r:any,i:number)=>{if(!r.pEl)return;const bias=r.pos?.62:.36;const move=(Math.random()<bias?1:-1)*(Math.random()*1.5+.3);r.drift=Math.max(r.pos?-20:-30,Math.min(r.pos?35:10,r.drift+move));const val=r.base+Math.round(r.drift);const sign=val>=0?'+':'−';r.pEl.textContent=sign+Math.abs(val)+'%';
-        if(r.pos){r.pEl.classList.remove('pnl-flash');void r.pEl.offsetWidth;r.pEl.classList.add('pnl-flash');}
-        if(btick%12===i&&r.pos){r.wr=Math.min(r.wr+.35,r.bar+9);r.bEl.style.width=r.wr+'%';r.wEl.textContent=Math.round(r.wr)+'%';}
+    if (!leaders.length) return;
+    const rows = leaders.map(t => ({
+      base: Math.round(t.results_pct ?? t.total_profit_usd ?? 0),
+      bar: Math.round((t.win_rate ?? 0) * 100),
+      wr: Math.round((t.win_rate ?? 0) * 100),
+      pos: (t.results_pct ?? t.total_profit_usd ?? 0) >= 0,
+      drift: 0,
+    })) as any[];
+    rows.forEach((r: any, i: number) => {
+      r.pEl = document.getElementById(`pnl${i}`);
+      r.bEl = document.getElementById(`bar${i}`);
+      r.wEl = document.getElementById(`wr${i}`);
+    });
+    let last = 0, btick = 0, raf: number;
+    function tick(ts: number) {
+      raf = requestAnimationFrame(tick);
+      if (ts - last < 800) return;
+      last = ts; btick++;
+      rows.forEach((r: any, i: number) => {
+        if (!r.pEl) return;
+        const bias = r.pos ? .62 : .36;
+        const move = (Math.random() < bias ? 1 : -1) * (Math.random() * 1.5 + .3);
+        r.drift = Math.max(r.pos ? -20 : -30, Math.min(r.pos ? 35 : 10, r.drift + move));
+        const val = r.base + Math.round(r.drift);
+        const sign = val >= 0 ? '+' : '−';
+        r.pEl.textContent = sign + Math.abs(val) + '%';
+        if (r.pos) {
+          r.pEl.classList.remove('pnl-flash');
+          void r.pEl.offsetWidth;
+          r.pEl.classList.add('pnl-flash');
+        }
+        if (btick % 12 === i && r.pos) {
+          r.wr = Math.min(r.wr + .35, r.bar + 9);
+          r.bEl.style.width = r.wr + '%';
+          r.wEl.textContent = Math.round(r.wr) + '%';
+        }
       });
     }
-    raf=requestAnimationFrame(tick);
-    return ()=>cancelAnimationFrame(raf);
-  }, []);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [leaders]);
 
   /* ─────────────────────────── CANDLESTICK CHARTS ─────────── */
   useEffect(() => {
@@ -180,16 +211,12 @@ export default function Home() {
     function drawCandle(c:CanvasRenderingContext2D,x:number,open:number,close:number,high:number,low:number,W:number,H:number,col:string){const sY=(v:number)=>H-H*.1-v*(H*.8);const o=sY(open),cl=sY(close),hi=sY(high),lo=sY(low),bw=W*.06;c.strokeStyle=col;c.lineWidth=1;c.beginPath();c.moveTo(x,hi);c.lineTo(x,lo);c.stroke();c.fillStyle=col;c.fillRect(x-bw/2,Math.min(o,cl),bw,Math.max(Math.abs(o-cl),2));}
     const rafs:number[]=[];
 
-    // Chart 1
     (()=>{const r=setup(cs1Ref);if(!r)return;const{c,W,H}=r;const candles=[{o:.35,cl:.55,hi:.62,lo:.28,col:GREEN},{o:.55,cl:.45,hi:.60,lo:.38,col:RED},{o:.45,cl:.65,hi:.70,lo:.40,col:GREEN},{o:.65,cl:.58,hi:.72,lo:.52,col:RED},{o:.58,cl:.75,hi:.80,lo:.52,col:GREEN}];let t=0;const xs=candles.map((_,i)=>W*.12+i*(W*.76/4));function frame(){c.clearRect(0,0,W,H);drawGrid(c,W,H);t+=.006;candles.forEach((cd,i)=>{const rev=Math.min(1,Math.max(0,(t-i*.35)*2));c.globalAlpha=rev;drawCandle(c,xs[i],cd.o,cd.cl,cd.hi,cd.lo,W,H,cd.col);});c.globalAlpha=1;const last=Math.min(4,Math.floor(t/.35));if(last<5&&Math.sin(t*6)>0){c.fillStyle=GREEN;c.fillRect(xs[last]-1,H*.05,2,H*.85);}if(t<5*.35+1.2)rafs.push(requestAnimationFrame(frame));else{t=0;setTimeout(()=>rafs.push(requestAnimationFrame(frame)),800);}};rafs.push(requestAnimationFrame(frame));})();
 
-    // Chart 2
     (()=>{const r=setup(cs2Ref);if(!r)return;const{c,W,H}=r;let t=0;const sY=(v:number)=>H-H*.1-v*(H*.8);function frame(){c.clearRect(0,0,W,H);drawGrid(c,W,H);t+=.007;const cycle=t%2.5,fill=cycle<1.5?Math.min(1,cycle):Math.max(0,1-(cycle-1.5));const bw=W*.14;c.fillStyle=DIM;c.fillRect(W/2-bw/2,sY(.9),bw,sY(.1)-sY(.9));const top=sY(.1+fill*.8),bot=sY(.1);c.fillStyle=GREEN;c.shadowColor=GREEN;c.shadowBlur=fill*8;c.fillRect(W/2-bw/2,top,bw,bot-top);c.shadowBlur=0;c.strokeStyle=GREEN;c.lineWidth=1;c.beginPath();c.moveTo(W/2,top);c.lineTo(W/2,top-H*.07*fill);c.stroke();c.fillStyle=LABEL;c.font=`7px monospace`;c.textAlign='center';c.textBaseline='top';c.fillText('+$'+(fill*5000|0),W/2,2);rafs.push(requestAnimationFrame(frame));}rafs.push(requestAnimationFrame(frame));})();
 
-    // Chart 3 – KOL picker
     (()=>{const r=setup(cs3Ref);if(!r)return;const{c,W,H}=r;const KOLS=[{ab:'KA',pnl:'+247%',col:'#0EB87A'},{ab:'DW',pnl:'+119%',col:'#60CFFF'},{ab:'SX',pnl:'+184%',col:'#C084FC'},{ab:'BH',pnl:'+88%',col:'#FFB900'},{ab:'MV',pnl:'+61%',col:'#FB923C'}];let tray:number[]=[],t=0,phase='scan' as string,phaseT=0,cursor=0,flyProgress=0,flyIdx=-1,flyStartX=0,flyStartY=0;const ROW_H=H/5.2,AV_R=ROW_H*.38;function drawAv(x:number,y:number,rr:number,kol:any,alpha:number){c.globalAlpha=alpha;c.beginPath();c.arc(x,y,rr,0,Math.PI*2);c.fillStyle=kol.col+'28';c.fill();c.strokeStyle=kol.col;c.lineWidth=.8;c.stroke();c.fillStyle=kol.col;c.font=`600 ${rr*.75}px 'Space Grotesk',sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(kol.ab,x,y);c.globalAlpha=1;}function ease(x:number){return x<.5?2*x*x:-1+(4-2*x)*x;}function frame(){c.clearRect(0,0,W,H);t+=.008;phaseT+=.008;if(phase==='scan'){cursor=Math.min(4,Math.floor(phaseT/.28));if(phaseT>.28*5+.3){phase='pick';phaseT=0;flyIdx=Math.floor(Math.random()*5);flyStartX=AV_R+4;flyStartY=(flyIdx+.5)*ROW_H;flyProgress=0;}}else if(phase==='pick'){flyProgress=Math.min(1,phaseT*2.2);if(flyProgress>=1){tray.push(flyIdx);if(tray.length>=3)tray=[];phase='wait';phaseT=0;}}else if(phase==='wait'){if(phaseT>.6){phase='scan';phaseT=0;cursor=0;}}KOLS.forEach((kol,i)=>{const y=(i+.5)*ROW_H,rowA=(phase==='scan'&&i<=cursor)||(phase==='pick'&&i===flyIdx)?1:.4;if(i===cursor&&phase==='scan'){c.fillStyle='rgba(14,184,122,.08)';c.fillRect(0,i*ROW_H,W,ROW_H);}if(!(phase==='pick'&&i===flyIdx))drawAv(AV_R+4,y,AV_R,kol,rowA);c.globalAlpha=rowA*.85;c.fillStyle=kol.col;c.font=`500 ${ROW_H*.3}px 'Space Mono',monospace`;c.textAlign='left';c.textBaseline='middle';c.fillText(kol.pnl,AV_R*2+10,y);c.globalAlpha=1;if(tray.includes(i)){c.fillStyle=GREEN;c.font=`${ROW_H*.32}px monospace`;c.textAlign='right';c.textBaseline='middle';c.fillText('✓',W-4,y);}});if(phase==='scan'){c.strokeStyle='rgba(14,184,122,.55)';c.lineWidth=.8;c.strokeRect(.5,cursor*ROW_H+.5,W-1,ROW_H-1);}if(phase==='pick'&&flyIdx>=0){const kol=KOLS[flyIdx],ex=W-6,ey=6,midX=(flyStartX+ex)*.5+12,midY=flyStartY*.5,fe=ease(flyProgress),fx=(1-fe)*(1-fe)*flyStartX+2*(1-fe)*fe*midX+fe*fe*ex,fy=(1-fe)*(1-fe)*flyStartY+2*(1-fe)*fe*midY+fe*fe*ey;drawAv(fx,fy,AV_R*(1-fe*.5),kol,1);}rafs.push(requestAnimationFrame(frame));}rafs.push(requestAnimationFrame(frame));})();
 
-    // Chart 4
     (()=>{const r=setup(cs4Ref);if(!r)return;const{c,W,H}=r;const history:any[]=[];let lastY=.4,frameCount=0;function addCandle(){const move=(Math.random()-.3)*.18,open=lastY,close=Math.min(.92,Math.max(.08,open+move));lastY=close;history.push({o:open,cl:close,hi:Math.max(open,close)+Math.random()*.08,lo:Math.min(open,close)-Math.random()*.06,col:close>open?GREEN:RED});if(history.length>7)history.shift();}function frame(){c.clearRect(0,0,W,H);drawGrid(c,W,H);frameCount++;if(frameCount%36===0)addCandle();const n=history.length;history.forEach((cd:any,i:number)=>{const x=W*.08+(i/6)*(W*.84),alpha=.4+(i/n)*.6;c.globalAlpha=alpha;drawCandle(c,x,cd.o,cd.cl,cd.hi,cd.lo,W,H,cd.col);});c.globalAlpha=1;if(history.length>1){c.strokeStyle='rgba(14,184,122,.5)';c.lineWidth=1;c.setLineDash([2,3]);c.beginPath();history.forEach((cd:any,i:number)=>{const x=W*.08+(i/6)*(W*.84),y=H-H*.1-cd.cl*(H*.8);i===0?c.moveTo(x,y):c.lineTo(x,y);});c.stroke();c.setLineDash([]);}if(frameCount%36<3){c.fillStyle=`rgba(14,184,122,${.08*(3-(frameCount%18))})`;c.fillRect(0,0,W,H);}rafs.push(requestAnimationFrame(frame));}addCandle();addCandle();addCandle();rafs.push(requestAnimationFrame(frame));})();
 
     return ()=>rafs.forEach(r=>cancelAnimationFrame(r));
@@ -358,20 +385,40 @@ export default function Home() {
             <div className="lb-hcell">#</div><div className="lb-hcell">TRADER</div>
             <div className="lb-hcell">PNL</div><div className="lb-hcell">WIN%</div>
           </div>
-          {[
-            {rank:'1',rc:'r1',ab:'KA',name:'KingAlpha',sigs:'312 signals',pnl:'+247%',pos:true,wr:'78%',ww:78,id:0},
-            {rank:'2',rc:'r2',ab:'SX',name:'SolXpert',sigs:'189 signals',pnl:'+184%',pos:true,wr:'71%',ww:71,id:1},
-            {rank:'3',rc:'r3',ab:'DW',name:'DegenWatch',sigs:'441 signals',pnl:'+119%',pos:true,wr:'65%',ww:65,id:2},
-            {rank:'4',rc:'r4',ab:'BH',name:'BTCHunter',sigs:'227 signals',pnl:'+88%',pos:true,wr:'63%',ww:63,id:3},
-            {rank:'5',rc:'r5',ab:'RB',name:'RugnBull',sigs:'98 signals',pnl:'−12%',pos:false,wr:'41%',ww:41,id:4},
-          ].map(r=>(
-            <div key={r.id} className="lb-row">
-              <div className={`rank ${r.rc}`}>{r.rank}</div>
-              <div className="trader"><div className="av">{r.ab}</div><div><div className="tn">{r.name}</div><div className="tm">{r.sigs}</div></div></div>
-              <div className="pnl-cell"><div className={`pnl ${r.pos?'pos':'neg'}`} id={`pnl${r.id}`}>{r.pnl}</div></div>
-              <div className="bar-cell"><div className="wr" id={`wr${r.id}`}>{r.wr}</div><div className="bar-bg"><div className="bar-fill" id={`bar${r.id}`} style={{width:`${r.ww}%`}} /></div></div>
-            </div>
-          ))}
+          {leaders.map((t, i) => {
+            const rc = i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : i === 3 ? 'r4' : 'r5';
+            const pos = (t.total_profit_usd ?? t.results_pct ?? 0) >= 0;
+            const pnl = t.results_pct ?? t.total_profit_usd ?? 0;
+            const wr = Math.round((t.win_rate ?? 0) * 100);
+            const ab = (t.display_name || t.x_handle || '??').slice(0, 2).toUpperCase();
+            return (
+              <div key={t.x_handle} className="lb-row">
+                <div className={`rank ${rc}`}>{i + 1}</div>
+                <div className="trader">
+                  {t.avatar_url ? (
+                    <img src={t.avatar_url} style={{width:36,height:36,borderRadius:'50%',objectFit:'cover',flexShrink:0}} alt="" />
+                  ) : (
+                    <div className="av">{ab}</div>
+                  )}
+                  <div>
+                    <div className="tn">{t.display_name || t.x_handle}</div>
+                    <div className="tm">{t.total_signals ?? t.total_tweets ?? 0} signals</div>
+                  </div>
+                </div>
+                <div className="pnl-cell">
+                  <div className={`pnl ${pos ? 'pos' : 'neg'}`} id={`pnl${i}`}>
+                    {pos ? '+' : '−'}{Math.abs(pnl).toFixed(0)}%
+                  </div>
+                </div>
+                <div className="bar-cell">
+                  <div className="wr" id={`wr${i}`}>{wr}%</div>
+                  <div className="bar-bg">
+                    <div className="bar-fill" id={`bar${i}`} style={{width:`${wr}%`}} />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="cc-wrap">
