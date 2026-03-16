@@ -1,9 +1,49 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { usePrivy } from '@privy-io/react-auth';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
+  const router = useRouter();
+  const { authenticated, user, login } = usePrivy();
   const [leaders, setLeaders] = useState<any[]>([]);
+
+  /* ── derive user avatar URL from Privy ── */
+  const userAvatarUrl = user?.twitter?.profilePictureUrl || null;
+
+  /* ── preload avatar image for canvas ── */
+  const avatarImgRef = useRef<HTMLImageElement | null>(null);
+  useEffect(() => {
+    if (!userAvatarUrl) { avatarImgRef.current = null; return; }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { avatarImgRef.current = img; };
+    img.onerror = () => { avatarImgRef.current = null; };
+    img.src = userAvatarUrl;
+  }, [userAvatarUrl]);
+  
+  /* ── button handlers ── */
+  const handleStartCopying = useCallback(() => {
+    if (authenticated) {
+      router.push('/dashboard');
+    } else {
+      login();
+    }
+  }, [authenticated, router, login]);
+
+  const handleHowItWorks = useCallback(() => {
+    const el = document.getElementById('hiw-section');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  const handleBottomCta = useCallback(() => {
+    if (authenticated) {
+      router.push('/dashboard');
+    } else {
+      login();
+    }
+  }, [authenticated, router, login]);
 
   useEffect(() => {
     fetch('https://api.hypercopy.io/api/leaderboard?window=7d&sort_by=total_profit_usd')
@@ -100,10 +140,59 @@ export default function Home() {
       ctx.rotate(coreRot*.8);const sb=S+15,bl=3;ctx.strokeStyle=`rgba(14,184,122,${.45+coreHit*.3})`;ctx.lineWidth=.8;
       [[[-sb,-sb+bl],[-sb,-sb],[-sb+bl,-sb]],[[sb-bl,-sb],[sb,-sb],[sb,-sb+bl]],[[sb,sb-bl],[sb,sb],[sb-bl,sb]],[[-sb+bl,sb],[-sb,sb],[-sb,sb-bl]]].forEach(pts=>{ctx.beginPath();pts.forEach(([x,y],i)=>i===0?ctx.moveTo(x,y):ctx.lineTo(x,y));ctx.stroke();});
       ctx.restore();
-      const cg=ctx.createLinearGradient(cx-S,cy-S,cx+S,cy+S);cg.addColorStop(0,'rgba(0,32,14,.96)');cg.addColorStop(1,'rgba(0,14,6,.96)');
-      ctx.fillStyle=cg;ctx.fillRect(cx-S,cy-S,S*2,S*2);
-      ctx.strokeStyle=`rgba(14,184,122,${.65+coreHit*.3})`;ctx.lineWidth=.8+coreHit*.5;ctx.strokeRect(cx-S,cy-S,S*2,S*2);
-      ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`400 4.5px 'Share Tech Mono',monospace`;ctx.shadowColor=G1;ctx.shadowBlur=3+coreHit*4;ctx.fillStyle=`rgba(14,184,122,${.9+coreHit*.1})`;ctx.fillText('YOU',cx,cy);ctx.shadowBlur=0;
+
+      /* ★ AVATAR — draw user photo or default silhouette */
+      const avImg = avatarImgRef.current;
+      const avR = S * 1.6; // avatar radius
+      if (avImg) {
+        /* logged-in: draw circular avatar */
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, avR, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(avImg, cx - avR, cy - avR, avR * 2, avR * 2);
+        ctx.restore();
+        /* green ring */
+        ctx.strokeStyle = `rgba(14,184,122,${.65+coreHit*.3})`;
+        ctx.lineWidth = 1.2 + coreHit * .5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, avR, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        /* not logged-in: draw default avatar (dark circle + silhouette) */
+        const cg=ctx.createLinearGradient(cx-avR,cy-avR,cx+avR,cy+avR);
+        cg.addColorStop(0,'rgba(0,32,14,.96)');cg.addColorStop(1,'rgba(0,14,6,.96)');
+        ctx.beginPath();
+        ctx.arc(cx, cy, avR, 0, Math.PI * 2);
+        ctx.fillStyle = cg;
+        ctx.fill();
+        ctx.strokeStyle=`rgba(14,184,122,${.65+coreHit*.3})`;ctx.lineWidth=.8+coreHit*.5;
+        ctx.stroke();
+        /* draw person silhouette */
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, avR, 0, Math.PI * 2);
+        ctx.clip();
+        const headR = avR * .32;
+        /* head */
+        ctx.beginPath();
+        ctx.arc(cx, cy - headR * .6, headR, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(14,184,122,${.5+coreHit*.2})`;
+        ctx.fill();
+        /* body */
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + headR * 1.6, headR * 1.3, headR * 1.1, 0, Math.PI, 0);
+        ctx.fill();
+        ctx.restore();
+        /* "YOU" label below */
+        ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.font=`400 4px 'Share Tech Mono',monospace`;
+        ctx.shadowColor=G1;ctx.shadowBlur=3+coreHit*4;
+        ctx.fillStyle=`rgba(14,184,122,${.7+coreHit*.1})`;
+        ctx.fillText('YOU',cx,cy+avR+6);
+        ctx.shadowBlur=0;
+      }
       coreRot+=.005;
     }
 
@@ -356,8 +445,8 @@ export default function Home() {
           <div className="badge"><div className="badge-dot" />1000+ KOLs · Live on HL L1</div>
           <h1>Trade like<br />the best.<br /><span className="g">Automatically.</span></h1>
           <div className="btns">
-            <button className="btn-p">Start copying →</button>
-            <button className="btn-g">How it works</button>
+            <button className="btn-p" onClick={handleStartCopying}>Start copying →</button>
+            <button className="btn-g" onClick={handleHowItWorks}>How it works</button>
           </div>
         </div>
 
@@ -373,7 +462,7 @@ export default function Home() {
 
         <div className="sec-hd">
           <div className="sec-title">Leaderboard · 7d</div>
-          <div className="sec-more">View all →</div>
+          <div className="sec-more" onClick={() => router.push('/copyTrading')}>View all →</div>
         </div>
         <div className="lb-wrap">
           <div className="lb-tabs">
@@ -392,7 +481,7 @@ export default function Home() {
             const wr = Math.round((t.win_rate ?? 0) * 100);
             const ab = (t.display_name || t.x_handle || '??').slice(0, 2).toUpperCase();
             return (
-              <div key={t.x_handle} className="lb-row">
+              <div key={t.x_handle} className="lb-row" onClick={() => router.push(`/profile/${t.x_handle}`)}>
                 <div className={`rank ${rc}`}>{i + 1}</div>
                 <div className="trader">
                   {t.avatar_url ? (
@@ -436,7 +525,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="sec-hd"><div className="sec-title">How it works</div></div>
+        <div className="sec-hd" id="hiw-section"><div className="sec-title">How it works</div></div>
         <div className="hiw">
           <div className="hiw-grid">
             {[{id:'cs1',n:'01',label:'Connect wallet',ref:cs1Ref},{id:'cs2',n:'02',label:'Deposit USDC',ref:cs2Ref},{id:'cs3',n:'03',label:'Pick KOLs',ref:cs3Ref},{id:'cs4',n:'04',label:'Trades fire in 15s',ref:cs4Ref}].map(c=>(
@@ -459,7 +548,7 @@ export default function Home() {
           <div className="tc"><div className="tc-icon stats"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="9" width="3" height="5" rx="1" stroke="#0EB87A" strokeWidth="1.3"/><rect x="6.5" y="5" width="3" height="9" rx="1" stroke="#0EB87A" strokeWidth="1.3"/><rect x="11" y="2" width="3" height="12" rx="1" stroke="#0EB87A" strokeWidth="1.3"/></svg></div><div className="tc-title">KOL analytics</div></div>
         </div>
 
-        <div className="bcta">
+        <div className="bcta" onClick={handleBottomCta}>
           <div className="bcta-l">
             <div className="bcta-title">Start for free</div>
             <div className="bcta-sub">Zero fees · Live on HyperLiquid</div>
