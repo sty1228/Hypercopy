@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
 import { leaderboard, LeaderboardItem } from "@/service";
@@ -31,7 +31,7 @@ const EMPTY_MESSAGES: Record<string, string> = {
   verified: "No verified traders found. Register to get verified!",
 };
 
-export default function CopyTrading() {
+function CopyTradingContent() {
   const searchParams = useSearchParams();
   const { authenticated, login } = usePrivy();
 
@@ -283,5 +283,13 @@ export default function CopyTrading() {
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
     </div>
+  );
+}
+
+export default function CopyTrading() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" style={{ background: "#0a0f14" }} />}>
+      <CopyTradingContent />
+    </Suspense>
   );
 }
