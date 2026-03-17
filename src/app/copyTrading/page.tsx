@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import { leaderboard, LeaderboardItem } from "@/service";
 import Search from "./components/search";
 import KolList from "./components/kolList";
@@ -30,6 +32,19 @@ const EMPTY_MESSAGES: Record<string, string> = {
 };
 
 export default function CopyTrading() {
+  const searchParams = useSearchParams();
+  const { authenticated, login } = usePrivy();
+
+  /* ★ Show connect banner if ?connect=1 and not authenticated */
+  const [showConnectBanner, setShowConnectBanner] = useState(false);
+  useEffect(() => {
+    if (searchParams.get("connect") === "1" && !authenticated) {
+      setShowConnectBanner(true);
+    } else {
+      setShowConnectBanner(false);
+    }
+  }, [searchParams, authenticated]);
+
   const [isOpen, setIsOpen] = useState(false);
   const [listSearchValue, setListSearchValue] = useState("");
   const [leaderboardList, setLeaderboardList] = useState<LeaderboardItem[]>([]);
@@ -130,6 +145,53 @@ export default function CopyTrading() {
 
       <TopBar />
 
+      {/* ★ Connect banner — shown when redirected from onboarding */}
+      {showConnectBanner && (
+        <div className="relative z-20 mx-3 mb-2 animate-fadeInDown">
+          <div
+            className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl"
+            style={{
+              background: "linear-gradient(135deg, rgba(45,212,191,0.12) 0%, rgba(45,212,191,0.04) 100%)",
+              border: "1px solid rgba(45,212,191,0.25)",
+            }}
+          >
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(45,212,191,0.15)" }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                  <polyline points="10 17 15 12 10 7" />
+                  <line x1="15" y1="12" x2="3" y2="12" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-white">Connect to start copying</div>
+                <div className="text-[10px] text-gray-400 mt-0.5">Link your wallet to copy top traders</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => login()}
+                className="px-3.5 py-1.5 rounded-lg text-[11px] font-semibold text-white transition-all hover:opacity-90"
+                style={{ background: "linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%)" }}
+              >
+                Connect
+              </button>
+              <button
+                onClick={() => setShowConnectBanner(false)}
+                className="text-gray-500 hover:text-gray-300 transition-colors p-1"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="relative z-10 px-3 pt-1 pb-2">
         <h1 className="text-base font-bold text-white">Leaderboard</h1>
       </div>
@@ -212,6 +274,8 @@ export default function CopyTrading() {
 
       <style jsx global>{`
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fadeInDown { animation: fadeInDown 0.4s ease-out; }
         @keyframes pulseGold { 0%, 100% { box-shadow: 0 0 12px rgba(255,215,0,0.5); } 50% { box-shadow: 0 0 20px rgba(255,215,0,0.8), 0 0 30px rgba(255,215,0,0.4); } }
         @keyframes pulseSilver { 0%, 100% { box-shadow: 0 0 10px rgba(192,192,192,0.4); } 50% { box-shadow: 0 0 18px rgba(192,192,192,0.7); } }
         @keyframes pulseBronze { 0%, 100% { box-shadow: 0 0 10px rgba(205,127,50,0.4); } 50% { box-shadow: 0 0 18px rgba(205,127,50,0.7); } }

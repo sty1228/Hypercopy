@@ -22,15 +22,16 @@ export default function Home() {
     img.onerror = () => { avatarImgRef.current = null; };
     img.src = userAvatarUrl;
   }, [userAvatarUrl]);
-  
+
   /* ── button handlers ── */
   const handleStartCopying = useCallback(() => {
     if (authenticated) {
       router.push('/dashboard');
     } else {
-      login();
+      /* ★ Go to leaderboard with connect prompt instead of triggering login */
+      router.push('/copyTrading?connect=1');
     }
-  }, [authenticated, router, login]);
+  }, [authenticated, router]);
 
   const handleHowItWorks = useCallback(() => {
     const el = document.getElementById('hiw-section');
@@ -41,9 +42,9 @@ export default function Home() {
     if (authenticated) {
       router.push('/dashboard');
     } else {
-      login();
+      router.push('/copyTrading?connect=1');
     }
-  }, [authenticated, router, login]);
+  }, [authenticated, router]);
 
   useEffect(() => {
     fetch('https://api.hypercopy.io/api/leaderboard?window=7d&sort_by=total_profit_usd')
@@ -143,9 +144,8 @@ export default function Home() {
 
       /* ★ AVATAR — draw user photo or default silhouette */
       const avImg = avatarImgRef.current;
-      const avR = S * 1.6; // avatar radius
+      const avR = S * 1.6;
       if (avImg) {
-        /* logged-in: draw circular avatar */
         ctx.save();
         ctx.beginPath();
         ctx.arc(cx, cy, avR, 0, Math.PI * 2);
@@ -153,14 +153,12 @@ export default function Home() {
         ctx.clip();
         ctx.drawImage(avImg, cx - avR, cy - avR, avR * 2, avR * 2);
         ctx.restore();
-        /* green ring */
         ctx.strokeStyle = `rgba(14,184,122,${.65+coreHit*.3})`;
         ctx.lineWidth = 1.2 + coreHit * .5;
         ctx.beginPath();
         ctx.arc(cx, cy, avR, 0, Math.PI * 2);
         ctx.stroke();
       } else {
-        /* not logged-in: draw default avatar (dark circle + silhouette) */
         const cg=ctx.createLinearGradient(cx-avR,cy-avR,cx+avR,cy+avR);
         cg.addColorStop(0,'rgba(0,32,14,.96)');cg.addColorStop(1,'rgba(0,14,6,.96)');
         ctx.beginPath();
@@ -169,23 +167,19 @@ export default function Home() {
         ctx.fill();
         ctx.strokeStyle=`rgba(14,184,122,${.65+coreHit*.3})`;ctx.lineWidth=.8+coreHit*.5;
         ctx.stroke();
-        /* draw person silhouette */
         ctx.save();
         ctx.beginPath();
         ctx.arc(cx, cy, avR, 0, Math.PI * 2);
         ctx.clip();
         const headR = avR * .32;
-        /* head */
         ctx.beginPath();
         ctx.arc(cx, cy - headR * .6, headR, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(14,184,122,${.5+coreHit*.2})`;
         ctx.fill();
-        /* body */
         ctx.beginPath();
         ctx.ellipse(cx, cy + headR * 1.6, headR * 1.3, headR * 1.1, 0, Math.PI, 0);
         ctx.fill();
         ctx.restore();
-        /* "YOU" label below */
         ctx.textAlign='center';ctx.textBaseline='middle';
         ctx.font=`400 4px 'Share Tech Mono',monospace`;
         ctx.shadowColor=G1;ctx.shadowBlur=3+coreHit*4;
@@ -339,11 +333,11 @@ export default function Home() {
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&family=Share+Tech+Mono&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
         body{background:#050810;display:flex;justify-content:center;}
-        .w{font-family:'Space Grotesk',sans-serif;background:#050810;color:#ECE9FF;width:390px;min-height:100vh;position:relative;overflow:hidden;}
+        .w{font-family:'Space Grotesk',sans-serif;background:#050810;color:#ECE9FF;width:100%;max-width:480px;min-height:100vh;position:relative;overflow:hidden;margin:0 auto;}
         .noise{position:fixed;top:0;left:0;right:0;bottom:0;opacity:.35;pointer-events:none;z-index:100;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");}
         .aurora{position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:520px;height:520px;background:radial-gradient(ellipse 60% 40% at 40% 50%,rgba(14,184,122,.10) 0%,transparent 60%),radial-gradient(ellipse 50% 35% at 65% 45%,rgba(29,158,117,.14) 0%,transparent 60%),radial-gradient(ellipse 40% 30% at 50% 70%,rgba(220,38,38,.05) 0%,transparent 60%);pointer-events:none;animation:drift 8s ease-in-out infinite alternate;}
         @keyframes drift{from{transform:translateX(-50%) scale(1);}to{transform:translateX(-50%) scale(1.08) translateY(10px);}}
-        #vc{position:absolute;top:-10px;left:0;right:0;width:390px;height:320px;pointer-events:none;z-index:1;opacity:.72;}
+        #vc{position:absolute;top:-10px;right:0;width:390px;height:320px;pointer-events:none;z-index:1;opacity:.72;}
         .nav{display:flex;align-items:center;justify-content:space-between;padding:20px 22px 0;position:relative;z-index:3;}
         .logo{font-size:20px;font-weight:700;letter-spacing:-.5px;}
         .logo span{background:linear-gradient(135deg,#0EB87A,#0A9463);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
@@ -353,13 +347,13 @@ export default function Home() {
         .hero{padding:40px 22px 0;position:relative;z-index:3;min-height:280px;}
         .badge{display:inline-flex;align-items:center;gap:6px;background:rgba(99,89,255,.12);border:1px solid rgba(99,89,255,.3);border-radius:20px;padding:5px 12px;font-family:'Space Mono',monospace;font-size:9px;color:#A89FFF;letter-spacing:.5px;margin-bottom:18px;white-space:nowrap;}
         .badge-dot{width:5px;height:5px;border-radius:50%;background:#6359FF;box-shadow:0 0 6px #6359FF;}
-        h1{font-size:38px;font-weight:700;line-height:1.05;letter-spacing:-1.4px;margin-bottom:16px;max-width:195px;}
+        h1{font-size:38px;font-weight:700;line-height:1.05;letter-spacing:-1.4px;margin-bottom:16px;max-width:220px;}
         h1 .g{background:linear-gradient(135deg,#6359FF 0%,#1D9E75 60%,#F04444 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
         .btns{display:flex;gap:10px;margin-bottom:40px;position:relative;z-index:3;}
-        .btn-p{flex:1;padding:15px 0;background:#fff;color:#0a0f0a;border:none;border-radius:100px;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:-.1px;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 12px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.08);transition:transform .15s,box-shadow .15s,background .15s;position:relative;overflow:hidden;}
+        .btn-p{flex:1;max-width:200px;padding:15px 0;background:#fff;color:#0a0f0a;border:none;border-radius:100px;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600;cursor:pointer;letter-spacing:-.1px;box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 2px 12px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.08);transition:transform .15s,box-shadow .15s,background .15s;position:relative;overflow:hidden;}
         .btn-p::after{content:'';position:absolute;inset:0;background:linear-gradient(to bottom,rgba(255,255,255,.06) 0%,rgba(255,255,255,0) 60%);border-radius:100px;pointer-events:none;}
         .btn-p:hover{background:#f0faf5;transform:translateY(-1px);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 6px 20px rgba(0,0,0,.45),0 0 24px rgba(14,184,122,.18),0 0 0 1px rgba(255,255,255,.1);}
-        .btn-g{flex:1;padding:15px 0;background:transparent;color:rgba(236,233,255,.7);border:1px solid rgba(255,255,255,.1);border-radius:100px;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:400;cursor:pointer;transition:border-color .15s,color .15s;}
+        .btn-g{flex:1;max-width:200px;padding:15px 0;background:transparent;color:rgba(236,233,255,.7);border:1px solid rgba(255,255,255,.1);border-radius:100px;font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:400;cursor:pointer;transition:border-color .15s,color .15s;}
         .btn-g:hover{border-color:rgba(255,255,255,.25);color:rgba(236,233,255,.95);}
         .stats{display:flex;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:18px 0;margin:0 22px 40px;position:relative;z-index:3;}
         .stat{flex:1;text-align:center;}
@@ -434,7 +428,7 @@ export default function Home() {
         <div className="noise" />
         <div className="aurora" />
         <canvas id="vc" ref={vcRef} />
-        <div ref={vpRef} style={{position:'absolute',top:0,left:0,width:390,height:320,pointerEvents:'none',zIndex:2,overflow:'hidden'}} />
+        <div ref={vpRef} style={{position:'absolute',top:0,right:0,width:390,height:320,pointerEvents:'none',zIndex:2,overflow:'hidden'}} />
 
         <nav className="nav">
           <div className="logo">Hyper<span>Copy</span></div>
