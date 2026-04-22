@@ -225,6 +225,9 @@ export interface BestWorstSignal {
   direction?: string | null;
   tweet_text?: string | null;
   tweet_image_url?: string | null;
+  // ★ NEW (2026-04-23)
+  max_gain_pct?: number | null;
+  max_gain_at?: string | null;
 }
 
 export interface TraderProfile {
@@ -319,6 +322,9 @@ export interface UserSignalItem {
   likesCount: number;
   change_since_tweet: number;
   tweet_image_url?: string | null;
+  // ★ NEW (2026-04-23)
+  max_gain_pct?: number | null;
+  max_gain_at?: string | null;
 }
 
 export interface UserSignalResponse {

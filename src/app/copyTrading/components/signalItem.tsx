@@ -6,13 +6,11 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-// pct_change is stored as real % (e.g. -4.5 means -4.5%)
 function formatPct(v: number): string {
   if (v === 0) return "0.0%";
   return `${v > 0 ? "+" : ""}${v.toFixed(1)}%`;
 }
 
-// Strip t.co links from tweet text, return cleaned text + last url
 function parseTweetContent(text: string): { clean: string; url: string | null } {
   const re = /https?:\/\/t\.co\/\S+/g;
   const matches = text.match(re);
@@ -22,7 +20,24 @@ function parseTweetContent(text: string): { clean: string; url: string | null } 
   };
 }
 
-const MIN_HL_EQUITY = 5; // minimum HL balance to allow manual trade
+function formatRelative(iso: string | null | undefined): string {
+  if (!iso) return "";
+  try {
+    const then = new Date(iso).getTime();
+    if (isNaN(then)) return "";
+    const diff = Date.now() - then;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  } catch {
+    return "";
+  }
+}
+
+const MIN_HL_EQUITY = 5;
 
 export default function SignalItem({
   data,
@@ -49,13 +64,14 @@ export default function SignalItem({
   const tweetImage = data.tweet_image_url && !tweetImgError ? data.tweet_image_url : null;
   const { clean: cleanContent, url: tweetUrl } = parseTweetContent(data?.content || "");
 
+  const hasPeak = data.max_gain_pct != null && data.max_gain_pct > 0.1;
+
   const handleTrade = async (side: "copy" | "counter") => {
     if (!authenticated) { login(); return; }
     if (placing) return;
     setPlacing(true);
 
     try {
-      // 1. Check dedicated wallet balance first
       let bal;
       try {
         bal = await getWalletBalance();
@@ -71,7 +87,6 @@ export default function SignalItem({
         return;
       }
 
-      // 2. Execute via backend — uses per-trader settings → default fallback
       const result = await placeSignalTrade(data.signal_id, side);
       toast.success(
         `${result.direction === "long" ? "↑ Long" : "↓ Short"} ${result.ticker} placed · $${result.size_usd.toFixed(0)} @ $${result.entry_price.toFixed(2)}`
@@ -96,9 +111,9 @@ export default function SignalItem({
     <div
       onClick={() => {
         if (onDetail) {
-          onDetail(data);   // 打开详情 sheet
+          onDetail(data);
         } else {
-          onClick(data.signal_id);  // fallback: 原展开逻辑
+          onClick(data.signal_id);
         }
       }}
       className="rounded-2xl cursor-pointer relative overflow-hidden"
@@ -115,7 +130,6 @@ export default function SignalItem({
         animation: `fadeInUp 0.5s ease-out ${index * 0.08}s both`,
       }}
     >
-      {/* Left color bar */}
       <div
         className="absolute left-0 top-0 bottom-0 rounded-l-2xl transition-all duration-300"
         style={{
@@ -126,9 +140,8 @@ export default function SignalItem({
       />
 
       <div className="relative pl-4 pr-3 py-3">
-        {/* Header */}
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1.5 text-xs text-gray-400">
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
@@ -147,14 +160,30 @@ export default function SignalItem({
               </svg>
               <span>{isBullish ? "Bullish" : "Bearish"}</span>
             </div>
+
+            {hasPeak && (
+              <div
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                style={{
+                  background: "linear-gradient(135deg, rgba(251,191,36,0.18) 0%, rgba(245,158,11,0.1) 100%)",
+                  border: "1px solid rgba(251,191,36,0.35)",
+                  color: "#fbbf24",
+                  boxShadow: "0 0 8px rgba(251,191,36,0.15)",
+                }}
+                title={data.max_gain_at ? `Peaked ${formatRelative(data.max_gain_at)}` : ""}
+              >
+                <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 17L17 7M17 7H10M17 7V14" />
+                </svg>
+                <span>PEAK +{data.max_gain_pct!.toFixed(1)}%</span>
+              </div>
+            )}
           </div>
           <button className="text-gray-600 hover:text-gray-400 transition-colors px-1">•••</button>
         </div>
 
-        {/* Content */}
         <p className="text-sm text-gray-200 leading-relaxed mb-2">{cleanContent}</p>
 
-        {/* Tweet Image */}
         {tweetImage && (
           <div className="mb-2 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
             <img
@@ -167,7 +196,6 @@ export default function SignalItem({
           </div>
         )}
 
-        {/* Stats Row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 text-gray-500 text-xs">
             <span className="flex items-center gap-1.5 hover:text-gray-300 transition-colors">
@@ -190,7 +218,6 @@ export default function SignalItem({
             </span>
           </div>
           <div className="flex items-center gap-1.5">
-            {/* View on X */}
             {tweetUrl && (
               <a
                 href={tweetUrl}
@@ -225,7 +252,6 @@ export default function SignalItem({
           </div>
         </div>
 
-        {/* Expand/Collapse */}
         {isExpanded ? (
           <div className="flex gap-3 mt-3 pt-3 border-t border-white/10" style={{ animation: "slideUp 0.3s ease-out" }}>
             <button

@@ -4,26 +4,27 @@ import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, ArrowDownRight, X } from "lucide-react";
 
-/** Unified shape accepted by this sheet — maps from both UserSignalItem and BestWorstSignal */
 export interface SignalDetailData {
   ticker: string;
-  direction?: string | null;        // "long" | "short" | "bullish" | "bearish"
+  direction?: string | null;
   pct_change?: number | null;
   tweet_text?: string | null;
   tweet_image_url?: string | null;
   likes?: number;
   retweets?: number;
   replies?: number;
-  timestamp?: string | null;        // ISO or relative string
+  timestamp?: string | null;
   entry_price?: number | null;
   signal_id?: number | string | null;
+  // ★ NEW (2026-04-23)
+  max_gain_pct?: number | null;
+  max_gain_at?: string | null;
 }
 
 interface Props {
   signal: SignalDetailData | null;
   open: boolean;
   onClose: () => void;
-  /** Optional: place trade on this signal */
   onTrade?: (signal: SignalDetailData, side: "copy" | "counter") => void;
   trading?: boolean;
 }
@@ -37,7 +38,23 @@ function directionInfo(d?: string | null) {
   };
 }
 
-/* ★ Fixed height for the sheet: 75vh always, scrollable content area */
+function formatRelative(iso: string | null | undefined): string {
+  if (!iso) return "";
+  try {
+    const then = new Date(iso).getTime();
+    if (isNaN(then)) return "";
+    const diff = Date.now() - then;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  } catch {
+    return "";
+  }
+}
+
 const SHEET_HEIGHT = "75vh";
 
 export default function SignalDetailSheet({ signal, open, onClose, onTrade, trading }: Props) {
@@ -69,16 +86,18 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
   const hasEngagement = (signal.likes ?? 0) + (signal.retweets ?? 0) + (signal.replies ?? 0) > 0;
   const canTrade = !!onTrade && !!signal.signal_id;
 
+  // ★ NEW: Peak gain
+  const hasPeak = signal.max_gain_pct != null && signal.max_gain_pct > 0.1;
+  const peakTimeLabel = formatRelative(signal.max_gain_at);
+
   const el = (
     <div className="fixed inset-0 flex items-end justify-center" style={{ zIndex: 9990 }}>
-      {/* Backdrop */}
       <div
         className="absolute inset-0 transition-opacity duration-300"
         style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)", opacity: visible ? 1 : 0 }}
         onClick={handleClose}
       />
 
-      {/* ★ Sheet — fixed height, flex column so buttons stay pinned at bottom */}
       <div
         className="relative w-full transition-transform duration-300 ease-out flex flex-col"
         style={{
@@ -92,15 +111,11 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
           boxShadow: "0 -10px 40px rgba(0,0,0,0.7)",
         }}
       >
-        {/* Accent bar */}
         <div className="flex-shrink-0" style={{ height: 3, background: `linear-gradient(90deg, transparent, ${dir.color}, transparent)`, opacity: 0.5 }} />
 
-        {/* ★ Scrollable content area — grows to fill, scrolls internally */}
         <div className="flex-1 overflow-y-auto px-5 pt-4">
-          {/* Handle */}
           <div className="w-9 h-[3px] rounded-full mx-auto mb-4" style={{ background: "rgba(255,255,255,0.1)" }} />
 
-          {/* Header row */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span
@@ -128,7 +143,6 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
             </div>
           </div>
 
-          {/* Entry price */}
           {signal.entry_price != null && signal.entry_price > 0 && (
             <div className="flex items-center gap-2 mb-4">
               <span className="text-[10px] text-gray-500 uppercase tracking-wider">Entry</span>
@@ -138,7 +152,43 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
             </div>
           )}
 
-          {/* Tweet image */}
+          {/* ★ NEW: Peak Gain card — prominent, gold-accented */}
+          {hasPeak && (
+            <div
+              className="rounded-xl p-4 mb-4 flex items-center justify-between"
+              style={{
+                background: "linear-gradient(135deg, rgba(251,191,36,0.1) 0%, rgba(245,158,11,0.04) 100%)",
+                border: "1px solid rgba(251,191,36,0.3)",
+                boxShadow: "0 0 20px rgba(251,191,36,0.08)",
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)" }}
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M7 17L17 7M17 7H10M17 7V14" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[9px] uppercase tracking-wider mb-0.5" style={{ color: "rgba(251,191,36,0.7)" }}>
+                    Peak Gain After Tweet
+                  </p>
+                  <p className="text-[20px] font-bold leading-none" style={{ color: "#fbbf24" }}>
+                    +{signal.max_gain_pct!.toFixed(2)}%
+                  </p>
+                </div>
+              </div>
+              {peakTimeLabel && (
+                <div className="text-right">
+                  <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-0.5">Peaked</p>
+                  <p className="text-[11px] font-semibold text-gray-300">{peakTimeLabel}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {showImg && (
             <div
               className="rounded-xl overflow-hidden mb-4"
@@ -155,7 +205,6 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
             </div>
           )}
 
-          {/* Tweet text */}
           {signal.tweet_text && signal.tweet_text.trim() && (
             <div
               className="rounded-xl p-4 mb-4 text-[12px] text-gray-200 leading-relaxed whitespace-pre-wrap"
@@ -170,7 +219,6 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
             </div>
           )}
 
-          {/* Stats */}
           <div className="grid grid-cols-2 gap-2 mb-4">
             <div className="rounded-xl p-3" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
               <p className="text-[9px] text-gray-500 uppercase tracking-wider mb-1">Direction</p>
@@ -182,7 +230,6 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
             </div>
           </div>
 
-          {/* Engagement */}
           {hasEngagement && (
             <div
               className="flex items-center gap-4 py-3 px-4 rounded-xl mb-4 text-[11px] text-gray-400"
@@ -194,13 +241,11 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
             </div>
           )}
 
-          {/* Timestamp */}
           {signal.timestamp && (
             <p className="text-[10px] text-gray-600 text-center mb-4">{signal.timestamp}</p>
           )}
         </div>
 
-        {/* ★ Trade buttons — pinned at bottom, always visible */}
         {canTrade && (
           <div className="flex-shrink-0 px-5 pb-8 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="flex gap-3">
