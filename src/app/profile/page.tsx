@@ -37,6 +37,24 @@ function markHasTraded(): void {
   localStorage.setItem(LS_HAS_TRADED, "1");
 }
 
+/* ─── Relative time formatter for peak_at ─── */
+function formatRelative(iso: string | null | undefined): string {
+  if (!iso) return "";
+  try {
+    const then = new Date(iso).getTime();
+    if (isNaN(then)) return "";
+    const diff = Date.now() - then;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  } catch {
+    return "";
+  }
+}
+
 /* ─── Scroll Animation ─── */
 function useScrollReveal<T extends HTMLElement>(opts?: { threshold?: number; once?: boolean }) {
   const ref = useRef<T>(null);
@@ -638,7 +656,7 @@ function PositionsTabContent({ handle }: { handle: string }) {
   );
 }
 
-/* ─── Signal Card with expandable text ─── */
+/* ─── Signal Card with expandable text + PEAK badge ─── */
 function SignalCard({ sig, index, pct, hasPct, isWin, pnlColor, dirColor, dirLabel, hasEntry, currentPrice, fmtPrice }: {
   sig: UserSignalItem; index: number; pct: number; hasPct: boolean; isWin: boolean;
   pnlColor: string; dirColor: string; dirLabel: string; hasEntry: boolean;
@@ -653,15 +671,37 @@ function SignalCard({ sig, index, pct, hasPct, isWin, pnlColor, dirColor, dirLab
     if (el) setIsClamped(el.scrollHeight > el.clientHeight + 2);
   }, [sig.content]);
 
+  // ★ NEW: Peak gain
+  const hasPeak = sig.max_gain_pct != null && sig.max_gain_pct > 0.1;
+  const peakTimeLabel = formatRelative(sig.max_gain_at);
+
   return (
     <ScrollReveal delay={Math.min(index * 0.03, 0.3)} direction="up" distance={14}>
       <div className="rounded-xl p-3 relative overflow-hidden transition-all duration-300" style={cardStyle}>
         {/* Row 1: Ticker + Direction + Time + PnL% */}
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[14px] font-bold text-white">${sig.ticker}</span>
             <span className="px-1.5 py-0.5 rounded text-[8px] font-bold" style={{ background: `${dirColor}20`, color: dirColor, border: `1px solid ${dirColor}30` }}>{dirLabel}</span>
             <div className="flex items-center gap-0.5 text-gray-500"><Clock size={8} /><span className="text-[9px]">{sig.updateTime}</span></div>
+            {/* ★ NEW: PEAK badge */}
+            {hasPeak && (
+              <span
+                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold"
+                style={{
+                  background: "linear-gradient(135deg, rgba(251,191,36,0.18) 0%, rgba(245,158,11,0.1) 100%)",
+                  border: "1px solid rgba(251,191,36,0.35)",
+                  color: "#fbbf24",
+                  boxShadow: "0 0 8px rgba(251,191,36,0.15)",
+                }}
+                title={peakTimeLabel ? `Peaked ${peakTimeLabel}` : ""}
+              >
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 17L17 7M17 7H10M17 7V14" />
+                </svg>
+                PEAK +{sig.max_gain_pct!.toFixed(1)}%
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1">
             {hasPct ? (
@@ -1262,6 +1302,8 @@ function KOLProfileContent() {
                           tweet_image_url: (item.signalData as any).tweet_image_url ?? null,
                           timestamp: item.signalData.date,
                           signal_id: (item.signalData as any).signal_id ?? null,
+                          max_gain_pct: (item.signalData as any).max_gain_pct ?? null,
+                          max_gain_at: (item.signalData as any).max_gain_at ?? null,
                         } as SignalDetailData);
                         setDetailOpen(true);
                       }}
