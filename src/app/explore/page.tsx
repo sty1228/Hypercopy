@@ -334,6 +334,7 @@ function TokenSheet({ ticker, onClose, goTrader }: { ticker: string; onClose: ()
               <div className="flex flex-col gap-2">
                 {filteredSigs.map(sig => {
                   const isBull = sig.sentiment === "bullish";
+                  const hasPeak = sig.max_gain_pct != null && sig.max_gain_pct > 0.1;
                   return (
                     <div
                       key={sig.signal_id}
@@ -345,7 +346,7 @@ function TokenSheet({ ticker, onClose, goTrader }: { ticker: string; onClose: ()
                       <div className="flex items-center gap-2 mb-2">
                         <AvatarEl name={sig.trader_username} url={sig.trader_avatar_url} sz={28} />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-[11px] font-bold text-white truncate">
                               {sig.trader_display_name || sig.trader_username}
                             </span>
@@ -359,6 +360,19 @@ function TokenSheet({ ticker, onClose, goTrader }: { ticker: string; onClose: ()
                             >
                               {sig.direction.toUpperCase()}
                             </span>
+                            {hasPeak && (
+                              <span
+                                className="flex items-center gap-0.5 text-[8px] px-1.5 py-0.5 rounded font-bold shrink-0"
+                                style={{
+                                  background: "linear-gradient(135deg, rgba(251,191,36,0.18) 0%, rgba(245,158,11,0.1) 100%)",
+                                  border: "1px solid rgba(251,191,36,0.35)",
+                                  color: "#fbbf24",
+                                }}
+                                title={sig.max_gain_at ? `Peaked ${timeAgo(sig.max_gain_at)} after tweet` : ""}
+                              >
+                                <TrendingUp size={7} /> PEAK +{sig.max_gain_pct!.toFixed(1)}%
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="text-right shrink-0">

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import Image from "next/image";
+import Image, { type StaticImageData } from "next/image";
+import { CandlestickChart, Network as NetworkIcon } from "lucide-react";
 import homeIcon from "@/assets/icons/home.png";
 import homeActiveIcon from "@/assets/icons/home-active.png";
 import copyTradingIcon from "@/assets/icons/copy-trading.png";
@@ -15,9 +16,15 @@ import settingsIcon from "@/assets/icons/settings.png";
 import settingsActiveIcon from "@/assets/icons/settings-active.png";
 import { MAX_WIDTH } from "@/app/layout";
 
-const navItems = [
+type NavItem =
+  | { href: string; label: string; icon: StaticImageData; activeIcon: StaticImageData; lucide?: undefined }
+  | { href: string; label: string; lucide: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>; icon?: undefined; activeIcon?: undefined };
+
+const navItems: NavItem[] = [
   { href: "/dashboard", label: "Home", icon: homeIcon, activeIcon: homeActiveIcon },
   { href: "/copyTrading", label: "Copy", icon: copyTradingIcon, activeIcon: copyTradingActiveIcon },
+  { href: "/trade", label: "Trade", lucide: CandlestickChart },
+  { href: "/network", label: "Network", lucide: NetworkIcon },
   { href: "/explore", label: "Explore", icon: portfolioIcon, activeIcon: portfolioActiveIcon },
   { href: "/notification", label: "Alerts", icon: notificationIcon, activeIcon: notificationActiveIcon },
   { href: "/settings", label: "Settings", icon: settingsIcon, activeIcon: settingsActiveIcon },
@@ -44,7 +51,7 @@ const Navbar = () => {
         boxShadow: "0 -4px 30px rgba(0,0,0,0.3)",
       }}
     >
-      <ul className="h-full flex justify-around items-center px-2">
+      <ul className="h-full flex justify-around items-center px-1">
         {navItems.map((item) => {
           /* /dashboard exact match (prevent /d… prefix collisions),
              everything else uses startsWith so /profile?handle=xxx works */
@@ -53,11 +60,13 @@ const Navbar = () => {
               ? pathname === "/dashboard"
               : pathname.startsWith(item.href);
 
+          const Lucide = item.lucide;
+
           return (
             <li key={item.href}>
               <Link
                 href={item.href}
-                className="flex flex-col items-center gap-0.5 px-2.5 py-1.5 rounded-lg transition-all duration-200 cursor-pointer"
+                className="flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-lg transition-all duration-200 cursor-pointer"
                 style={{
                   background: isActive ? "rgba(45,212,191,0.1)" : "transparent",
                 }}
@@ -66,12 +75,20 @@ const Navbar = () => {
                   className="relative transition-transform duration-200"
                   style={{ transform: isActive ? "scale(1.05)" : "scale(1)" }}
                 >
-                  <Image
-                    src={isActive ? item.activeIcon : item.icon}
-                    alt={item.label}
-                    width={18}
-                    height={18}
-                  />
+                  {Lucide ? (
+                    <Lucide
+                      size={18}
+                      strokeWidth={isActive ? 2.2 : 1.7}
+                      className={isActive ? "text-teal-400" : "text-white/40"}
+                    />
+                  ) : (
+                    <Image
+                      src={isActive ? item.activeIcon : item.icon}
+                      alt={item.label}
+                      width={18}
+                      height={18}
+                    />
+                  )}
                   {isActive && (
                     <div
                       className="absolute -inset-1 rounded-full -z-10"

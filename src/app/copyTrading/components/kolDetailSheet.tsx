@@ -56,6 +56,7 @@ function QuickSettingsSheet({
   const [tpType, setTpType] = useState<"USD" | "PCT">("PCT");
   const [slVal, setSlVal] = useState(10);
   const [slType, setSlType] = useState<"USD" | "PCT">("PCT");
+  const [copyMode, setCopyMode] = useState<"all" | "next">("all");
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(false);
 
@@ -88,7 +89,7 @@ function QuickSettingsSheet({
   const handleConfirm = async () => {
     setLoading(true);
     try {
-      await onConfirm({ sizeVal, sizeType, leverage, tpVal, tpType, slVal, slType });
+      await onConfirm({ sizeVal, sizeType, leverage, tpVal, tpType, slVal, slType, copyMode });
     } finally {
       setLoading(false);
     }
@@ -322,16 +323,62 @@ function QuickSettingsSheet({
             >
               <span className="text-xs" style={{ color: "rgba(255,255,255,0.45)" }}>Take Profit</span>
               <div className="flex items-center gap-2">
-                {/* ★ FIXED */}
                 <NumInput val={tpVal} onVal={setTpVal} color="#34d399" />
                 <TypeToggle val={tpType} onChange={setTpType} accent="#34d399" />
               </div>
             </div>
+
+            {/* Trade Scope selector — Copy All vs Copy Next */}
+            <div className="flex items-center gap-2 mt-5 mb-3 pl-0.5">
+              <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.3)" }}>
+                Trade Scope
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {(["all", "next"] as const).map((m) => {
+                const active = copyMode === m;
+                const label = m === "all" ? "All Future Trades" : "Next Trade Only";
+                const subLabel = m === "all" ? "Mirror every signal" : "One-shot · auto-stops";
+                return (
+                  <button
+                    key={m}
+                    onClick={() => setCopyMode(m)}
+                    className="text-left rounded-xl px-3 py-3 transition-all"
+                    style={{
+                      background: active ? `${accentColor}14` : "rgba(255,255,255,0.025)",
+                      border: active ? `1px solid ${accentColor}55` : "1px solid rgba(255,255,255,0.06)",
+                      boxShadow: active ? `0 0 18px ${accentColor}22` : "none",
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <div
+                        className="w-3.5 h-3.5 rounded-full flex items-center justify-center shrink-0"
+                        style={{
+                          border: active ? `1px solid ${accentColor}` : "1px solid rgba(255,255,255,0.25)",
+                          background: active ? accentColor : "transparent",
+                        }}
+                      >
+                        {active && <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#0d1117" }} />}
+                      </div>
+                      <span
+                        className="text-[12px] font-bold"
+                        style={{ color: active ? accentColor : "rgba(255,255,255,0.85)" }}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                    <div className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                      {subLabel}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Summary pill — ★ now shows estimated $ size */}
+          {/* Summary pill */}
           <div
-            className="flex items-center justify-center gap-1.5 py-2.5 mt-4 mb-4 rounded-full text-[11px]"
+            className="flex items-center justify-center flex-wrap gap-1.5 py-2.5 mt-4 mb-4 rounded-full text-[11px]"
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.35)" }}
           >
             <span>
@@ -346,6 +393,10 @@ function QuickSettingsSheet({
             <span>SL {slType === "PCT" ? `${slVal}%` : `$${slVal}`}</span>
             <span style={{ color: "rgba(255,255,255,0.15)" }}>·</span>
             <span>TP {tpType === "PCT" ? `${tpVal}%` : `$${tpVal}`}</span>
+            <span style={{ color: "rgba(255,255,255,0.15)" }}>·</span>
+            <span style={{ color: copyMode === "next" ? accentColor : "rgba(255,255,255,0.35)" }}>
+              {copyMode === "next" ? "Next 1 only" : "All trades"}
+            </span>
           </div>
 
           {/* Confirm button */}
@@ -649,7 +700,8 @@ export default function KolDetailSheet({
 
       const isCopy    = copyAction === "copy";
       const isCounter = copyAction === "counter";
-      await followTrader(data.x_handle, isCopy, isCounter);
+      const mode: "all" | "next" = cfg.copyMode === "next" ? "next" : "all";
+      await followTrader(data.x_handle, isCopy, isCounter, mode);
 
       markHasCopied();
       setShowSettings(false);

@@ -136,13 +136,17 @@ export const withdrawFromWallet = async (
 
 // ─── Follow / Unfollow ──────────────────────────────────
 
+export type CopyMode = "all" | "next";
+
 export interface FollowedTrader {
   id: string;
   trader_username: string;
   display_name: string | null;
   avatar_url: string | null;
   is_copy_trading: boolean;
-  is_counter_trading: boolean; // ★ NEW
+  is_counter_trading: boolean;
+  copy_mode: CopyMode;
+  remaining_copies: number | null;
   created_at: string;
   win_rate: number;
   total_profit_usd: number;
@@ -154,25 +158,31 @@ export interface FollowedTrader {
 export interface FollowStatus {
   is_following: boolean;
   is_copy_trading: boolean;
-  is_counter_trading: boolean; // ★ NEW
+  is_counter_trading: boolean;
+  copy_mode: CopyMode;
+  remaining_copies: number | null;
+}
+
+export interface FollowResponse {
+  id: string;
+  trader_username: string;
+  is_copy_trading: boolean;
+  is_counter_trading: boolean;
+  copy_mode: CopyMode;
+  remaining_copies: number | null;
+  created_at: string;
 }
 
 export const getFollowedTraders = async (window = "30d"): Promise<FollowedTrader[]> => {
   return await get(`/api/follows?window=${window}`);
 };
 
-// ★ Updated: accepts isCounterTrading (mutually exclusive with isCopyTrading)
 export const followTrader = async (
   traderUsername: string,
   isCopyTrading = false,
   isCounterTrading = false,
-): Promise<{
-  id: string;
-  trader_username: string;
-  is_copy_trading: boolean;
-  is_counter_trading: boolean;
-  created_at: string;
-}> => {
+  copyMode: CopyMode = "all",
+): Promise<FollowResponse> => {
   if (isCopyTrading && isCounterTrading) {
     throw new Error("isCopyTrading and isCounterTrading are mutually exclusive");
   }
@@ -180,6 +190,7 @@ export const followTrader = async (
     trader_username: traderUsername,
     is_copy_trading: isCopyTrading,
     is_counter_trading: isCounterTrading,
+    copy_mode: copyMode,
   });
 };
 
@@ -193,11 +204,22 @@ export const toggleCopyTrading = async (
   return await patch(`/api/follow/${traderUsername}/copy-trading`, {});
 };
 
-// ★ NEW
 export const toggleCounterTrading = async (
   traderUsername: string
 ): Promise<{ is_counter_trading: boolean; is_copy_trading: boolean }> => {
   return await patch(`/api/follow/${traderUsername}/counter-trading`, {});
+};
+
+export const updateCopyMode = async (
+  traderUsername: string,
+  copyMode: CopyMode,
+): Promise<{
+  copy_mode: CopyMode;
+  remaining_copies: number | null;
+  is_copy_trading: boolean;
+  is_counter_trading: boolean;
+}> => {
+  return await patch(`/api/follow/${traderUsername}/copy-mode`, { copy_mode: copyMode });
 };
 
 export const checkFollowStatus = async (traderUsername: string): Promise<FollowStatus> => {
@@ -545,6 +567,8 @@ export interface TokenSignalRow {
   retweets: number | null;
   replies: number | null;
   created_at: string;
+  max_gain_pct?: number | null;
+  max_gain_at?: string | null;
 }
 
 export interface TokenTopTrader {
@@ -759,4 +783,108 @@ export const closePosition = async (
   tradeId: string
 ): Promise<CloseTradeResponse> => {
   return await post(`/api/trades/${tradeId}/close`, {});
+};
+
+// ─── Manual Trading ─────────────────────────────────────
+
+export interface ManualTradeRequest {
+  ticker: string;
+  direction: "long" | "short";
+  size_usd: number;
+  leverage: number;
+  order_type: "market" | "limit";
+  limit_price?: number | null;
+  tp_pct?: number | null;
+  sl_pct?: number | null;
+}
+
+export const placeManualTrade = async (
+  req: ManualTradeRequest
+): Promise<TradeHistoryItem> => {
+  return await post("/api/trades/manual", {
+    ticker: req.ticker,
+    direction: req.direction,
+    size_usd: req.size_usd,
+    leverage: req.leverage,
+    order_type: req.order_type,
+    limit_price: req.limit_price ?? null,
+    tp_pct: req.tp_pct ?? null,
+    sl_pct: req.sl_pct ?? null,
+  });
+};
+
+export const updateTradeTpSl = async (
+  tradeId: string,
+  tpPct: number | null,
+  slPct: number | null,
+): Promise<{
+  trade_id: string;
+  tp_override_pct: number | null;
+  sl_override_pct: number | null;
+}> => {
+  return await patch(`/api/trades/${tradeId}/tp-sl`, {
+    tp_pct: tpPct,
+    sl_pct: slPct,
+  });
+};
+
+export const partialClosePosition = async (
+  tradeId: string,
+  pct: number,
+): Promise<TradeHistoryItem> => {
+  return await post(`/api/trades/${tradeId}/partial-close?pct=${pct}`, {});
+};
+
+// ─── Network Visualization ──────────────────────────────
+
+export interface NetworkEdge {
+  trader_username: string;
+  avatar_url: string | null;
+  display_name: string | null;
+  source: "copy" | "counter";
+  is_copy_trading: boolean;
+  is_counter_trading: boolean;
+  copy_mode: CopyMode;
+  remaining_copies: number | null;
+  open_count: number;
+  total_exposure_usd: number;
+  win_count: number;
+  loss_count: number;
+  win_rate: number;
+  pnl_usd: number;
+  trade_count: number;
+}
+
+export interface NetworkOpenTrade {
+  id: string;
+  ticker: string;
+  direction: "long" | "short";
+  size_usd: number;
+  size_qty: number;
+  leverage: number;
+  entry_price: number;
+  current_pnl_usd: number;
+  current_pnl_pct: number;
+  opened_at: string;
+}
+
+export interface NetworkTraderDetailResponse {
+  aggregates: NetworkEdge[];
+  open_trades: NetworkOpenTrade[];
+}
+
+export const getNetworkGraph = async (): Promise<NetworkEdge[]> => {
+  return await get("/api/network/graph");
+};
+
+export const getNetworkTraderDetail = async (
+  traderUsername: string
+): Promise<NetworkTraderDetailResponse> => {
+  return await get(`/api/network/trader/${traderUsername}/detail`);
+};
+
+// ─── Realtime Stream Token ──────────────────────────────
+
+export const getStreamToken = async (): Promise<{ token: string; expires_in: number }> => {
+  return await post("/api/auth/stream-token", {});
 };
