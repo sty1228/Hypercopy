@@ -9,8 +9,10 @@ import {
 import {
   getNetworkGraph,
   getNetworkTraderDetail,
+  getProfileData,
   type NetworkEdge,
   type NetworkTraderDetailResponse,
+  type ProfileDataResponse,
 } from "@/service";
 import { useNetworkStream, type StreamEvent } from "@/hooks/useNetworkStream";
 
@@ -71,6 +73,8 @@ export default function NetworkPage() {
   const pulseIdRef = useRef(1);
   const [now, setNow] = useState(() => Date.now());
 
+  const [profile, setProfile] = useState<ProfileDataResponse | null>(null);
+
   const fetchGraph = useCallback(async () => {
     setLoading(true);
     setError(false);
@@ -85,6 +89,10 @@ export default function NetworkPage() {
   }, []);
 
   useEffect(() => { fetchGraph(); }, [fetchGraph]);
+
+  useEffect(() => {
+    getProfileData().then(setProfile).catch(() => {});
+  }, []);
 
   // positioned edges (top N by exposure, then by open count)
   const positioned: PositionedEdge[] = useMemo(() => {
@@ -139,6 +147,20 @@ export default function NetworkPage() {
           },
         ]);
       }
+    } else if (evt.source === "manual") {
+      // manual trades have no KOL — pulse self-node from a small offset
+      setPulses((prev) => [
+        ...prev,
+        {
+          id: pulseIdRef.current++,
+          x0: CX,
+          y0: CY - 50,
+          x1: CX,
+          y1: CY,
+          color: "#a855f7",
+          startedAt: Date.now(),
+        },
+      ]);
     }
 
     // debounce graph refresh
@@ -481,9 +503,42 @@ export default function NetworkPage() {
                   />
                 </circle>
                 <circle cx={CX} cy={CY} r={ME_DOT} fill="#0d1117" stroke="#2dd4bf" strokeWidth={2} />
-                <text x={CX} y={CY + 4} textAnchor="middle" fontSize={11} fontWeight={800} fill="#2dd4bf">
-                  ME
+                <text
+                  x={CX}
+                  y={CY + 4}
+                  textAnchor="middle"
+                  fontSize={11}
+                  fontWeight={800}
+                  fill="#2dd4bf"
+                >
+                  {profile?.name
+                    ? profile.name.length > 4
+                      ? profile.name.slice(0, 3).toUpperCase()
+                      : profile.name.toUpperCase()
+                    : "ME"}
                 </text>
+                <text
+                  x={CX}
+                  y={CY + ME_DOT + 14}
+                  textAnchor="middle"
+                  fontSize={10}
+                  fontWeight={700}
+                  fill="rgba(255,255,255,0.85)"
+                >
+                  {profile?.twitterId ? `@${profile.twitterId}` : "You"}
+                </text>
+                {profile && (
+                  <text
+                    x={CX}
+                    y={CY + ME_DOT + 26}
+                    textAnchor="middle"
+                    fontSize={9}
+                    fontWeight={600}
+                    fill="rgba(45,212,191,0.7)"
+                  >
+                    ${profile.accountValue.toFixed(0)}
+                  </text>
+                )}
               </g>
             </svg>
           </div>
