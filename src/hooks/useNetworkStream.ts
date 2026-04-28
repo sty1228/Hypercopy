@@ -56,28 +56,30 @@ export function useNetworkStream(
         const { token } = await getStreamToken();
         if (cancelled) return;
 
-        const params = new URLSearchParams({ token });
-        if (lastId > 0) params.set("last_id", String(lastId));
-        const url = `${API_BASE}/api/events/stream?${params.toString()}`;
+        // Token MUST be a URL query parameter — the native EventSource API
+        // does not allow custom Authorization headers. Path is /api/events/stream.
+        let url = `${API_BASE}/api/events/stream?token=${encodeURIComponent(token)}`;
+        if (lastId > 0) {
+          url += `&last_id=${encodeURIComponent(String(lastId))}`;
+        }
 
-        es = new EventSource(url);
+        const eventSource = new EventSource(url);
+        es = eventSource;
 
-        es.onmessage = (msg) => {
+        eventSource.onmessage = (msg) => {
           try {
             const data: StreamEvent = JSON.parse(msg.data);
             if (typeof data.id === "number" && data.id > lastId) lastId = data.id;
             cbRef.current(data);
             backoff = 1000;
           } catch {
-            // ignore malformed lines
+            // ignore malformed lines (incl. heartbeat comments)
           }
         };
 
-        es.onerror = () => {
-          if (es) {
-            es.close();
-            es = null;
-          }
+        eventSource.onerror = () => {
+          eventSource.close();
+          if (es === eventSource) es = null;
           if (cancelled) return;
           reconnectTimer = setTimeout(connect, backoff);
           backoff = Math.min(backoff * 2, 30_000);
