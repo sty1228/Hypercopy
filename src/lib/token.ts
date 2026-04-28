@@ -9,7 +9,11 @@
  */
 
 const TOKEN_KEY = "token";
+const WALLET_KEY = "wallet_address";
 const COOKIE_MAX_AGE = 60 * 60 * 72; // 72h — matches JWT_EXPIRE_HOURS
+
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || "https://api.hypercopy.io";
 
 // ── Cookie helpers ───────────────────────────────────────
 
@@ -64,6 +68,50 @@ export function removeToken(): void {
   cookieRemove(TOKEN_KEY);
   if (lsAvailable()) {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(WALLET_KEY);
+  }
+}
+
+// ── Wallet address (for fallback refresh path) ───────────
+
+export function setStoredWalletAddress(address: string): void {
+  if (typeof window === "undefined") return;
+  if (lsAvailable()) localStorage.setItem(WALLET_KEY, address);
+}
+
+export function getStoredWalletAddress(): string | null {
+  if (typeof window === "undefined") return null;
+  if (lsAvailable()) return localStorage.getItem(WALLET_KEY);
+  return null;
+}
+
+/**
+ * Fallback refresh path used when the React-context-aware handler
+ * isn't ready (cold load) or its connectWalletApi call fails.
+ *
+ * Reads the wallet address persisted by the previous successful
+ * connect, then re-issues POST /api/auth/connect-wallet via raw
+ * fetch (deliberately NOT axios — we'd recurse through the same
+ * 401 interceptor).
+ */
+async function fallbackRefresh(): Promise<string | null> {
+  const address = getStoredWalletAddress();
+  if (!address) return null;
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/connect-wallet`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wallet_address: address, twitter_username: null }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { access_token?: string };
+    if (data?.access_token) {
+      setToken(data.access_token);
+      return data.access_token;
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 
@@ -163,32 +211,44 @@ function waitForHandler(waitMs = 5000, pollMs = 100): Promise<boolean> {
  * multiple 401s will share a single in-flight refresh.
  * Returns the new token string, or null if refresh failed.
  *
- * FIX: If handler isn't registered yet (race condition), waits up to 5s.
+ * Strategy:
+ *   1. Try the React-context handler (registered by AppLayout) — uses
+ *      live Privy wallet state. Wait up to 2s for it to register.
+ *   2. If unavailable or returns null, fall back to a raw-fetch
+ *      `connectWalletApi` using the wallet address persisted on the
+ *      last successful connect. This recovers cold-load races where
+ *      Privy hasn't restored its session by the time the first 401
+ *      fires (iOS Safari WebView, slow networks, private mode).
  */
 export async function refreshTokenSilently(): Promise<string | null> {
-  // If a refresh is already in-flight, piggyback on it
   if (_refreshPromise) return _refreshPromise;
 
-  // Wait for handler if it hasn't been registered yet
-  if (!_refreshFn) {
-    const ready = await waitForHandler();
-    if (!ready || !_refreshFn) {
-      console.warn("[token] Refresh handler not available after waiting");
-      return null;
+  _refreshPromise = (async (): Promise<string | null> => {
+    // Step 1: try the registered handler (with bounded wait)
+    if (!_refreshFn) {
+      await waitForHandler(2000, 100);
     }
-  }
-
-  _refreshPromise = _refreshFn()
-    .then((token) => {
-      if (token) {
-        emitTokenRefreshed();
+    if (_refreshFn) {
+      try {
+        const token = await _refreshFn();
+        if (token) {
+          emitTokenRefreshed();
+          return token;
+        }
+      } catch {
+        // fall through to fallback
       }
-      return token;
-    })
-    .catch(() => null)
-    .finally(() => {
-      _refreshPromise = null;
-    });
+    }
+    // Step 2: fallback — direct connect-wallet using stored address
+    const fallback = await fallbackRefresh();
+    if (fallback) {
+      emitTokenRefreshed();
+      return fallback;
+    }
+    return null;
+  })().finally(() => {
+    _refreshPromise = null;
+  });
 
   return _refreshPromise;
 }

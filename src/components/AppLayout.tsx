@@ -13,6 +13,7 @@ import {
   removeToken,
   isTokenExpired,
   setRefreshHandler,
+  setStoredWalletAddress,
   emitTokenRefreshed,
 } from "@/lib/token";
 import { connectWalletApi, getWelcomeBack, type WelcomeBackSummary } from "@/service";
@@ -47,8 +48,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         (a: any) => a.type === "wallet"
       ) as any)?.address;
 
+    // Privy not ready yet — return null and let token.ts fall back to
+    // the raw-fetch path using the wallet address stored in localStorage
+    // from the last successful connect. Don't log a warning; this is a
+    // routine cold-load case, not an error.
     if (!walletAddress) {
-      console.warn("[auth] No wallet address available for refresh");
       return null;
     }
 
@@ -60,8 +64,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         twitterUsername
       );
       setToken(access_token);
+      setStoredWalletAddress(walletAddress);
       failCount.current = 0;
-      console.info("[auth] Token refreshed ✓");
       return access_token;
     } catch (err) {
       failCount.current += 1;
@@ -80,13 +84,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [currentWallet?.address, user]);
 
-  // ── Register refresh handler for axios interceptor ─────
+  // ── Register refresh handler immediately on mount ──────
+  // Don't gate on ready/authenticated — that creates a cold-load race
+  // where 401s fire before Privy finishes restoring its session, leaving
+  // refreshTokenSilently with no handler. doRefresh internally handles
+  // the not-ready case by returning null, after which token.ts falls
+  // back to a raw-fetch using the stored wallet address.
+  // No cleanup that swaps the handler to a no-op — that just creates a
+  // brief window where 401s fail.
 
   useEffect(() => {
-    if (!ready || !authenticated) return;
     setRefreshHandler(doRefresh);
-    return () => setRefreshHandler(async () => null);
-  }, [ready, authenticated, doRefresh]);
+  }, [doRefresh]);
 
   // ── Proactive refresh: on mount + periodic interval ────
 

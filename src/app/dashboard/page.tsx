@@ -39,7 +39,7 @@ import TransactionHistorySheet from "./components/TransactionHistorySheet";
 import { KOLRewardsScreen } from "./components/KOLRewardsScreen";
 import { useRewards } from "@/providers/RewardsContext";
 import RewardsBanner from "@/components/RewardsBanner";
-import { getToken, setToken, removeToken, onTokenRefreshed } from "@/lib/token";
+import { getToken, setToken, removeToken, onTokenRefreshed, setStoredWalletAddress } from "@/lib/token";
 import TopBar from "@/components/TopBar";
 
 export interface BalanceChartData { label: string; value: number; }
@@ -123,10 +123,20 @@ const Home = () => {
     }
     if (!wallet?.address) return;
     const existing = getToken();
-    if (existing) { setAuthReady(true); return; }
+    if (existing) {
+      // Persist wallet address for fallback refresh path even when we
+      // already have a token (covers users who installed the app pre-fix).
+      setStoredWalletAddress(wallet.address);
+      setAuthReady(true);
+      return;
+    }
     const twitterUsername = (user?.twitter as any)?.username || null;
     connectWalletApi(wallet.address, twitterUsername)
-      .then((res) => { setToken(res.access_token); setAuthReady(true); })
+      .then((res) => {
+        setToken(res.access_token);
+        setStoredWalletAddress(wallet.address);
+        setAuthReady(true);
+      })
       .catch((err) => console.error("Auth sync failed:", err));
   }, [authenticated, wallet?.address, user]);
 
