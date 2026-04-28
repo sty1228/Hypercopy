@@ -2,8 +2,9 @@
 
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import Navbar from "@/components/navbar";
+import WelcomeBackPopup from "@/components/WelcomeBackPopup";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
-import { useContext, useEffect, useRef, useCallback } from "react";
+import { useContext, useEffect, useRef, useCallback, useState } from "react";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
 import { usePathname } from "next/navigation";
 import {
@@ -14,7 +15,7 @@ import {
   setRefreshHandler,
   emitTokenRefreshed,
 } from "@/lib/token";
-import { connectWalletApi } from "@/service";
+import { connectWalletApi, getWelcomeBack, type WelcomeBackSummary } from "@/service";
 
 // How often to proactively check token freshness (ms)
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
@@ -30,6 +31,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Track consecutive failures to avoid infinite retry loops
   const failCount = useRef(0);
   const MAX_FAILURES = 3;
+
+  // Welcome-back popup state
+  const [welcomeBack, setWelcomeBack] = useState<WelcomeBackSummary | null>(null);
+  const welcomeBackCalledRef = useRef(false);
 
   // ── Core refresh logic ─────────────────────────────────
 
@@ -126,6 +131,37 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("focus", onFocus);
   }, [ready, authenticated, doRefresh]);
 
+  // ── Welcome-back popup: call once per session after auth ──
+  // Backend POST /api/portfolio/welcome-back returns { summary: null }
+  // unless the user has been away ≥24h; calling it updates last_seen_at,
+  // so subsequent calls within 24h are naturally idempotent. Session
+  // ref + sessionStorage flag prevent double-calls if AppLayout remounts.
+
+  useEffect(() => {
+    if (!ready || !authenticated) return;
+    if (welcomeBackCalledRef.current) return;
+    if (typeof window !== "undefined" && sessionStorage.getItem("hc_welcome_back_done") === "1") {
+      welcomeBackCalledRef.current = true;
+      return;
+    }
+    if (isOnboardingPage) return;
+
+    welcomeBackCalledRef.current = true;
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("hc_welcome_back_done", "1");
+    }
+
+    const t = setTimeout(() => {
+      getWelcomeBack()
+        .then((res) => {
+          if (res?.summary) setWelcomeBack(res.summary);
+        })
+        .catch(() => {});
+    }, 600);
+
+    return () => clearTimeout(t);
+  }, [ready, authenticated, isOnboardingPage]);
+
   // ── Render ─────────────────────────────────────────────
 
   return (
@@ -137,6 +173,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       {!isOnboardingPage && <Navbar />}
+      {welcomeBack && (
+        <WelcomeBackPopup
+          summary={welcomeBack}
+          onClose={() => setWelcomeBack(null)}
+        />
+      )}
     </>
   );
 }

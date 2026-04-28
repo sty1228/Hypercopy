@@ -888,3 +888,59 @@ export const getNetworkTraderDetail = async (
 export const getStreamToken = async (): Promise<{ token: string; expires_in: number }> => {
   return await post("/api/auth/stream-token", {});
 };
+
+// ─── Welcome Back ───────────────────────────────────────
+
+export interface WelcomeBackTradeRef {
+  id: string;
+  ticker: string;
+  direction: "long" | "short";
+  pnl_usd?: number | null;
+  pnl_pct?: number | null;
+  trader_username?: string | null;
+}
+
+export interface WelcomeBackTopTrader {
+  trader_username: string;
+  pnl_usd: number;
+  trade_count: number;
+}
+
+export interface WelcomeBackEvents {
+  tp_hit?: number;
+  sl_hit?: number;
+  equity_protect?: number;
+  trade_opened?: number;
+  trade_closed?: number;
+}
+
+export interface WelcomeBackSummary {
+  since: string;
+  until: string;
+  duration_hours: number;
+  capped_at_30d: boolean;
+
+  starting_balance_usd: number;
+  current_balance_usd: number;
+  balance_delta_usd: number;
+  balance_delta_pct: number;
+
+  realized_pnl_usd: number;
+  unrealized_pnl_usd_now: number;
+
+  trades_opened: number;
+  trades_closed: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+
+  best_trade: WelcomeBackTradeRef | null;
+  worst_trade: WelcomeBackTradeRef | null;
+  top_trader: WelcomeBackTopTrader | null;
+
+  events: WelcomeBackEvents;
+}
+
+export const getWelcomeBack = async (): Promise<{ summary: WelcomeBackSummary | null }> => {
+  return await post("/api/portfolio/welcome-back", {});
+};

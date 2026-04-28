@@ -112,6 +112,8 @@ Privy credentials live in `account/privy.json` (committed) and are read by `src/
 
 ## 9. Changelog
 
+- 2026-04-28 — Welcome-back popup: AppLayout calls `POST /api/portfolio/welcome-back` once per authed session (guarded by `sessionStorage.hc_welcome_back_done`, skipped on `/onboarding`). When the backend returns a non-null summary (≥24h since last visit), `WelcomeBackPopup` renders a modal with balance delta, win/loss/realized PnL grid, TP/SL/equity-protect event counts, and best/worst/top-trader highlights. Backend's `last_seen_at` makes the call naturally idempotent within 24h.
+- 2026-04-28 — Network graph center node now renders the user's identity (display name, @handle, account value via `/api/portfolio/profile`); manual-source SSE events emit a short purple self-pulse on the user node.
 - 2026-04-28 — Frontend wired to four new backend features per FRONTEND_HANDOFF.md:
   - Copy Next mode in `QuickSettingsSheet` (`copy_mode` "all" | "next" + `remaining_copies` plumbed through follow service).
   - `max_gain_pct` / `max_gain_at` now rendered as PEAK badge in explore TokenSheet.
