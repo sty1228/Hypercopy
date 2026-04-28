@@ -16,6 +16,7 @@ import {
   closePosition,
   type TradeHistoryItem,
 } from "@/service";
+import MarketPanel from "./components/MarketPanel";
 
 const cardBg = {
   background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)",
@@ -169,6 +170,11 @@ export default function ManualTradePage() {
         </button>
         <span className="text-base font-semibold text-white">Manual Trading</span>
         <div className="w-10" />
+      </div>
+
+      {/* Market panel — chart + orderbook + live price */}
+      <div className="relative z-10 px-4 mb-3">
+        <MarketPanel ticker={ticker} onTickerChange={setTicker} />
       </div>
 
       {/* Balance card */}
