@@ -30,7 +30,8 @@ import {
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import BuilderApprovalBanner from "./components/BuilderApprovalBanner";
 import { Copy, Users, ArrowUpDown, CheckCircle2, Settings, Download, Upload, RefreshCw, TrendingUp, Eye, EyeOff, Clock } from "lucide-react";
-import PositionDetail, { PositionDetailData, positionExtendedData } from "./components/PositionDetail";
+import { PositionDetailData, positionExtendedData } from "./components/PositionDetail";
+import PositionCard from "./components/PositionCard";
 import CopyingSheet from "./components/CopyingSheet";
 import ActiveTradesSheet from "./components/ActiveTradesSheet";
 import DepositSheet from "./components/DepositSheet";
@@ -565,13 +566,24 @@ const Home = () => {
         />
       )}
 
-      {selectedPos && (
-        <PositionDetail
-          pos={selectedPos}
-          onClose={() => setSelectedPos(null)}
-          onClosePosition={handleClosePosition}
-        />
-      )}
+      {selectedPos && (() => {
+        const pi = positions.find((p) => p.id === selectedPos.tradeId);
+        if (!pi) return null;
+        return (
+          <PositionCard
+            position={pi}
+            traders={followedTraders}
+            defaults={defaultSettings}
+            onClose={() => setSelectedPos(null)}
+            onClosed={() => {
+              setSelectedPos(null);
+              refreshWalletBalance();
+              fetchDashboard();
+              fetchPnlChart(timeRange);
+            }}
+          />
+        );
+      })()}
 
       <DepositSheet isOpen={showDeposit} onClose={() => handleSheetClose(setShowDeposit)} onSuccess={handleDepositSuccess} />
       <WithdrawSheet isOpen={showWithdraw} onClose={() => { setShowWithdraw(false); refreshWalletBalance(); fetchPnlChart(timeRange); setTimeout(fetchDashboard, 60_000); }} availableBalance={availableToTrade} onSuccess={handleWithdrawSuccess} />
