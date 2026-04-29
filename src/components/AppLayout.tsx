@@ -3,6 +3,9 @@
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import Navbar from "@/components/navbar";
 import WelcomeBackPopup from "@/components/WelcomeBackPopup";
+import OnboardingTutorialPopup, {
+  shouldShowOnboardingTutorial,
+} from "@/components/OnboardingTutorialPopup";
 import { HyperLiquidContext } from "@/providers/hyperliquid";
 import { useContext, useEffect, useRef, useCallback, useState } from "react";
 import { useCurrentWallet } from "@/hooks/usePrivyData";
@@ -36,6 +39,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Welcome-back popup state
   const [welcomeBack, setWelcomeBack] = useState<WelcomeBackSummary | null>(null);
   const welcomeBackCalledRef = useRef(false);
+
+  // Onboarding tutorial popup state
+  const [showTutorial, setShowTutorial] = useState(false);
+  const tutorialCheckedRef = useRef(false);
 
   // ── Core refresh logic ─────────────────────────────────
 
@@ -171,6 +178,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t);
   }, [ready, authenticated, isOnboardingPage]);
 
+  // ── Onboarding tutorial popup: first /dashboard visit after onboarding ──
+  // Welcome-back has priority — if welcomeBack non-null OR was already
+  // shown this session, skip tutorial. We delay slightly past the
+  // welcome-back fetch so we know whether to defer to it.
+
+  useEffect(() => {
+    if (!ready || !authenticated) return;
+    if (tutorialCheckedRef.current) return;
+    if (isOnboardingPage) return;
+    if (pathname !== "/dashboard") return;
+    if (!shouldShowOnboardingTutorial()) {
+      tutorialCheckedRef.current = true;
+      return;
+    }
+    tutorialCheckedRef.current = true;
+
+    // Defer past the welcome-back fetch (~600ms) plus a small buffer.
+    // If welcome-back ends up showing, suppress tutorial this session.
+    const t = setTimeout(() => {
+      if (welcomeBack) return;
+      setShowTutorial(true);
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [ready, authenticated, isOnboardingPage, pathname, welcomeBack]);
+
   // ── Render ─────────────────────────────────────────────
 
   return (
@@ -187,6 +219,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           summary={welcomeBack}
           onClose={() => setWelcomeBack(null)}
         />
+      )}
+      {showTutorial && !welcomeBack && (
+        <OnboardingTutorialPopup onClose={() => setShowTutorial(false)} />
       )}
     </>
   );
