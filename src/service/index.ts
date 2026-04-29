@@ -44,6 +44,8 @@ export interface PositionItem {
   pnl_pct: number | null;
   trader_username: string | null;
   opened_at: string;
+  tp_override_pct?: number | null;
+  sl_override_pct?: number | null;
 }
 
 export const getDashboardSummary = async (): Promise<DashboardSummary> => {

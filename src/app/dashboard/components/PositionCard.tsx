@@ -103,22 +103,27 @@ export default function PositionCard({ position, traders, defaults, onClose, onC
   const mark = position.current_price ?? null;
   const liq = approxLiq(position.entry_price, position.leverage, direction);
 
-  // TP / SL inferred from defaults — backend doesn't expose per-trade
-  // overrides yet. PCT type only; USD type left blank.
-  const tpPctDefault =
+  // TP / SL: prefer per-trade overrides from backend, fall back to the
+  // user's default settings (PCT type only — USD-denominated defaults
+  // can't be displayed as a single price level).
+  const tpDefault =
     defaults?.tp?.type === "PCT" && defaults.tp.value > 0 ? defaults.tp.value : null;
-  const slPctDefault =
+  const slDefault =
     defaults?.sl?.type === "PCT" && defaults.sl.value > 0 ? defaults.sl.value : null;
+  const tpPct = position.tp_override_pct ?? tpDefault;
+  const slPct = position.sl_override_pct ?? slDefault;
+  const tpIsOverride = position.tp_override_pct != null;
+  const slIsOverride = position.sl_override_pct != null;
 
-  const tpPrice = tpPctDefault != null
+  const tpPrice = tpPct != null
     ? isLong
-      ? position.entry_price * (1 + tpPctDefault / 100)
-      : position.entry_price * (1 - tpPctDefault / 100)
+      ? position.entry_price * (1 + tpPct / 100)
+      : position.entry_price * (1 - tpPct / 100)
     : null;
-  const slPrice = slPctDefault != null
+  const slPrice = slPct != null
     ? isLong
-      ? position.entry_price * (1 - slPctDefault / 100)
-      : position.entry_price * (1 + slPctDefault / 100)
+      ? position.entry_price * (1 - slPct / 100)
+      : position.entry_price * (1 + slPct / 100)
     : null;
 
   // Tilt effect — desktop only; mobile gets a static card.
@@ -319,15 +324,17 @@ export default function PositionCard({ position, traders, defaults, onClose, onC
               icon={<Target size={11} className="text-emerald-400" />}
               label="Take Profit"
               price={tpPrice}
-              pct={tpPctDefault}
+              pct={tpPct}
               positive
+              isOverride={tpIsOverride}
             />
             <RiskCell
               icon={<ShieldAlert size={11} className="text-rose-400" />}
               label="Stop Loss"
               price={slPrice}
-              pct={slPctDefault}
+              pct={slPct}
               positive={false}
+              isOverride={slIsOverride}
             />
           </div>
 
@@ -505,13 +512,14 @@ function Stat({
 }
 
 function RiskCell({
-  icon, label, price, pct, positive,
+  icon, label, price, pct, positive, isOverride,
 }: {
   icon: React.ReactNode;
   label: string;
   price: number | null;
   pct: number | null;
   positive: boolean;
+  isOverride?: boolean;
 }) {
   const accent = positive ? "#34d399" : "#fb7185";
   return (
@@ -527,6 +535,15 @@ function RiskCell({
         <span className="text-[8px] uppercase tracking-[0.14em] font-bold" style={{ color: "rgba(255,255,255,0.45)" }}>
           {label}
         </span>
+        {isOverride && (
+          <span
+            className="ml-auto text-[7px] px-1 py-[1px] rounded font-bold tracking-wider"
+            style={{ background: `${accent}1f`, color: accent, border: `1px solid ${accent}55` }}
+            title="Per-trade override"
+          >
+            CUSTOM
+          </span>
+        )}
       </div>
       {price != null ? (
         <>
