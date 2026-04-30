@@ -79,6 +79,7 @@ export interface PnlHistoryResponse {
   range_pnl: number;
   range_pnl_pct: number;
   total_pnl: number;
+  cost_basis: number;
 }
 
 export const getPnlHistory = async (
