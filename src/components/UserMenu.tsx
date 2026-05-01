@@ -43,6 +43,17 @@ const UserMenu = () => {
     setIsOpen(!isOpen);
   };
 
+  // Authenticated taps on the avatar go straight to /profile (the place
+  // where the user manages identity / followers / settings). Unauthenticated
+  // taps still open the dropdown so the "Log In" button is reachable.
+  const handleAvatarClick = () => {
+    if (authenticated) {
+      router.push("/profile");
+      return;
+    }
+    toggleMenu();
+  };
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -286,7 +297,8 @@ const UserMenu = () => {
     <>
       <button
         ref={btnRef}
-        onClick={toggleMenu}
+        onClick={handleAvatarClick}
+        aria-label={authenticated ? "Open profile" : "Open account menu"}
         className="w-[38px] h-[38px] rounded-full flex items-center justify-center text-sm font-bold text-white cursor-pointer transition-all duration-200 hover:scale-105"
         style={{
           backgroundColor: authenticated
