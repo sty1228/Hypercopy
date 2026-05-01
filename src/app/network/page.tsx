@@ -15,6 +15,8 @@ import {
   type ProfileDataResponse,
 } from "@/service";
 import { useNetworkStream, type StreamEvent } from "@/hooks/useNetworkStream";
+import { usePrivy } from "@privy-io/react-auth";
+import { useCurrentWallet } from "@/hooks/usePrivyData";
 
 // ─── canvas geometry ──────────────────────────────────
 
@@ -74,6 +76,19 @@ export default function NetworkPage() {
   const [now, setNow] = useState(() => Date.now());
 
   const [profile, setProfile] = useState<ProfileDataResponse | null>(null);
+
+  // Self-node identity: Privy is the source of truth.
+  // Backend's profile.twitterId can be a raw wallet address when X isn't
+  // linked, which renders as "@0xefd0..." — bypass it for the label/avatar.
+  const { user: privyUser } = usePrivy();
+  const currentWallet = useCurrentWallet();
+  const xHandle = privyUser?.twitter?.username || null;
+  const xAvatar = (privyUser?.twitter as { profilePictureUrl?: string } | undefined)?.profilePictureUrl || null;
+  const walletAddr = currentWallet?.address || "";
+  const truncWallet = walletAddr ? `${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}` : "";
+  const selfLabel = xHandle
+    ? `@${xHandle.length > 12 ? xHandle.slice(0, 11) + "…" : xHandle}`
+    : (truncWallet || "You");
 
   const fetchGraph = useCallback(async () => {
     setLoading(true);
@@ -503,20 +518,35 @@ export default function NetworkPage() {
                   />
                 </circle>
                 <circle cx={CX} cy={CY} r={ME_DOT} fill="#0d1117" stroke="#2dd4bf" strokeWidth={2} />
-                <text
-                  x={CX}
-                  y={CY + 4}
-                  textAnchor="middle"
-                  fontSize={11}
-                  fontWeight={800}
-                  fill="#2dd4bf"
-                >
-                  {profile?.name
-                    ? profile.name.length > 4
-                      ? profile.name.slice(0, 3).toUpperCase()
-                      : profile.name.toUpperCase()
-                    : "ME"}
-                </text>
+                {xAvatar ? (
+                  <>
+                    <defs>
+                      <clipPath id="me-clip">
+                        <circle cx={CX} cy={CY} r={ME_DOT - 2} />
+                      </clipPath>
+                    </defs>
+                    <image
+                      href={xAvatar}
+                      x={CX - (ME_DOT - 2)}
+                      y={CY - (ME_DOT - 2)}
+                      width={(ME_DOT - 2) * 2}
+                      height={(ME_DOT - 2) * 2}
+                      clipPath="url(#me-clip)"
+                      preserveAspectRatio="xMidYMid slice"
+                    />
+                  </>
+                ) : (
+                  <text
+                    x={CX}
+                    y={CY + 4}
+                    textAnchor="middle"
+                    fontSize={12}
+                    fontWeight={800}
+                    fill="#2dd4bf"
+                  >
+                    0X
+                  </text>
+                )}
                 <text
                   x={CX}
                   y={CY + ME_DOT + 14}
@@ -525,7 +555,7 @@ export default function NetworkPage() {
                   fontWeight={700}
                   fill="rgba(255,255,255,0.85)"
                 >
-                  {profile?.twitterId ? `@${profile.twitterId}` : "You"}
+                  {selfLabel}
                 </text>
                 {profile && (
                   <text
