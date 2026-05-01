@@ -24,7 +24,9 @@ import {
 import { useRewards } from "@/providers/RewardsContext";
 import { usePrivy } from "@privy-io/react-auth";
 import TopBar from "@/components/TopBar";
+import { removeToken } from "@/lib/token";
 import { toast } from "sonner";
+import { LogOut } from "lucide-react";
 
 /* ─── First-time trade localStorage helpers ─── */
 const LS_HAS_TRADED = "hc_has_traded_before";
@@ -815,7 +817,21 @@ function KOLProfileContent() {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const { triggerFirstCopyTrade, viewRewardsFromPrompt } = useRewards();
-  const { authenticated, login, user: privyUser, linkTwitter } = usePrivy() as any;
+  const { authenticated, login, logout, user: privyUser, linkTwitter } = usePrivy() as any;
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  const handleDisconnect = async () => {
+    if (disconnecting) return;
+    setDisconnecting(true);
+    try {
+      removeToken();
+      await logout();
+      router.push("/");
+    } catch {
+      toast.error("Failed to disconnect. Please try again.");
+      setDisconnecting(false);
+    }
+  };
 
   useEffect(() => {
     if (!privyUser) return;
@@ -1471,6 +1487,42 @@ function KOLProfileContent() {
 
         {/* Positions — NO X gate, real data */}
         {activeTab === "positions" && <PositionsTabContent handle={handle} />}
+
+        {/* Account section — Disconnect (only when authenticated) */}
+        {authenticated && (
+          <div className="px-4 mt-8 mb-6">
+            <p
+              className="text-[9px] uppercase tracking-[0.18em] mb-2"
+              style={{ color: "rgba(255,255,255,0.3)" }}
+            >
+              Account
+            </p>
+            <button
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all hover:bg-white/[0.04] active:scale-[0.99] disabled:opacity-50"
+              style={{
+                background: "rgba(244,63,94,0.04)",
+                border: "1px solid rgba(244,63,94,0.18)",
+              }}
+            >
+              <span className="flex items-center gap-2.5">
+                <span
+                  className="w-7 h-7 rounded-lg flex items-center justify-center"
+                  style={{ background: "rgba(244,63,94,0.1)" }}
+                >
+                  <LogOut size={13} className="text-rose-400" />
+                </span>
+                <span className="text-[12px] font-semibold text-rose-400">
+                  {disconnecting ? "Disconnecting…" : "Disconnect"}
+                </span>
+              </span>
+              <span className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+                Sign out of this device
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Modals & Sheets */}
