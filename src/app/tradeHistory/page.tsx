@@ -17,8 +17,8 @@ const cardStyle = {
 // ── helpers ──
 
 function formatDuration(openedAt: string, closedAt: string | null): string {
-  if (!closedAt) return "Open";
-  const ms = new Date(closedAt).getTime() - new Date(openedAt).getTime();
+  const end = closedAt ? new Date(closedAt).getTime() : Date.now();
+  const ms = end - new Date(openedAt).getTime();
   if (ms < 0) return "—";
   const totalMin = Math.floor(ms / 60000);
   const d = Math.floor(totalMin / 1440);
@@ -27,6 +27,20 @@ function formatDuration(openedAt: string, closedAt: string | null): string {
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
+}
+
+function fmtPrice(n: number): string {
+  if (n >= 1000) return `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  if (n >= 1) return `$${n.toFixed(2)}`;
+  if (n >= 0.01) return `$${n.toFixed(4)}`;
+  if (n > 0) return `$${n.toFixed(8).replace(/0+$/, "").replace(/\.$/, "")}`;
+  return "$0";
+}
+
+function fmtSize(n: number): string {
+  if (n >= 10000) return `$${(n / 1000).toFixed(0)}K`;
+  if (n >= 1000) return `$${(n / 1000).toFixed(1)}K`;
+  return `$${Math.round(n).toLocaleString()}`;
 }
 
 function formatDate(iso: string): string {
@@ -311,6 +325,9 @@ export default function TradeHistoryPage() {
                       </p>
                       <p className={`text-[10px] ${isWin ? "text-teal-400/70" : "text-rose-400/70"}`}>
                         {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
+                      </p>
+                      <p className="text-[10px] text-gray-500 mt-0.5 whitespace-nowrap font-normal">
+                        Entry {fmtPrice(trade.entry_price)} · Exit {trade.exit_price ? fmtPrice(trade.exit_price) : "—"} · {fmtSize(trade.size_usd)}
                       </p>
                     </div>
                   </div>
