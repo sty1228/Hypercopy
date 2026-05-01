@@ -6,8 +6,26 @@ import { useRouter } from "next/navigation";
 import copyCountIcon from "@/assets/icons/copy-count.png";
 import copyRankIcon from "@/assets/icons/copy-rank.png";
 import { ChevronLeft, TrendingUp, TrendingDown, Filter, ArrowUpDown, Loader2 } from "lucide-react";
-import { getTradeHistory, TradeHistoryItem, TradesSummary } from "@/service";
+import { getTradeHistory, TradeHistoryItem, TradesSummary, getOpenPositions, PositionItem } from "@/service";
 import { getProfileData } from "@/service";
+
+type TabKey = "active" | "all" | "long" | "short";
+
+type CardItem = {
+  id: string;
+  ticker: string;
+  direction: "long" | "short";
+  entry_price: number;
+  ref_price: number | null;
+  ref_label: "Exit" | "Mark";
+  size_usd: number;
+  leverage: number;
+  pnl_usd: number | null;
+  pnl_pct: number | null;
+  trader_username: string | null;
+  opened_at: string;
+  closed_at: string | null;
+};
 
 const cardStyle = {
   background: "linear-gradient(135deg, rgba(45,212,191,0.04) 0%, rgba(45,212,191,0.01) 100%)",
@@ -96,11 +114,12 @@ const WinRateRing = ({ pct }: { pct: number }) => {
 
 export default function TradeHistoryPage() {
   const router = useRouter();
-  const [filterSide, setFilterSide] = useState<"all" | "long" | "short">("all");
+  const [activeTab, setActiveTab] = useState<TabKey | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
   const [trades, setTrades] = useState<TradeHistoryItem[]>([]);
+  const [openPositions, setOpenPositions] = useState<PositionItem[]>([]);
   const [summary, setSummary] = useState<TradesSummary | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -121,30 +140,113 @@ export default function TradeHistoryPage() {
       .catch(() => {});
   }, []);
 
-  // fetch trades
-  const fetchTrades = useCallback(async () => {
+  // Initial probe: load both datasets in parallel and pick the default tab.
+  // Default to Active iff at least one position is open, else fall back to All.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [open, closed] = await Promise.all([
+          getOpenPositions().catch(() => [] as PositionItem[]),
+          getTradeHistory("closed", "all", 200).catch(() => null),
+        ]);
+        if (cancelled) return;
+        setOpenPositions(open);
+        if (closed) {
+          setTrades(closed.trades);
+          setSummary(closed.summary);
+          setTotalCount(closed.total_count);
+        }
+        setActiveTab(open.length > 0 ? "active" : "all");
+      } catch (e: unknown) {
+        if (!cancelled) {
+          console.error("Failed to load trades:", e);
+          setError("Failed to load trade history");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Subsequent tab changes — refetch the relevant slice.
+  // The ref skips the first fire that follows the initial probe completing.
+  const skipNextFetchRef = useRef(true);
+  const refetchForTab = useCallback(async (tab: TabKey) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await getTradeHistory("closed", filterSide, 200);
-      setTrades(res.trades);
-      setSummary(res.summary);
-      setTotalCount(res.total_count);
+      if (tab === "active") {
+        const open = await getOpenPositions();
+        setOpenPositions(open);
+      } else {
+        const res = await getTradeHistory("closed", tab, 200);
+        setTrades(res.trades);
+        setSummary(res.summary);
+        setTotalCount(res.total_count);
+      }
     } catch (e: unknown) {
       console.error("Failed to load trades:", e);
       setError("Failed to load trade history");
     } finally {
       setLoading(false);
     }
-  }, [filterSide]);
+  }, []);
 
-  useEffect(() => { fetchTrades(); }, [fetchTrades]);
+  useEffect(() => {
+    if (!activeTab) return;
+    if (skipNextFetchRef.current) {
+      skipNextFetchRef.current = false;
+      return;
+    }
+    refetchForTab(activeTab);
+  }, [activeTab, refetchForTab]);
 
   // derived from summary
   const totalPnl = summary?.total_pnl ?? 0;
   const wins = summary?.wins ?? 0;
   const losses = summary?.losses ?? 0;
   const winRate = Math.round(summary?.win_rate ?? 0);
+
+  // Unified card list: open positions when on Active tab, closed trades otherwise.
+  // Active items carry mark price as their reference; closed carry exit price.
+  const cards: CardItem[] = activeTab === "active"
+    ? openPositions
+        .slice()
+        .sort((a, b) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime())
+        .map((p): CardItem => ({
+          id: p.id,
+          ticker: p.ticker,
+          direction: (p.direction === "short" ? "short" : "long"),
+          entry_price: p.entry_price,
+          ref_price: p.current_price,
+          ref_label: "Mark",
+          size_usd: p.size_usd,
+          leverage: p.leverage,
+          pnl_usd: p.pnl_usd,
+          pnl_pct: p.pnl_pct,
+          trader_username: p.trader_username,
+          opened_at: p.opened_at,
+          closed_at: null,
+        }))
+    : trades.map((t): CardItem => ({
+          id: t.id,
+          ticker: t.ticker,
+          direction: t.direction,
+          entry_price: t.entry_price,
+          ref_price: t.exit_price,
+          ref_label: "Exit",
+          size_usd: t.size_usd,
+          leverage: t.leverage,
+          pnl_usd: t.pnl_usd,
+          pnl_pct: t.pnl_pct,
+          trader_username: t.trader_username,
+          opened_at: t.opened_at,
+          closed_at: t.closed_at,
+        }));
 
   return (
     <div className="min-h-screen text-white relative overflow-hidden" style={{ background: "linear-gradient(180deg, #0a0f14 0%, #080d10 100%)" }}>
@@ -162,6 +264,10 @@ export default function TradeHistoryPage() {
         .trade-row:active { transform: scale(0.995); }
         .stat-card { transition: all 0.2s; }
         .stat-card:hover { transform: translateY(-1px); border-color: rgba(45,212,191,0.2) !important; }
+        @keyframes activePulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
       `}</style>
 
       {/* Ambient glow */}
@@ -234,22 +340,38 @@ export default function TradeHistoryPage() {
       <div className="relative z-10 px-4 mb-3 flex items-center justify-between fade-up" style={{ animationDelay: "0.35s" }}>
         <div className="flex items-center gap-1.5">
           <Filter size={12} className="text-gray-500" />
-          {(["all", "long", "short"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilterSide(f)}
-              className="px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all duration-200 capitalize cursor-pointer active:scale-95"
-              style={{
-                background: filterSide === f ? (f === "short" ? "rgba(244,63,94,0.15)" : "rgba(45,212,191,0.15)") : "rgba(255,255,255,0.03)",
-                color: filterSide === f ? (f === "short" ? "#f43f5e" : "#2dd4bf") : "rgba(255,255,255,0.4)",
-                border: filterSide === f ? (f === "short" ? "1px solid rgba(244,63,94,0.3)" : "1px solid rgba(45,212,191,0.3)") : "1px solid rgba(255,255,255,0.06)",
-              }}
-            >
-              {f}
-            </button>
-          ))}
+          {(["active", "all", "long", "short"] as const).map((f) => {
+            const selected = activeTab === f;
+            const isShort = f === "short";
+            return (
+              <button
+                key={f}
+                onClick={() => setActiveTab(f)}
+                className="px-2.5 py-1 rounded-lg text-[10px] font-medium transition-all duration-200 capitalize cursor-pointer active:scale-95 flex items-center gap-1"
+                style={{
+                  background: selected ? (isShort ? "rgba(244,63,94,0.15)" : "rgba(45,212,191,0.15)") : "rgba(255,255,255,0.03)",
+                  color: selected ? (isShort ? "#f43f5e" : "#2dd4bf") : "rgba(255,255,255,0.4)",
+                  border: selected ? (isShort ? "1px solid rgba(244,63,94,0.3)" : "1px solid rgba(45,212,191,0.3)") : "1px solid rgba(255,255,255,0.06)",
+                }}
+              >
+                {f === "active" && (
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      background: "#2dd4bf",
+                      boxShadow: selected ? "0 0 6px rgba(45,212,191,0.8)" : "none",
+                      animation: "activePulse 1.6s ease-in-out infinite",
+                    }}
+                  />
+                )}
+                {f}
+              </button>
+            );
+          })}
         </div>
-        <span className="text-[10px] text-gray-500 tabular-nums">{trades.length} trades</span>
+        <span className="text-[10px] text-gray-500 tabular-nums">
+          {activeTab === "active" ? `${openPositions.length} active` : `${trades.length} trades`}
+        </span>
       </div>
 
       {/* Trade List */}
@@ -263,32 +385,36 @@ export default function TradeHistoryPage() {
           <div className="flex flex-col items-center justify-center py-16">
             <p className="text-sm text-rose-400 mb-2">{error}</p>
             <button
-              onClick={fetchTrades}
+              onClick={() => activeTab && refetchForTab(activeTab)}
               className="text-xs text-teal-400 px-3 py-1.5 rounded-lg cursor-pointer active:scale-95"
               style={{ background: "rgba(45,212,191,0.1)", border: "1px solid rgba(45,212,191,0.2)" }}
             >
               Retry
             </button>
           </div>
-        ) : trades.length === 0 ? (
+        ) : cards.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <ArrowUpDown size={32} className="text-gray-600 mb-3" />
-            <p className="text-sm text-gray-500">No {filterSide === "all" ? "" : filterSide + " "}trades yet</p>
+            <p className="text-sm text-gray-500">
+              {activeTab === "active"
+                ? "No active trades yet"
+                : `No ${activeTab === "all" ? "" : activeTab + " "}trades yet`}
+            </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {trades.map((trade, idx) => {
-              const pnl = trade.pnl_usd ?? 0;
-              const pnlPct = trade.pnl_pct ?? 0;
+            {cards.map((card, idx) => {
+              const pnl = card.pnl_usd ?? 0;
+              const pnlPct = card.pnl_pct ?? 0;
               const isWin = pnl >= 0;
-              const isExpanded = expandedId === trade.id;
-              const duration = formatDuration(trade.opened_at, trade.closed_at);
-              const closeDate = trade.closed_at ? formatDate(trade.closed_at) : formatDate(trade.opened_at);
+              const isExpanded = expandedId === card.id;
+              const duration = formatDuration(card.opened_at, card.closed_at);
+              const dateLabel = card.closed_at ? formatDate(card.closed_at) : formatDate(card.opened_at);
 
               return (
                 <div
-                  key={trade.id}
-                  onClick={() => setExpandedId(isExpanded ? null : trade.id)}
+                  key={card.id}
+                  onClick={() => setExpandedId(isExpanded ? null : card.id)}
                   className="rounded-xl overflow-hidden cursor-pointer transition-all duration-200 trade-row"
                   style={{ ...cardStyle, animationDelay: `${0.38 + idx * 0.06}s` }}
                 >
@@ -296,27 +422,27 @@ export default function TradeHistoryPage() {
                   <div className="px-3 py-2.5 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
                       <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-200 ${trade.direction === "long" ? "bg-teal-400/10" : "bg-rose-400/10"}`}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-200 ${card.direction === "long" ? "bg-teal-400/10" : "bg-rose-400/10"}`}
                         style={{ transform: isExpanded ? "scale(1.1)" : "scale(1)" }}
                       >
-                        {trade.direction === "long"
+                        {card.direction === "long"
                           ? <TrendingUp size={14} className="text-teal-400" />
                           : <TrendingDown size={14} className="text-rose-400" />
                         }
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-semibold text-white">{trade.ticker}</span>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded capitalize font-medium ${trade.direction === "long" ? "bg-teal-400/10 text-teal-400" : "bg-rose-400/10 text-rose-400"}`}>
-                            {trade.direction}
+                          <span className="text-sm font-semibold text-white">{card.ticker}</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded capitalize font-medium ${card.direction === "long" ? "bg-teal-400/10 text-teal-400" : "bg-rose-400/10 text-rose-400"}`}>
+                            {card.direction}
                           </span>
-                          {trade.trader_username && (
+                          {card.trader_username && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded text-gray-400" style={{ background: "rgba(255,255,255,0.05)" }}>
-                              via @{trade.trader_username}
+                              via @{card.trader_username}
                             </span>
                           )}
                         </div>
-                        <span className="text-[10px] text-gray-500">{closeDate} · {duration}</span>
+                        <span className="text-[10px] text-gray-500">{dateLabel} · {duration}</span>
                       </div>
                     </div>
                     <div className="text-right">
@@ -327,7 +453,7 @@ export default function TradeHistoryPage() {
                         {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(2)}%
                       </p>
                       <p className="text-[10px] text-gray-500 mt-0.5 whitespace-nowrap font-normal">
-                        Entry {fmtPrice(trade.entry_price)} · Exit {trade.exit_price ? fmtPrice(trade.exit_price) : "—"} · {fmtSize(trade.size_usd)}
+                        Entry {fmtPrice(card.entry_price)} · {card.ref_label} {card.ref_price != null ? fmtPrice(card.ref_price) : "—"} · {fmtSize(card.size_usd)}
                       </p>
                     </div>
                   </div>
@@ -341,10 +467,10 @@ export default function TradeHistoryPage() {
                       <div className="h-px mb-2" style={{ background: isWin ? "rgba(45,212,191,0.1)" : "rgba(244,63,94,0.1)" }} />
                       <div className="grid grid-cols-4 gap-2">
                         {[
-                          { label: "Entry", val: `$${trade.entry_price.toLocaleString()}` },
-                          { label: "Exit", val: trade.exit_price ? `$${trade.exit_price.toLocaleString()}` : "—" },
-                          { label: "Size", val: `$${trade.size_usd.toLocaleString()}` },
-                          { label: "Leverage", val: `${trade.leverage}×` },
+                          { label: "Entry", val: `$${card.entry_price.toLocaleString()}` },
+                          { label: card.ref_label, val: card.ref_price != null ? `$${card.ref_price.toLocaleString()}` : "—" },
+                          { label: "Size", val: `$${card.size_usd.toLocaleString()}` },
+                          { label: "Leverage", val: `${card.leverage}×` },
                         ].map((d, i) => (
                           <div key={i} style={{ opacity: isExpanded ? 1 : 0, transform: isExpanded ? "translateY(0)" : "translateY(6px)", transition: `all 0.3s cubic-bezier(0.25,0.46,0.45,0.94) ${0.05 + i * 0.05}s` }}>
                             <p className="text-[8px] text-gray-500 uppercase">{d.label}</p>
