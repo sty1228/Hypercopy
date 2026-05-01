@@ -907,10 +907,17 @@ export default function KolDetailSheet({
                   currentClickItemId === signal.signal_id ? null : signal.signal_id
                 )}
                 onDetail={(sig: UserSignalItem) => {
+                  // Prefer BE's signed pct_change. If absent, flip the legacy
+                  // raw change_since_tweet for SHORT signals so the detail
+                  // sheet's color/arrow render correct PnL direction.
+                  const isShort = sig.bull_or_bear === "bearish";
+                  const signedPct = sig.pct_change != null
+                    ? sig.pct_change
+                    : (isShort ? -sig.change_since_tweet : sig.change_since_tweet);
                   setDetailSignal({
                     ticker:          sig.ticker,
                     direction:       sig.bull_or_bear,
-                    pct_change:      sig.change_since_tweet,
+                    pct_change:      signedPct,
                     tweet_text:      sig.content,
                     tweet_image_url: sig.tweet_image_url ?? null,
                     likes:           sig.likesCount,

@@ -58,9 +58,14 @@ export default function SignalItem({
   const [tweetImgError, setTweetImgError] = useState(false);
 
   const isExpanded = currentClickItemId === data.signal_id;
-  const change = data?.change_since_tweet || 0;
-  const isPositiveChange = change >= 0;
   const isBullish = data.bull_or_bear === "bullish";
+  // Prefer BE's signed pct_change; fall back to the legacy raw
+  // change_since_tweet, flipping for SHORT so the chip's sign/color
+  // reflect signal P&L (not raw spot direction).
+  const change = data?.pct_change != null
+    ? data.pct_change
+    : ((data?.change_since_tweet || 0) * (isBullish ? 1 : -1));
+  const isPositiveChange = change >= 0;
   const tweetImage = data.tweet_image_url && !tweetImgError ? data.tweet_image_url : null;
   const { clean: cleanContent, url: tweetUrl } = parseTweetContent(data?.content || "");
 
@@ -237,7 +242,7 @@ export default function SignalItem({
               ${data?.ticker || "-"}
             </span>
             <span className="flex items-center gap-1">
-              <span className="text-[9px] text-gray-600 uppercase tracking-wide">SPOT CHG</span>
+              <span className="text-[9px] text-gray-600 uppercase tracking-wide">P&amp;L</span>
               <span
                 className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
                 style={{

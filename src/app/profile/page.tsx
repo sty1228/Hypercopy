@@ -1450,7 +1450,13 @@ function KOLProfileContent() {
 
                       <div className="space-y-1.5">
                         {filtered.map((sig, i) => {
-                          const pct = sig.change_since_tweet;
+                          const isShort = sig.bull_or_bear === "bearish";
+                          // Prefer BE's direction-signed pct_change. Fall back to
+                          // the legacy raw `change_since_tweet`, flipping its sign
+                          // for SHORT so positive always means "signal in profit".
+                          const pct = sig.pct_change != null
+                            ? sig.pct_change
+                            : (isShort ? -sig.change_since_tweet : sig.change_since_tweet);
                           const hasPct = pct != null && pct !== 0;
                           const isWin = pct > 0;
                           const isLoss = pct < 0;
@@ -1458,8 +1464,11 @@ function KOLProfileContent() {
                           const dirColor = sig.bull_or_bear === "bullish" ? "#2dd4bf" : "#f43f5e";
                           const dirLabel = sig.bull_or_bear === "bullish" ? "LONG" : "SHORT";
                           const hasEntry = sig.entry_price > 0;
+                          // Back-solve display-only currentPrice. pct is signed PnL,
+                          // so for SHORT the price moves opposite to PnL: invert.
+                          const priceChangePct = isShort ? -pct : pct;
                           const currentPrice = hasEntry && hasPct
-                            ? sig.entry_price * (1 + pct / 100)
+                            ? sig.entry_price * (1 + priceChangePct / 100)
                             : null;
                           return (
                             <SignalCard

@@ -345,6 +345,12 @@ export interface UserSignalItem {
   commentsCount: number;
   retweetsCount: number;
   likesCount: number;
+  // Direction-signed PnL %: positive when the signal is profitable (price up
+  // for bullish, price down for bearish). Use this for color/sign/arrow.
+  pct_change?: number | null;
+  // Legacy: raw spot price change %. Always positive when current_price >
+  // entry_price regardless of direction. Kept for backwards compat —
+  // readers should prefer `pct_change`.
   change_since_tweet: number;
   tweet_image_url?: string | null;
   // ★ NEW (2026-04-23)
