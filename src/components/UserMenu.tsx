@@ -43,12 +43,13 @@ const UserMenu = () => {
     setIsOpen(!isOpen);
   };
 
-  // Authenticated taps on the avatar go straight to /profile (the place
-  // where the user manages identity / followers / settings). Unauthenticated
-  // taps still open the dropdown so the "Log In" button is reachable.
+  // Authenticated taps on the avatar go to /profile?handle=<twitter> — /profile
+  // gates render on a handle query param and bounces to /copyTrading without it.
+  // No twitter linked → fall back to the dropdown (which holds Link X, Link
+  // Wallet, and Disconnect). Unauthed taps also use the dropdown for "Log In".
   const handleAvatarClick = () => {
-    if (authenticated) {
-      router.push("/profile");
+    if (authenticated && twitterAccount?.username) {
+      router.push(`/profile?handle=${twitterAccount.username}`);
       return;
     }
     toggleMenu();
