@@ -11,6 +11,7 @@ import {
   closePosition, updateTradeTpSl,
   type PositionItem, type FollowedTrader, type DefaultFollowSettings,
 } from "@/service";
+import { useLiveMids } from "@/hooks/useLiveMids";
 
 // ── helpers ─────────────────────────────────────────────
 
@@ -64,6 +65,7 @@ export default function PositionCard({ position, traders, defaults, onClose, onC
   const [closing, setClosing] = useState(false);
   const [editingRisk, setEditingRisk] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const { getMid } = useLiveMids();
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
@@ -92,15 +94,27 @@ export default function PositionCard({ position, traders, defaults, onClose, onC
       ? `Counter-trading @${position.trader_username}`
       : `Copying @${position.trader_username}`;
 
-  // PnL & accent color
-  const pnl = position.pnl_usd ?? 0;
-  const pnlPct = position.pnl_pct ?? 0;
+  // Mark: prefer the live HL mid; fall back to BE's last-known current_price.
+  const liveMid = getMid(position.ticker);
+  const mark = liveMid ?? position.current_price ?? null;
+  const isLive = liveMid != null;
+
+  // PnL & accent color — recompute from live mark when available so the
+  // chip tracks the price in real time, not the stale BE pnl_usd.
+  let pnl: number;
+  let pnlPct: number;
+  if (isLive && position.entry_price > 0 && position.size_qty > 0) {
+    const sign = isLong ? 1 : -1;
+    pnl = (mark! - position.entry_price) * position.size_qty * sign;
+    pnlPct = ((mark! - position.entry_price) / position.entry_price) * 100 * sign * position.leverage;
+  } else {
+    pnl = position.pnl_usd ?? 0;
+    pnlPct = position.pnl_pct ?? 0;
+  }
   const positive = pnl >= 0;
   const accent = positive ? "#2dd4bf" : "#fb7185";
   const accent2 = positive ? "#34d399" : "#f43f5e";
 
-  // Mark / liq / size
-  const mark = position.current_price ?? null;
   const liq = approxLiq(position.entry_price, position.leverage, direction);
 
   // TP / SL: prefer per-trade overrides from backend, fall back to the
@@ -217,6 +231,10 @@ export default function PositionCard({ position, traders, defaults, onClose, onC
             0%   { transform: translateX(-100%); }
             100% { transform: translateX(100%); }
           }
+          @keyframes pcLivePulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.25); }
+          }
         `}</style>
 
         {/* Close button */}
@@ -291,8 +309,15 @@ export default function PositionCard({ position, traders, defaults, onClose, onC
               border: `1px solid ${accent}33`,
             }}
           >
-            <div className="text-[9px] uppercase tracking-[0.18em] mb-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
-              Unrealized PnL
+            <div className="text-[9px] uppercase tracking-[0.18em] mb-0.5 flex items-center gap-1.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+              <span>Unrealized PnL</span>
+              {isLive && (
+                <span
+                  className="w-1.5 h-1.5 rounded-full bg-teal-400"
+                  style={{ animation: "pcLivePulse 1.6s ease-in-out infinite", boxShadow: "0 0 4px rgba(45,212,191,0.7)" }}
+                  title="Live price"
+                />
+              )}
             </div>
             <div className="flex items-end gap-2">
               <span

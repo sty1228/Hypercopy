@@ -18,6 +18,7 @@ import {
   type RisingTraderItem, type SearchTraderItem, type StyleTraderItem,
   type TokenDetailResponse,
 } from "@/service";
+import { useLiveMids } from "@/hooks/useLiveMids";
 
 /* ─────────────── helpers ─────────────────── */
 
@@ -199,6 +200,9 @@ function TokenSheet({ ticker, onClose, goTrader }: { ticker: string; onClose: ()
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [sigTab, setSigTab] = useState<"all" | "bullish" | "bearish">("all");
+  const { getMid } = useLiveMids();
+  // Sheet is keyed to a single ticker; one liveMid covers every signal row.
+  const liveMid = getMid(ticker);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -376,14 +380,31 @@ function TokenSheet({ ticker, onClose, goTrader }: { ticker: string; onClose: ()
                           </div>
                         </div>
                         <div className="text-right shrink-0">
-                          {sig.pct_change !== null && (
-                            <div
-                              className="text-[12px] font-extrabold"
-                              style={{ color: sig.pct_change >= 0 ? "#2dd4bf" : "#f43f5e" }}
-                            >
-                              {sig.pct_change >= 0 ? "+" : ""}{sig.pct_change.toFixed(1)}%
-                            </div>
-                          )}
+                          {(() => {
+                            const isShort = !(sig.direction === "long" || sig.direction === "bullish");
+                            const livePct = (liveMid != null && sig.entry_price != null && sig.entry_price > 0)
+                              ? ((liveMid - sig.entry_price) / sig.entry_price) * 100 * (isShort ? -1 : 1)
+                              : null;
+                            const displayPct = livePct ?? sig.pct_change;
+                            if (displayPct == null) return null;
+                            return (
+                              <div className="flex items-center gap-1 justify-end">
+                                {liveMid != null && (
+                                  <span
+                                    className="w-1.5 h-1.5 rounded-full bg-teal-400"
+                                    style={{ animation: "exLivePulse 1.6s ease-in-out infinite", boxShadow: "0 0 4px rgba(45,212,191,0.7)" }}
+                                    title="Live price"
+                                  />
+                                )}
+                                <div
+                                  className="text-[12px] font-extrabold"
+                                  style={{ color: displayPct >= 0 ? "#2dd4bf" : "#f43f5e" }}
+                                >
+                                  {displayPct >= 0 ? "+" : ""}{displayPct.toFixed(1)}%
+                                </div>
+                              </div>
+                            );
+                          })()}
                           <div className="flex items-center gap-0.5 text-[8px] text-gray-500 justify-end">
                             <Clock size={7} />
                             {timeAgo(sig.created_at)}
@@ -419,9 +440,9 @@ function TokenSheet({ ticker, onClose, goTrader }: { ticker: string; onClose: ()
                               Entry: <span className="text-white font-semibold">{fmtPrice(sig.entry_price)}</span>
                             </span>
                           )}
-                          {sig.current_price != null && (
+                          {(liveMid ?? sig.current_price) != null && (
                             <span className="text-[9px] text-gray-500">
-                              Now: <span className="text-white font-semibold">{fmtPrice(sig.current_price)}</span>
+                              Now: <span className="text-white font-semibold">{fmtPrice((liveMid ?? sig.current_price) as number)}</span>
                             </span>
                           )}
                         </div>
@@ -617,6 +638,7 @@ export default function ExplorePage() {
         @keyframes float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(10px,-15px) scale(1.05)}}
         @keyframes float-slow{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-8px,10px) scale(1.03)}}
         @keyframes pulse-glow{0%,100%{opacity:.6}50%{opacity:1}}
+        @keyframes exLivePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.25)}}
         @keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
         @keyframes shimmerSlide{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
         @keyframes slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}

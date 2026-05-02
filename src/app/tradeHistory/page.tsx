@@ -8,6 +8,7 @@ import copyRankIcon from "@/assets/icons/copy-rank.png";
 import { ChevronLeft, TrendingUp, TrendingDown, Filter, ArrowUpDown, Loader2 } from "lucide-react";
 import { getTradeHistory, TradeHistoryItem, TradesSummary, getOpenPositions, PositionItem } from "@/service";
 import { getProfileData } from "@/service";
+import { useLiveMids } from "@/hooks/useLiveMids";
 
 type TabKey = "active" | "all" | "long" | "short";
 
@@ -114,6 +115,7 @@ const WinRateRing = ({ pct }: { pct: number }) => {
 
 export default function TradeHistoryPage() {
   const router = useRouter();
+  const { getMid } = useLiveMids();
   const [activeTab, setActiveTab] = useState<TabKey | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -217,21 +219,34 @@ export default function TradeHistoryPage() {
     ? openPositions
         .slice()
         .sort((a, b) => new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime())
-        .map((p): CardItem => ({
-          id: p.id,
-          ticker: p.ticker,
-          direction: (p.direction === "short" ? "short" : "long"),
-          entry_price: p.entry_price,
-          ref_price: p.current_price,
-          ref_label: "Mark",
-          size_usd: p.size_usd,
-          leverage: p.leverage,
-          pnl_usd: p.pnl_usd,
-          pnl_pct: p.pnl_pct,
-          trader_username: p.trader_username,
-          opened_at: p.opened_at,
-          closed_at: null,
-        }))
+        .map((p): CardItem => {
+          // Mark + PnL: prefer the live HL mid; fall back to BE's last
+          // current_price + pnl_usd/pnl_pct snapshot when offline.
+          const isLong = p.direction !== "short";
+          const liveMid = getMid(p.ticker);
+          const mark = liveMid ?? p.current_price;
+          const livePnl = (liveMid != null && p.entry_price > 0 && p.size_qty > 0)
+            ? (liveMid - p.entry_price) * p.size_qty * (isLong ? 1 : -1)
+            : null;
+          const livePnlPct = (liveMid != null && p.entry_price > 0)
+            ? ((liveMid - p.entry_price) / p.entry_price) * 100 * (isLong ? 1 : -1) * p.leverage
+            : null;
+          return {
+            id: p.id,
+            ticker: p.ticker,
+            direction: (p.direction === "short" ? "short" : "long"),
+            entry_price: p.entry_price,
+            ref_price: mark,
+            ref_label: "Mark",
+            size_usd: p.size_usd,
+            leverage: p.leverage,
+            pnl_usd: livePnl ?? p.pnl_usd,
+            pnl_pct: livePnlPct ?? p.pnl_pct,
+            trader_username: p.trader_username,
+            opened_at: p.opened_at,
+            closed_at: null,
+          };
+        })
     : trades.map((t): CardItem => ({
           id: t.id,
           ticker: t.ticker,
