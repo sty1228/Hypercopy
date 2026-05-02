@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, ArrowDownRight, X } from "lucide-react";
+import { useLiveMids } from "@/hooks/useLiveMids";
 
 export interface SignalDetailData {
   ticker: string;
@@ -60,6 +61,7 @@ const SHEET_HEIGHT = "75vh";
 export default function SignalDetailSheet({ signal, open, onClose, onTrade, trading }: Props) {
   const [visible, setVisible] = useState(false);
   const [imgErr, setImgErr] = useState(false);
+  const { getMid } = useLiveMids();
 
   useEffect(() => {
     if (open) {
@@ -78,10 +80,17 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
   if (!open && !visible) return null;
   if (!signal) return null;
 
-  const pct = signal.pct_change ?? null;
+  const dir = directionInfo(signal.direction);
+  const isShort = !(signal.direction === "long" || signal.direction === "bullish");
+  const liveMid = signal.ticker ? getMid(signal.ticker) : null;
+  // Live: recompute signed PnL from liveMid + entry, flip for SHORT.
+  // Falls back to BE seed (signal.pct_change) when no live data.
+  const livePct = (liveMid != null && signal.entry_price != null && signal.entry_price > 0)
+    ? ((liveMid - signal.entry_price) / signal.entry_price) * 100 * (isShort ? -1 : 1)
+    : null;
+  const pct = livePct ?? signal.pct_change ?? null;
   const pctColor = pct == null ? "rgba(255,255,255,0.4)" : pct >= 0 ? "#2dd4bf" : "#f43f5e";
   const pctLabel = pct == null ? "—" : `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
-  const dir = directionInfo(signal.direction);
   const showImg = !!signal.tweet_image_url && !imgErr;
   const hasEngagement = (signal.likes ?? 0) + (signal.retweets ?? 0) + (signal.replies ?? 0) > 0;
   const canTrade = !!onTrade && !!signal.signal_id;
@@ -92,6 +101,7 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
 
   const el = (
     <div className="fixed inset-0 flex items-end justify-center" style={{ zIndex: 9990 }}>
+      <style>{`@keyframes sdsLivePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.25)}}`}</style>
       <div
         className="absolute inset-0 transition-opacity duration-300"
         style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)", opacity: visible ? 1 : 0 }}
@@ -128,6 +138,13 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
+                {liveMid != null && (
+                  <span
+                    className="w-1.5 h-1.5 rounded-full bg-teal-400"
+                    style={{ animation: "sdsLivePulse 1.6s ease-in-out infinite", boxShadow: "0 0 4px rgba(45,212,191,0.7)" }}
+                    title="Live price"
+                  />
+                )}
                 {pct != null && (pct >= 0
                   ? <ArrowUpRight size={14} color={pctColor} />
                   : <ArrowDownRight size={14} color={pctColor} />)}
@@ -144,11 +161,21 @@ export default function SignalDetailSheet({ signal, open, onClose, onTrade, trad
           </div>
 
           {signal.entry_price != null && signal.entry_price > 0 && (
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-[10px] text-gray-500 uppercase tracking-wider">Entry</span>
-              <span className="text-[13px] font-semibold text-white">
-                ${signal.entry_price.toLocaleString()}
-              </span>
+            <div className="flex items-center gap-4 mb-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-gray-500 uppercase tracking-wider">Entry</span>
+                <span className="text-[13px] font-semibold text-white">
+                  ${signal.entry_price.toLocaleString()}
+                </span>
+              </div>
+              {liveMid != null && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-gray-500 uppercase tracking-wider">Mark</span>
+                  <span className="text-[13px] font-semibold text-white">
+                    ${liveMid.toLocaleString()}
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

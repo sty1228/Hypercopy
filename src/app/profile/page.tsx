@@ -27,6 +27,7 @@ import TopBar from "@/components/TopBar";
 import { removeToken } from "@/lib/token";
 import { toast } from "sonner";
 import { LogOut } from "lucide-react";
+import { useLiveMids } from "@/hooks/useLiveMids";
 
 /* ─── First-time trade localStorage helpers ─── */
 const LS_HAS_TRADED = "hc_has_traded_before";
@@ -659,10 +660,10 @@ function PositionsTabContent({ handle }: { handle: string }) {
 }
 
 /* ─── Signal Card with expandable text + PEAK badge ─── */
-function SignalCard({ sig, index, pct, hasPct, isWin, pnlColor, dirColor, dirLabel, hasEntry, currentPrice, fmtPrice }: {
+function SignalCard({ sig, index, pct, hasPct, isWin, pnlColor, dirColor, dirLabel, hasEntry, currentPrice, isLive, fmtPrice }: {
   sig: UserSignalItem; index: number; pct: number; hasPct: boolean; isWin: boolean;
   pnlColor: string; dirColor: string; dirLabel: string; hasEntry: boolean;
-  currentPrice: number | null; fmtPrice: (p: number) => string;
+  currentPrice: number | null; isLive?: boolean; fmtPrice: (p: number) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const textRef = useRef<HTMLParagraphElement>(null);
@@ -709,6 +710,13 @@ function SignalCard({ sig, index, pct, hasPct, isWin, pnlColor, dirColor, dirLab
             )}
           </div>
           <div className="flex items-center gap-1">
+            {isLive && hasPct && (
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-teal-400"
+                style={{ animation: "livePulse 1.6s ease-in-out infinite", boxShadow: "0 0 4px rgba(45,212,191,0.7)" }}
+                title="Live price"
+              />
+            )}
             {hasPct ? (
               <>
                 {isWin ? <ArrowUpRight size={12} style={{ color: pnlColor }} /> : <ArrowDownRight size={12} style={{ color: pnlColor }} />}
@@ -802,6 +810,7 @@ function KOLProfileContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const handle = searchParams.get("handle")?.replace(/^@/, "") ?? "";
+  const { getMid } = useLiveMids();
 
   const [trader, setTrader] = useState<TraderProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1090,6 +1099,7 @@ function KOLProfileContent() {
         @keyframes statCardHover{0%,100%{border-color:rgba(255,255,255,.08)}50%{border-color:rgba(45,212,191,.2)}}
         @keyframes progressFill{from{width:0%}}
         @keyframes lockPulse{0%,100%{opacity:.5}50%{opacity:.8}}
+        @keyframes livePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.25)}}
         @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
         @keyframes unlockReveal{from{opacity:0;transform:translateY(12px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
         @keyframes copyShimmer{0%{background-position:200% center}100%{background-position:-200% center}}
@@ -1468,25 +1478,32 @@ function KOLProfileContent() {
                       <div className="space-y-1.5">
                         {filtered.map((sig, i) => {
                           const isShort = sig.bull_or_bear === "bearish";
-                          // Prefer BE's direction-signed pct_change. Fall back to
-                          // the legacy raw `change_since_tweet`, flipping its sign
-                          // for SHORT so positive always means "signal in profit".
-                          const pct = sig.pct_change != null
+                          const hasEntry = sig.entry_price > 0;
+                          const liveMid = getMid(sig.ticker);
+                          // Seed: BE's direction-signed pct_change, with the
+                          // legacy raw change_since_tweet as a sign-flipped
+                          // fallback for SHORT.
+                          const seedPct = sig.pct_change != null
                             ? sig.pct_change
                             : (isShort ? -sig.change_since_tweet : sig.change_since_tweet);
+                          // Live: recompute signed PnL from liveMid + entry,
+                          // flipping for SHORT. Drives color/sign/arrow.
+                          const pct = (liveMid != null && hasEntry)
+                            ? ((liveMid - sig.entry_price) / sig.entry_price) * 100 * (isShort ? -1 : 1)
+                            : seedPct;
                           const hasPct = pct != null && pct !== 0;
                           const isWin = pct > 0;
                           const isLoss = pct < 0;
                           const pnlColor = hasPct ? (isWin ? "#2dd4bf" : isLoss ? "#f43f5e" : "rgba(255,255,255,0.5)") : "rgba(255,255,255,0.25)";
                           const dirColor = sig.bull_or_bear === "bullish" ? "#2dd4bf" : "#f43f5e";
                           const dirLabel = sig.bull_or_bear === "bullish" ? "LONG" : "SHORT";
-                          const hasEntry = sig.entry_price > 0;
-                          // Back-solve display-only currentPrice. pct is signed PnL,
-                          // so for SHORT the price moves opposite to PnL: invert.
+                          // Prefer the live mid for the displayed price. Back-solve
+                          // only when no live data: pct is signed PnL, so price
+                          // direction is opposite for SHORT — invert.
                           const priceChangePct = isShort ? -pct : pct;
-                          const currentPrice = hasEntry && hasPct
-                            ? sig.entry_price * (1 + priceChangePct / 100)
-                            : null;
+                          const currentPrice = liveMid != null
+                            ? liveMid
+                            : (hasEntry && hasPct ? sig.entry_price * (1 + priceChangePct / 100) : null);
                           return (
                             <SignalCard
                               key={sig.signal_id}
@@ -1500,6 +1517,7 @@ function KOLProfileContent() {
                               dirLabel={dirLabel}
                               hasEntry={hasEntry}
                               currentPrice={currentPrice}
+                              isLive={liveMid != null}
                               fmtPrice={fmtPrice}
                             />
                           );

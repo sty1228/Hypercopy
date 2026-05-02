@@ -24,6 +24,7 @@ import SignalItem from "./signalItem";
 import SignalDetailSheet, { SignalDetailData } from "./signalDetailSheet";
 import { useRewards } from "@/providers/RewardsContext";
 import { toast } from "sonner";
+import { useLiveMids } from "@/hooks/useLiveMids";
 
 const LS_HAS_COPIED = "hc_has_copied_before";
 
@@ -604,6 +605,7 @@ export default function KolDetailSheet({
   const { authenticated, login }            = usePrivy();
   const { triggerFirstCopyTrade, viewRewardsFromPrompt } = useRewards();
   const router = useRouter();
+  const { getMid } = useLiveMids();
 
   const isFollowed = followMode !== null;
 
@@ -902,6 +904,7 @@ export default function KolDetailSheet({
                 key={signal.signal_id}
                 data={signal}
                 index={index}
+                liveMid={getMid(signal.ticker)}
                 currentClickItemId={currentClickItemId}
                 onClick={() => setCurrentClickItemId(
                   currentClickItemId === signal.signal_id ? null : signal.signal_id

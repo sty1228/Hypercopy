@@ -45,12 +45,14 @@ export default function SignalItem({
   currentClickItemId,
   index = 0,
   onDetail,
+  liveMid,
 }: {
   data: UserSignalItem;
   onClick: (signalId: number) => void;
   currentClickItemId: number | null;
   index?: number;
   onDetail?: (data: UserSignalItem) => void;
+  liveMid?: number | null;
 }) {
   const { authenticated, login } = usePrivy();
   const router = useRouter();
@@ -59,13 +61,18 @@ export default function SignalItem({
 
   const isExpanded = currentClickItemId === data.signal_id;
   const isBullish = data.bull_or_bear === "bullish";
-  // Prefer BE's signed pct_change; fall back to the legacy raw
-  // change_since_tweet, flipping for SHORT so the chip's sign/color
-  // reflect signal P&L (not raw spot direction).
-  const change = data?.pct_change != null
+  // Seed from BE's signed pct_change; fall back to the legacy raw
+  // change_since_tweet flipped for SHORT.
+  const seedChange = data?.pct_change != null
     ? data.pct_change
     : ((data?.change_since_tweet || 0) * (isBullish ? 1 : -1));
+  // When a live mid is available, recompute signed PnL from current price
+  // vs entry — flip for SHORT so positive always means "signal in profit".
+  const change = (liveMid != null && data.entry_price > 0)
+    ? ((liveMid - data.entry_price) / data.entry_price) * 100 * (isBullish ? 1 : -1)
+    : seedChange;
   const isPositiveChange = change >= 0;
+  const isLive = liveMid != null;
   const tweetImage = data.tweet_image_url && !tweetImgError ? data.tweet_image_url : null;
   const { clean: cleanContent, url: tweetUrl } = parseTweetContent(data?.content || "");
 
@@ -242,6 +249,13 @@ export default function SignalItem({
               ${data?.ticker || "-"}
             </span>
             <span className="flex items-center gap-1">
+              {isLive && (
+                <span
+                  className="w-1.5 h-1.5 rounded-full bg-teal-400"
+                  style={{ animation: "siLivePulse 1.6s ease-in-out infinite", boxShadow: "0 0 4px rgba(45,212,191,0.7)" }}
+                  title="Live price"
+                />
+              )}
               <span className="text-[9px] text-gray-600 uppercase tracking-wide">P&amp;L</span>
               <span
                 className="px-2 py-0.5 rounded-full text-[10px] font-semibold"
@@ -289,6 +303,10 @@ export default function SignalItem({
         @keyframes slideUp {
           from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes siLivePulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(1.25); }
         }
       `}</style>
     </div>
