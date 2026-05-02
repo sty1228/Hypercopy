@@ -667,6 +667,7 @@ function SignalCard({ sig, index, pct, hasPct, isWin, pnlColor, dirColor, dirLab
   const [expanded, setExpanded] = useState(false);
   const textRef = useRef<HTMLParagraphElement>(null);
   const [isClamped, setIsClamped] = useState(false);
+  const [tweetImgError, setTweetImgError] = useState(false);
 
   useEffect(() => {
     const el = textRef.current;
@@ -676,6 +677,8 @@ function SignalCard({ sig, index, pct, hasPct, isWin, pnlColor, dirColor, dirLab
   // ★ NEW: Peak gain
   const hasPeak = sig.max_gain_pct != null && sig.max_gain_pct > 0.1;
   const peakTimeLabel = formatRelative(sig.max_gain_at);
+
+  const tweetImage = sig.tweet_image_url && !tweetImgError ? sig.tweet_image_url : null;
 
   return (
     <ScrollReveal delay={Math.min(index * 0.03, 0.3)} direction="up" distance={14}>
@@ -760,6 +763,20 @@ function SignalCard({ sig, index, pct, hasPct, isWin, pnlColor, dirColor, dirLab
                 {expanded ? "Show less" : "View more"}
               </button>
             )}
+          </div>
+        )}
+
+        {/* Tweet image preview — silently hidden if missing or load fails */}
+        {tweetImage && (
+          <div className="mt-2 rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={tweetImage}
+              alt=""
+              className="w-full max-h-[200px] object-cover block"
+              loading="lazy"
+              onError={() => setTweetImgError(true)}
+            />
           </div>
         )}
 
