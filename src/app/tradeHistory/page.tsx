@@ -5,8 +5,8 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import copyCountIcon from "@/assets/icons/copy-count.png";
 import copyRankIcon from "@/assets/icons/copy-rank.png";
-import { ChevronLeft, TrendingUp, TrendingDown, Filter, ArrowUpDown, Loader2 } from "lucide-react";
-import { getTradeHistory, TradeHistoryItem, TradesSummary, getOpenPositions, PositionItem } from "@/service";
+import { ChevronLeft, TrendingUp, TrendingDown, Filter, ArrowUpDown, Loader2, Heart, MessageCircle, Repeat2 } from "lucide-react";
+import { getTradeHistory, TradeHistoryItem, TradesSummary, getOpenPositions, PositionItem, TradeSignalSummary } from "@/service";
 import { getProfileData } from "@/service";
 import { useLiveMids } from "@/hooks/useLiveMids";
 
@@ -26,6 +26,9 @@ type CardItem = {
   trader_username: string | null;
   opened_at: string;
   closed_at: string | null;
+  // Source tweet — present only on closed/copy/counter trades.
+  // Active-tab items (PositionItem) have no signal concept.
+  signal?: TradeSignalSummary | null;
 };
 
 const cardStyle = {
@@ -119,6 +122,7 @@ export default function TradeHistoryPage() {
   const [activeTab, setActiveTab] = useState<TabKey | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [imgErrIds, setImgErrIds] = useState<Set<string>>(new Set());
 
   const [trades, setTrades] = useState<TradeHistoryItem[]>([]);
   const [openPositions, setOpenPositions] = useState<PositionItem[]>([]);
@@ -261,6 +265,7 @@ export default function TradeHistoryPage() {
           trader_username: t.trader_username,
           opened_at: t.opened_at,
           closed_at: t.closed_at,
+          signal: t.signal ?? null,
         }));
 
   return (
@@ -476,7 +481,13 @@ export default function TradeHistoryPage() {
                   {/* Expanded detail */}
                   <div
                     className="overflow-hidden transition-all duration-300 ease-out"
-                    style={{ maxHeight: isExpanded ? 120 : 0, opacity: isExpanded ? 1 : 0 }}
+                    style={{
+                      // Generous cap when a signal is attached so tweet text +
+                      // optional 180px image + engagement row all fit; tighter
+                      // cap on signal-less trades preserves the original feel.
+                      maxHeight: isExpanded ? (card.signal ? 520 : 120) : 0,
+                      opacity: isExpanded ? 1 : 0,
+                    }}
                   >
                     <div className="px-3 pb-2.5 pt-0">
                       <div className="h-px mb-2" style={{ background: isWin ? "rgba(45,212,191,0.1)" : "rgba(244,63,94,0.1)" }} />
@@ -493,6 +504,75 @@ export default function TradeHistoryPage() {
                           </div>
                         ))}
                       </div>
+
+                      {card.signal && (() => {
+                        const sig = card.signal;
+                        const hasImage = !!sig.tweet_image_url && !imgErrIds.has(card.id);
+                        const eng = (sig.likes ?? 0) + (sig.retweets ?? 0) + (sig.replies ?? 0);
+                        return (
+                          <div
+                            style={{
+                              opacity: isExpanded ? 1 : 0,
+                              transform: isExpanded ? "translateY(0)" : "translateY(6px)",
+                              transition: "all 0.3s cubic-bezier(0.25,0.46,0.45,0.94) 0.3s",
+                            }}
+                          >
+                            <div className="h-px my-2" style={{ background: "rgba(255,255,255,0.06)" }} />
+                            <p className="text-[8px] text-gray-500 uppercase tracking-wide mb-1">From this tweet</p>
+                            {sig.tweet_text && (
+                              <p
+                                className="text-[11px] leading-relaxed line-clamp-2"
+                                style={{ color: "rgba(255,255,255,0.7)" }}
+                              >
+                                {sig.tweet_text}
+                              </p>
+                            )}
+                            {hasImage && (
+                              <div
+                                className="mt-2 rounded-lg overflow-hidden"
+                                style={{ border: "1px solid rgba(255,255,255,0.08)" }}
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={sig.tweet_image_url!}
+                                  alt=""
+                                  className="w-full max-h-[180px] object-cover block"
+                                  loading="lazy"
+                                  onError={() =>
+                                    setImgErrIds((prev) => {
+                                      const next = new Set(prev);
+                                      next.add(card.id);
+                                      return next;
+                                    })
+                                  }
+                                />
+                              </div>
+                            )}
+                            {eng > 0 && (
+                              <div className="flex items-center gap-3 mt-2">
+                                {sig.likes > 0 && (
+                                  <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                                    <Heart size={10} className="text-rose-400/60" />
+                                    {sig.likes.toLocaleString()}
+                                  </span>
+                                )}
+                                {sig.retweets > 0 && (
+                                  <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                                    <Repeat2 size={10} className="text-teal-400/60" />
+                                    {sig.retweets.toLocaleString()}
+                                  </span>
+                                )}
+                                {sig.replies > 0 && (
+                                  <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                                    <MessageCircle size={10} className="text-blue-400/60" />
+                                    {sig.replies.toLocaleString()}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

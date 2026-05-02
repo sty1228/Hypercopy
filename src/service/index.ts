@@ -457,6 +457,21 @@ export const updateTraderSettings = async (
 
 // ─── Trades History ─────────────────────────────────────
 
+// Tweet that the trade was copied/countered from. Present when
+// source = "copy" | "counter"; null for manual trades. Returned
+// inline on TradeHistoryItem by /api/trades.
+export interface TradeSignalSummary {
+  tweet_id: string | null;
+  tweet_text: string | null;
+  tweet_image_url: string | null;
+  tweet_time: string | null;
+  likes: number;
+  retweets: number;
+  replies: number;
+  sentiment: "bullish" | "bearish" | "neutral";
+  max_gain_pct: number | null;
+}
+
 export interface TradeHistoryItem {
   id: string;
   ticker: string;
@@ -473,6 +488,7 @@ export interface TradeHistoryItem {
   trader_username: string | null;
   opened_at: string;
   closed_at: string | null;
+  signal?: TradeSignalSummary | null;
 }
 
 export interface TradesSummary {
